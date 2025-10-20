@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useCallback } from 'react';
-import ReactFlow, { Controls, Background, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge } from 'reactflow'; // Changed import from 'react-flow-renderer' to 'reactflow'
-import 'reactflow/dist/style.css'; // Import the default styles for reactflow
+import ReactFlow, { Controls, Background, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge } from 'reactflow';
+import 'reactflow/dist/style.css';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { showSuccess } from '@/utils/toast'; // Import showSuccess
 
 const initialNodes = [
   {
@@ -29,6 +30,7 @@ const Flows = () => {
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     console.log('Node clicked:', node.id, node.data.label);
+    showSuccess(`Node "${node.data.label}" clicked!`); // Add toast notification
     // In the future, you could open a dialog to edit node properties here
   }, []);
 
