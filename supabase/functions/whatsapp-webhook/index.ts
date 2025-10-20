@@ -288,7 +288,7 @@ serve(async (req) => {
               const nextNode = nodes.find((n: any) => n.id === outgoingEdge.target);
               if (nextNode) {
                 console.log('Transitioning to next node:', nextNode.id, nextNode.type);
-                if (nextNode.type === 'messageNode') {
+                if (nextNode.type === 'messageNode' || nextNode.type === 'welcomeMessageNode') {
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: nextNode.data.message });
                   responseSent = true;
                 } else if (nextNode.type === 'buttonMessageNode') {
@@ -390,16 +390,8 @@ serve(async (req) => {
             if (startNode) {
               const startEdge = edges.find((e: any) => e.source === startNode.id);
               if (startEdge) {
-                const nodeAfterStart = nodes.find((n: any) => n.id === startEdge.target);
-                if (nodeAfterStart && nodeAfterStart.type === 'welcomeMessageNode') {
-                  firstNodeToSend = nodeAfterStart;
-                  firstNodeId = nodeAfterStart.id;
-                } else {
-                  console.warn('Node after start-node is not a welcomeMessageNode. Sending default welcome message.');
-                  // Fallback to default welcome message if the first node isn't a welcome message
-                  await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
-                  responseSent = true;
-                }
+                firstNodeToSend = nodes.find((n: any) => n.id === startEdge.target);
+                firstNodeId = firstNodeToSend?.id;
               } else {
                 console.warn('Start node has no outgoing edge. No initial message from flow.');
               }
@@ -434,11 +426,11 @@ serve(async (req) => {
                   { onConflict: 'whatsapp_account_id,contact_phone_number' }
                 );
               if (upsertConvError) console.error('Error upserting conversation for new flow:', upsertConvError.message);
-            } else if (!responseSent) { // Only send if no response was sent by fallback above
+            } else {
               await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, the flow could not be started correctly." });
             }
-            responseSent = true;
           }
+          responseSent = true;
         } else if (matchedRule.response_message.length > 0 || (matchedRule.buttons && matchedRule.buttons.length > 0)) {
           for (const responseMessage of matchedRule.response_message) {
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: responseMessage });
@@ -471,7 +463,31 @@ serve(async (req) => {
       }
     }
 
-    // If no rule or flow was matched, send a default welcome message
+    // If no rule or flow was matched, try OpenAI
+    if (!responseSent) {
+      console.log('No rule or flow matched. Attempting to get AI response from OpenAI.');
+      try {
+        const openaiResponse = await supabaseClient.functions.invoke('openai-chat', {
+          body: { message: incomingText },
+        });
+
+        if (openaiResponse.error) {
+          console.error('Error invoking OpenAI chat function:', openaiResponse.error.message);
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment." });
+        } else if (openaiResponse.data.status === 'success') {
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: openaiResponse.data.response });
+          responseSent = true;
+        } else {
+          console.error('OpenAI chat function returned an error status:', openaiResponse.data.message);
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
+        }
+      } catch (aiInvokeError) {
+        console.error('Unexpected error during OpenAI invocation:', aiInvokeError.message);
+        await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
+      }
+    }
+
+    // If still no response (e.g., OpenAI failed or was not enabled), send a generic fallback
     if (!responseSent) {
       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
     }
