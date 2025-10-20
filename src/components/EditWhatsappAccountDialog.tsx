@@ -50,7 +50,8 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
   const [accountName, setAccountName] = useState(account.account_name);
   const [phoneNumberId, setPhoneNumberId] = useState(account.phone_number_id);
   const [accessToken, setAccessToken] = useState(""); // Not pre-filled for security
-  const [openaiApiKey, setOpenaiApiKey] = useState("");
+  const [openaiApiKeyInput, setOpenaiApiKeyInput] = useState(""); // For the input field (always empty on load)
+  const [existingOpenaiApiKey, setExistingOpenaiApiKey] = useState<string | null>(null); // To hold the actual key from DB
   const [isAiEnabled, setIsAiEnabled] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -59,9 +60,9 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
   useEffect(() => {
     setAccountName(account.account_name);
     setPhoneNumberId(account.phone_number_id);
-    // Do NOT set accessToken here for security reasons. User must re-enter if needed.
     setAccessToken(""); 
-    
+    setOpenaiApiKeyInput(""); // Ensure input is always empty on dialog open
+
     const fetchOpenAIConfig = async () => {
       if (!user || !account.id) return;
       setIsAiConfigLoading(true);
@@ -78,13 +79,11 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
         }
 
         if (data) {
-          // Do NOT pre-fill openaiApiKey for security. User must re-enter if needed.
-          setOpenaiApiKey(""); 
+          setExistingOpenaiApiKey(data.openai_api_key); // Store the actual key
           setIsAiEnabled(data.is_enabled);
           setSystemPrompt(data.system_prompt || "");
         } else {
-          // Reset if no config found
-          setOpenaiApiKey("");
+          setExistingOpenaiApiKey(null);
           setIsAiEnabled(false);
           setSystemPrompt("");
         }
@@ -133,8 +132,16 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
         throw accountError;
       }
 
+      // Determine which OpenAI API key to use for update
+      let finalOpenaiApiKey: string | null = null;
+      if (openaiApiKeyInput.trim()) {
+        finalOpenaiApiKey = openaiApiKeyInput.trim(); // User entered a new key
+      } else if (existingOpenaiApiKey) {
+        finalOpenaiApiKey = existingOpenaiApiKey; // Use the existing key if input is empty
+      }
+
       // Update or Insert OpenAI Config
-      if (isAiEnabled && !openaiApiKey.trim()) {
+      if (isAiEnabled && !finalOpenaiApiKey) {
         showError("OpenAI API Key is required if AI assistant is enabled.");
         setIsLoading(false);
         return;
@@ -156,8 +163,10 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
           is_enabled: isAiEnabled,
           system_prompt: systemPrompt.trim() || null,
         };
-        if (openaiApiKey.trim()) {
-          updateAiConfigPayload.openai_api_key = openaiApiKey.trim();
+        if (finalOpenaiApiKey) { // Only update if a key is available
+          updateAiConfigPayload.openai_api_key = finalOpenaiApiKey;
+        } else if (!isAiEnabled) { // If AI is disabled and no new key, explicitly set to null
+          updateAiConfigPayload.openai_api_key = null;
         }
 
         const { error: updateAiError } = await supabase
@@ -167,25 +176,24 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
           .eq("user_id", user.id);
 
         if (updateAiError) throw updateAiError;
-      } else if (isAiEnabled && openaiApiKey.trim()) {
+      } else if (isAiEnabled && finalOpenaiApiKey) {
         // Insert new config
         const { error: insertAiError } = await supabase
           .from("openai_configs")
           .insert({
             whatsapp_account_id: account.id,
             user_id: user.id,
-            openai_api_key: openaiApiKey.trim(),
+            openai_api_key: finalOpenaiApiKey,
             is_enabled: isAiEnabled,
             system_prompt: systemPrompt.trim() || null,
           });
 
         if (insertAiError) throw insertAiError;
       } else if (!isAiEnabled && existingAiConfig) {
-        // If AI is disabled and a config exists, we could delete it or just disable it.
-        // For now, let's just update is_enabled to false.
+        // If AI is disabled and a config exists, update is_enabled to false and clear key
         const { error: disableAiError } = await supabase
           .from("openai_configs")
-          .update({ is_enabled: false })
+          .update({ is_enabled: false, openai_api_key: null })
           .eq("id", existingAiConfig.id)
           .eq("user_id", user.id);
         if (disableAiError) throw disableAiError;
@@ -282,13 +290,16 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
                       <Input
                         id="openaiApiKey"
                         type="password"
-                        value={openaiApiKey}
-                        onChange={(e) => setOpenaiApiKey(e.target.value)}
+                        value={openaiApiKeyInput}
+                        onChange={(e) => setOpenaiApiKeyInput(e.target.value)}
                         className="col-span-3"
                         placeholder="sk-..."
-                        required={isAiEnabled}
+                        required={isAiEnabled && !existingOpenaiApiKey}
                       />
                     </div>
+                    <p className="col-span-4 text-sm text-gray-500 dark:text-gray-400 -mt-2 mb-2">
+                      {existingOpenaiApiKey ? "API Key is set. Re-enter only if you want to change it." : "No API Key set."}
+                    </p>
                     <div className="grid grid-cols-4 items-start gap-4">
                       <Label htmlFor="systemPrompt" className="text-right pt-2">
                         System Prompt
