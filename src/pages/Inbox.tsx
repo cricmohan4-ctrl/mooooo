@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -18,7 +18,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-// import { useIsMobile } from '@/hooks/use-mobile'; // No longer needed for layout logic
+import AddNewContactDialog from '@/components/AddNewContactDialog'; // Import the new component
 
 interface WhatsappAccount {
   id: string;
@@ -48,7 +48,6 @@ interface Message {
 
 const Inbox = () => {
   const { user } = useSession();
-  // const isMobile = useIsMobile(); // No longer used for conditional layout
 
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsappAccount[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -224,6 +223,13 @@ const Inbox = () => {
 
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
+  };
+
+  const handleNewChatCreated = (conversation: Conversation) => {
+    // This function is called from AddNewContactDialog when a new chat is created
+    // or an existing one is found. We need to refresh conversations and select it.
+    fetchConversations(); // Refresh the list to include the new/found conversation
+    setSelectedConversation(conversation); // Directly select the conversation
   };
 
   const uploadMediaToSupabase = async (file: Blob, fileName: string, fileType: string) => {
@@ -492,25 +498,33 @@ const Inbox = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center">
-        {selectedConversation ? (
-          <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        ) : (
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboard">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div className="flex items-center">
+          {selectedConversation ? (
+            <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
               <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-        )}
-        <h1 className="text-2xl font-bold ml-4">
-          {selectedConversation ? selectedConversation.contact_phone_number : "WhatsApp Inbox"}
-        </h1>
-        {selectedConversation && (
-          <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-            ({selectedConversation.whatsapp_account_name})
-          </span>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/dashboard">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+          )}
+          <h1 className="text-2xl font-bold ml-4">
+            {selectedConversation ? selectedConversation.contact_phone_number : "WhatsApp Inbox"}
+          </h1>
+          {selectedConversation && (
+            <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+              ({selectedConversation.whatsapp_account_name})
+            </span>
+          )}
+        </div>
+        {!selectedConversation && whatsappAccounts.length > 0 && (
+          <AddNewContactDialog
+            whatsappAccounts={whatsappAccounts}
+            onNewChatCreated={handleNewChatCreated}
+          />
         )}
       </div>
 
