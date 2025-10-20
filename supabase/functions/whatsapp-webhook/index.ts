@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import OpenAI from 'openai';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -358,7 +359,7 @@ serve(async (req) => {
         console.error('Error fetching chatbot rules:', rulesError.message);
       }
 
-      let matchedResponseMessages: string[] = ["I'm sorry, I didn't understand that. Please try again."];
+      let matchedResponseMessages: string[] = [];
       let matchedButtons: { text: string; payload: string }[] | null = null;
       let matchedFlowId: string | null = null;
 
@@ -418,9 +419,6 @@ serve(async (req) => {
               firstNodeToSend = nodes.find((n: any) => n.id === startEdge.target);
               firstNodeId = firstNodeToSend?.id;
             } else {
-              // If start node has no outgoing edge, it's just a trigger.
-              // We might need a more robust way to define the actual first message.
-              // For now, if no edge, no message is sent from the flow start.
               console.warn('Start node has no outgoing edge. No initial message from flow.');
             }
           }
@@ -459,7 +457,8 @@ serve(async (req) => {
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, the flow could not be started correctly." });
           }
         }
-      } else {
+        responseSent = true; // A flow was matched and attempted to start
+      } else if (matchedResponseMessages.length > 0 || (matchedButtons && matchedButtons.length > 0)) {
         // Send static response if no flow is linked
         for (const responseMessage of matchedResponseMessages) {
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: responseMessage });
@@ -488,7 +487,82 @@ serve(async (req) => {
             .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
             .eq('id', currentConversation.id);
         }
+        responseSent = true; // A rule was matched and a static response was sent
       }
+    }
+
+    // If no response was sent by flows or rules, check for AI assistant
+    if (!responseSent) {
+      const { data: openaiConfig, error: openaiConfigError } = await supabaseServiceRoleClient
+        .from('openai_configs')
+        .select('openai_api_key, is_enabled, system_prompt')
+        .eq('whatsapp_account_id', whatsappAccountId)
+        .eq('user_id', userId)
+        .single();
+
+      if (openaiConfigError && openaiConfigError.code !== 'PGRST116') {
+        console.error('Error fetching OpenAI config:', openaiConfigError.message);
+      }
+
+      if (openaiConfig?.is_enabled && openaiConfig?.openai_api_key) {
+        console.log('AI assistant is enabled. Generating response...');
+        try {
+          const openai = new OpenAI({ apiKey: openaiConfig.openai_api_key });
+
+          // Fetch recent messages for context
+          const { data: recentMessages, error: messagesError } = await supabaseServiceRoleClient
+            .from('whatsapp_messages')
+            .select('message_body, direction')
+            .eq('whatsapp_account_id', whatsappAccountId)
+            .or(`from_phone_number.eq.${fromPhoneNumber},to_phone_number.eq.${fromPhoneNumber}`)
+            .order('created_at', { ascending: true })
+            .limit(10); // Get last 10 messages for context
+
+          if (messagesError) {
+            console.error('Error fetching recent messages for AI context:', messagesError.message);
+          }
+
+          const messagesForAI: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+
+          if (openaiConfig.system_prompt) {
+            messagesForAI.push({ role: 'system', content: openaiConfig.system_prompt });
+          }
+
+          if (recentMessages) {
+            for (const msg of recentMessages) {
+              if (msg.direction === 'incoming') {
+                messagesForAI.push({ role: 'user', content: msg.message_body });
+              } else if (msg.direction === 'outgoing') {
+                messagesForAI.push({ role: 'assistant', content: msg.message_body });
+              }
+            }
+          }
+          
+          // Add the current incoming message
+          messagesForAI.push({ role: 'user', content: incomingText });
+
+          const chatCompletion = await openai.chat.completions.create({
+            model: 'gpt-3.5-turbo', // Or 'gpt-4o' if preferred and available
+            messages: messagesForAI,
+            max_tokens: 150,
+          });
+
+          const aiResponse = chatCompletion.choices[0].message.content;
+          if (aiResponse) {
+            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: aiResponse });
+            responseSent = true;
+          }
+        } catch (aiError: any) {
+          console.error('Error calling OpenAI API:', aiError.message);
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI assistant right now." });
+          responseSent = true;
+        }
+      }
+    }
+
+    // If still no response, send a default "didn't understand" message
+    if (!responseSent) {
+      await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I didn't understand that. Please try again." });
     }
 
     return new Response(JSON.stringify({ status: 'success', message: 'Webhook processed' }), {
@@ -498,9 +572,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error processing WhatsApp webhook:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ status: 'error', message: 'Internal server error in Edge Function', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 200,
     });
   }
 });
