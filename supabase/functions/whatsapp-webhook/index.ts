@@ -7,18 +7,36 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // --- START: Ultra-basic logging for ALL incoming requests ---
   console.log('--- Webhook received request ---');
   console.log('Method:', req.method);
   console.log('URL:', req.url);
   console.log('Headers:', JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
-  // --- END: Ultra-basic logging ---
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // --- START: Meta Webhook Verification Logic ---
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    const mode = url.searchParams.get('hub.mode');
+    const token = url.searchParams.get('hub.verify_token');
+    const challenge = url.searchParams.get('hub.challenge');
+
+    const VERIFY_TOKEN = Deno.env.get('WHATSAPP_VERIFY_TOKEN'); // Get token from environment variable
+
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('Webhook verified successfully!');
+      return new Response(challenge, { status: 200 });
+    } else {
+      console.error('Webhook verification failed: Invalid mode or token.');
+      return new Response('Verification token mismatch', { status: 403 });
+    }
+  }
+  // --- END: Meta Webhook Verification Logic ---
+
+  // --- START: Existing POST request logic for actual messages ---
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -31,18 +49,17 @@ serve(async (req) => {
     );
 
     const payload = await req.json();
-    console.log('Received WhatsApp webhook payload:', JSON.stringify(payload, null, 2)); // This should always log if the webhook is received
+    console.log('Received WhatsApp webhook payload:', JSON.stringify(payload, null, 2));
 
-    // Extract relevant WhatsApp message data
     const messageEntry = payload.entry?.[0];
     const messageChange = messageEntry?.changes?.[0];
     const messageValue = messageChange?.value;
     const incomingMessage = messageValue?.messages?.[0];
-    const whatsappBusinessAccountId = messageValue?.metadata?.phone_number_id; // The ID of your WhatsApp Business Account
-    const whatsappBusinessPhoneNumber = messageValue?.metadata?.display_phone_number; // The phone number of your WhatsApp Business Account
+    const whatsappBusinessAccountId = messageValue?.metadata?.phone_number_id;
+    const whatsappBusinessPhoneNumber = messageValue?.metadata?.display_phone_number;
 
     if (!incomingMessage || !whatsappBusinessAccountId || !whatsappBusinessPhoneNumber) {
-      console.log('No incoming message, account ID, or phone number in payload. Returning 200.'); // Added log
+      console.log('No incoming message, account ID, or phone number in payload. Returning 200.');
       return new Response(JSON.stringify({ status: 'success', message: 'No message or account info to process' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -58,15 +75,13 @@ serve(async (req) => {
       incomingText = incomingMessage.interactive.button_reply.payload;
     } else {
       console.log(`Unhandled message type: ${incomingMessage.type}`);
-      // For now, we'll just store a generic message for unhandled types
       incomingText = `[${incomingMessage.type} message]`;
     }
 
-    const fromPhoneNumber = incomingMessage.from; // The user's WhatsApp ID
+    const fromPhoneNumber = incomingMessage.from;
 
     console.log(`Processing message from ${fromPhoneNumber} to ${whatsappBusinessAccountId}: "${incomingText}"`);
 
-    // Fetch the user_id associated with this whatsapp_account_id
     const { data: accountData, error: accountError } = await supabaseClient
       .from('whatsapp_accounts')
       .select('user_id, access_token')
@@ -75,24 +90,22 @@ serve(async (req) => {
 
     if (accountError || !accountData) {
       console.error('Error fetching WhatsApp account or user_id:', accountError?.message);
-      // It's important to return a 200 here for Meta, even if we can't process it, to avoid retries.
       return new Response(JSON.stringify({ status: 'error', message: 'WhatsApp account not found or user_id missing.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200, // Return 200 to Meta to prevent retries, but log the error
+        status: 200,
       });
     }
 
     const userId = accountData.user_id;
     const whatsappAccessToken = accountData.access_token;
 
-    // Save incoming message to database
     const { error: insertIncomingError } = await supabaseClient
       .from('whatsapp_messages')
       .insert({
         user_id: userId,
-        whatsapp_account_id: accountData.id, // Use the ID from the fetched account
+        whatsapp_account_id: accountData.id,
         from_phone_number: fromPhoneNumber,
-        to_phone_number: whatsappBusinessPhoneNumber, // The business's number
+        to_phone_number: whatsappBusinessPhoneNumber,
         message_body: incomingText,
         message_type: messageType,
         direction: 'incoming',
@@ -104,18 +117,16 @@ serve(async (req) => {
       console.log('Incoming message saved to database.');
     }
 
-    // Fetch chatbot rules for this WhatsApp account
     const { data: rules, error: rulesError } = await supabaseClient
       .from('chatbot_rules')
-      .select('trigger_value, trigger_type, response_message, buttons') // Removed whatsapp_accounts(access_token) as we already have it
-      .eq('whatsapp_account_id', accountData.id); // Use the ID from the fetched account
+      .select('trigger_value, trigger_type, response_message, buttons')
+      .eq('whatsapp_account_id', accountData.id);
 
     if (rulesError) {
-      console.error('Error fetching chatbot rules:', rulesError.message); // Added log
-      // Continue processing even if rules fail to fetch, just won't send automated response
+      console.error('Error fetching chatbot rules:', rulesError.message);
     }
 
-    let matchedResponseMessages: string[] = ["I'm sorry, I didn't understand that. Please try again."]; // Default response
+    let matchedResponseMessages: string[] = ["I'm sorry, I didn't understand that. Please try again."];
     let matchedButtons: { text: string; payload: string }[] | null = null;
 
     const lowerCaseIncomingText = incomingText.toLowerCase();
@@ -142,15 +153,13 @@ serve(async (req) => {
       if (match) {
         matchedResponseMessages = rule.response_message as string[];
         matchedButtons = rule.buttons as { text: string; payload: string }[] | null;
-        break; // Found a match, use this rule's response
+        break;
       }
     }
 
-    // If an access token was found for the account, attempt to send responses
     if (whatsappAccessToken && whatsappBusinessAccountId) {
       const whatsappApiUrl = `https://graph.facebook.com/v19.0/${whatsappBusinessAccountId}/messages`;
       
-      // Send all text messages first
       for (const responseMessage of matchedResponseMessages) {
         console.log(`Sending text response: "${responseMessage}" to ${fromPhoneNumber} using account ${whatsappBusinessAccountId}`);
         const response = await fetch(whatsappApiUrl, {
@@ -170,18 +179,16 @@ serve(async (req) => {
         const responseData = await response.json();
         if (!response.ok) {
           console.error('Error sending WhatsApp text message:', responseData);
-          // Don't throw here, just log and continue to avoid breaking the entire webhook
         } else {
           console.log('WhatsApp text message sent successfully:', responseData);
         }
 
-        // Save outgoing text message to database
         const { error: insertOutgoingError } = await supabaseClient
           .from('whatsapp_messages')
           .insert({
             user_id: userId,
             whatsapp_account_id: accountData.id,
-            from_phone_number: whatsappBusinessPhoneNumber, // The business's number
+            from_phone_number: whatsappBusinessPhoneNumber,
             to_phone_number: fromPhoneNumber,
             message_body: responseMessage,
             message_type: 'text',
@@ -195,20 +202,18 @@ serve(async (req) => {
         }
       }
 
-      // If there are buttons, send an interactive message with buttons
       if (matchedButtons && matchedButtons.length > 0) {
         const interactiveButtons = matchedButtons.map(btn => ({
           type: "reply",
           reply: {
-            id: btn.payload, // Use payload as button ID
+            id: btn.payload,
             title: btn.text,
           },
         }));
 
-        // WhatsApp interactive messages require a body text
         const interactiveBodyText = matchedResponseMessages.length > 0 
-          ? matchedResponseMessages[matchedResponseMessages.length - 1] // Use last text message as body
-          : "Please choose an option:"; // Fallback if no text messages
+          ? matchedResponseMessages[matchedResponseMessages.length - 1]
+          : "Please choose an option:";
 
         console.log(`Sending interactive buttons to ${fromPhoneNumber} using account ${whatsappBusinessAccountId}`);
         const response = await fetch(whatsappApiUrl, {
@@ -236,20 +241,18 @@ serve(async (req) => {
         const responseData = await response.json();
         if (!response.ok) {
           console.error('Error sending WhatsApp interactive message:', responseData);
-          // Don't throw here, just log and continue
         } else {
           console.log('WhatsApp interactive message sent successfully:', responseData);
         }
 
-        // Save outgoing interactive message to database
         const { error: insertOutgoingInteractiveError } = await supabaseClient
           .from('whatsapp_messages')
           .insert({
             user_id: userId,
             whatsapp_account_id: accountData.id,
-            from_phone_number: whatsappBusinessPhoneNumber, // The business's number
+            from_phone_number: whatsappBusinessPhoneNumber,
             to_phone_number: fromPhoneNumber,
-            message_body: interactiveBodyText, // Store the body text of the interactive message
+            message_body: interactiveBodyText,
             message_type: 'interactive',
             direction: 'outgoing',
           });
