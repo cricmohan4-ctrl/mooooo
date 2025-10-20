@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MessageCircle, User, Send } from 'lucide-react';
@@ -42,16 +42,20 @@ const Inbox = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isLoadingConversations, setIsLoadingConversations] = useState(true); // Separate loading state for conversations
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false); // Loading state for messages
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const fetchWhatsappAccounts = useCallback(async () => {
     if (!user) {
-      console.log("Inbox: User not logged in, cannot fetch WhatsApp accounts.");
-      setIsLoadingConversations(false); // If no user, no conversations to load
+      setIsLoadingConversations(false);
       return;
     }
-    console.log("Inbox: Starting fetchWhatsappAccounts for user ID:", user.id);
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
@@ -60,31 +64,24 @@ const Inbox = () => {
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
-      console.log("Inbox: Successfully fetched WhatsApp accounts:", data);
     } catch (error: any) {
-      console.error("Inbox: Error fetching WhatsApp accounts:", error.message);
+      console.error("Error fetching WhatsApp accounts:", error.message);
       showError("Failed to load WhatsApp accounts.");
-      setWhatsappAccounts([]); // Clear accounts on error
-      setIsLoadingConversations(false); // If accounts fail, no conversations can be loaded
+      setWhatsappAccounts([]);
     } finally {
-      console.log("Inbox: fetchWhatsappAccounts finished.");
+      setIsLoadingConversations(false);
     }
   }, [user]);
 
   const fetchConversations = useCallback(async () => {
     if (!user || whatsappAccounts.length === 0) {
-      console.log("Inbox: User not logged in or no WhatsApp accounts, skipping conversation fetch.");
-      setIsLoadingConversations(false); // Ensure loading is false if prerequisites are not met
+      setIsLoadingConversations(false);
       return;
     }
-    setIsLoadingConversations(true); // Set loading true when starting this fetch
-    console.log("Inbox: Starting fetchConversations for user ID:", user.id);
-    console.log("Inbox: User ID for RPC call:", user.id);
+    setIsLoadingConversations(true);
     try {
-      console.log("Inbox: Calling Supabase RPC 'get_latest_whatsapp_conversations'...");
       const { data, error } = await supabase
         .rpc('get_latest_whatsapp_conversations', { p_user_id: user.id });
-      console.log("Inbox: Supabase RPC call returned.");
 
       if (error) throw error;
 
@@ -93,25 +90,21 @@ const Inbox = () => {
         last_message_body: conv.last_message_body,
         last_message_time: conv.last_message_time,
         whatsapp_account_id: conv.whatsapp_account_id,
-        whatsapp_account_name: conv.account_name, // Corrected to use 'account_name' from RPC
+        whatsapp_account_name: conv.whatsapp_account_name,
       }));
       setConversations(formattedConversations);
-      console.log("Inbox: Successfully fetched conversations:", formattedConversations);
     } catch (error: any) {
-      console.error("Inbox: Error fetching conversations:", error.message);
+      console.error("Error fetching conversations:", error.message);
       showError("Failed to load conversations.");
-      setConversations([]); // Clear conversations on error
+      setConversations([]);
     } finally {
-      setIsLoadingConversations(false); // Always set loading to false when this fetch completes
-      console.log("Inbox: fetchConversations finished.");
+      setIsLoadingConversations(false);
     }
-  }, [user, whatsappAccounts]); // Dependencies for useCallback
+  }, [user, whatsappAccounts]);
 
   const fetchMessages = useCallback(async (conversation: Conversation) => {
     if (!user) return;
-    setIsLoadingMessages(true); // Set loading for messages
-    console.log("Inbox: Attempting to fetch messages for conversation:", conversation);
-    console.log("Inbox: Querying messages for user:", user.id, "account:", conversation.whatsapp_account_id, "contact:", conversation.contact_phone_number);
+    setIsLoadingMessages(true);
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages")
@@ -122,49 +115,80 @@ const Inbox = () => {
         .order("created_at", { ascending: true });
 
       if (error) {
-        console.error("Inbox: Supabase error fetching messages:", error.message);
         throw error;
       }
       setMessages(data || []);
-      console.log("Inbox: Fetched messages for conversation:", data);
     } catch (error: any) {
       console.error("Error fetching messages:", error.message);
       showError("Failed to load messages.");
     } finally {
-      setIsLoadingMessages(false); // Always set loading to false for messages
+      setIsLoadingMessages(false);
     }
   }, [user]);
 
   useEffect(() => {
     if (user) {
-      console.log("Inbox: User session available, initiating account fetch.");
       fetchWhatsappAccounts();
     } else {
-      console.log("Inbox: User session not available, setting isLoadingConversations to false.");
-      setIsLoadingConversations(false); // If no user, no conversations to load
+      setIsLoadingConversations(false);
     }
   }, [user, fetchWhatsappAccounts]);
 
   useEffect(() => {
-    console.log("Inbox: useEffect for conversations triggered. User:", !!user, "Accounts length:", whatsappAccounts.length); // NEW LOG
-    if (user) { // Only proceed if user is logged in
-      if (whatsappAccounts.length > 0) {
-        console.log("Inbox: WhatsApp accounts loaded and user present, initiating conversation fetch.");
-        fetchConversations();
-      } else {
-        console.log("Inbox: User logged in but no WhatsApp accounts found, setting isLoadingConversations to false.");
-        setIsLoadingConversations(false); // Important: set to false here
-      }
+    if (user && whatsappAccounts.length > 0) {
+      fetchConversations();
+    } else if (user && whatsappAccounts.length === 0) {
+      setIsLoadingConversations(false);
     }
-  }, [whatsappAccounts, user, fetchConversations]); // Added fetchConversations to dependencies
+  }, [whatsappAccounts, user, fetchConversations]);
 
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
     } else {
-      setMessages([]); // Clear messages if no conversation is selected
+      setMessages([]);
     }
   }, [selectedConversation, fetchMessages]);
+
+  // Realtime subscription for messages
+  useEffect(() => {
+    if (!user || !selectedConversation) return;
+
+    const channel = supabase
+      .channel(`messages_for_conversation_${selectedConversation.whatsapp_account_id}_${selectedConversation.contact_phone_number}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'whatsapp_messages',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newMessage = payload.new as Message;
+          // Check if the new message belongs to the currently selected conversation
+          const isRelevant =
+            (newMessage.whatsapp_account_id === selectedConversation.whatsapp_account_id &&
+              (newMessage.from_phone_number === selectedConversation.contact_phone_number ||
+               newMessage.to_phone_number === selectedConversation.contact_phone_number));
+
+          if (isRelevant) {
+            setMessages((prevMessages) => [...prevMessages, newMessage]);
+            fetchConversations(); // Refresh conversations to update last message preview
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, selectedConversation, fetchConversations]);
+
+  // Auto-scroll to bottom on messages update
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
@@ -180,7 +204,6 @@ const Inbox = () => {
     }
 
     try {
-      // Invoke the new Edge Function to send the message
       const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
         body: {
           toPhoneNumber: selectedConversation.contact_phone_number,
@@ -200,8 +223,8 @@ const Inbox = () => {
 
       showSuccess("Message sent successfully!");
       setNewMessage("");
-      fetchMessages(selectedConversation); // Refresh messages to show the sent message
-      fetchConversations(); // Refresh conversations to update last message
+      // Messages will be updated via realtime subscription, no need to fetchMessages here
+      // Conversations will be updated via realtime subscription, no need to fetchConversations here
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
@@ -290,6 +313,7 @@ const Inbox = () => {
                     </div>
                   ))
                 )}
+                <div ref={messagesEndRef} /> {/* Scroll target */}
               </div>
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center">
                 <Input

@@ -109,6 +109,19 @@ serve(async (req) => {
       // Continue, as the message was already sent via WhatsApp API
     } else {
       console.log('Outgoing message saved to database.');
+      // Update or create conversation entry for outgoing message
+      await supabaseServiceRoleClient
+        .from('whatsapp_conversations')
+        .upsert(
+          {
+            user_id: userId,
+            whatsapp_account_id: whatsappAccountId,
+            contact_phone_number: toPhoneNumber,
+            last_message_at: new Date().toISOString(),
+            last_message_body: messageBody,
+          },
+          { onConflict: 'whatsapp_account_id,contact_phone_number' }
+        );
     }
 
     return new Response(JSON.stringify({ status: 'success', data: responseData }), {

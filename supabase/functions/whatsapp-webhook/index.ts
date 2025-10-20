@@ -125,6 +125,19 @@ serve(async (req) => {
       console.error('Error saving incoming message:', insertIncomingError.message);
     } else {
       console.log('Incoming message saved to database.');
+      // Update or create conversation entry for incoming message
+      await supabaseServiceRoleClient
+        .from('whatsapp_conversations')
+        .upsert(
+          {
+            user_id: userId,
+            whatsapp_account_id: whatsappAccountId,
+            contact_phone_number: fromPhoneNumber,
+            last_message_at: new Date().toISOString(),
+            last_message_body: incomingText,
+          },
+          { onConflict: 'whatsapp_account_id,contact_phone_number' }
+        );
     }
 
     // Function to send WhatsApp message
@@ -181,6 +194,19 @@ serve(async (req) => {
         console.error('Error saving outgoing message:', insertOutgoingError.message);
       } else {
         console.log('Outgoing message saved to database.');
+        // Update or create conversation entry for outgoing message
+        await supabaseServiceRoleClient
+          .from('whatsapp_conversations')
+          .upsert(
+            {
+              user_id: userId,
+              whatsapp_account_id: whatsappAccountId,
+              contact_phone_number: to,
+              last_message_at: new Date().toISOString(),
+              last_message_body: type === 'text' ? content.body : JSON.stringify(content),
+            },
+            { onConflict: 'whatsapp_account_id,contact_phone_number' }
+          );
       }
     };
 
@@ -382,6 +408,7 @@ serve(async (req) => {
                   current_flow_id: matchedFlowId,
                   current_node_id: firstNodeId,
                   last_message_at: new Date().toISOString(),
+                  last_message_body: firstNodeToSend.type === 'text' ? firstNodeToSend.data.message : JSON.stringify(firstNodeToSend.data),
                 },
                 { onConflict: 'whatsapp_account_id,contact_phone_number' }
               );
