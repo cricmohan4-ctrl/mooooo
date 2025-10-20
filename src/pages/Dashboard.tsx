@@ -1,9 +1,10 @@
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon } from "lucide-react";
+import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon, Edit } from "lucide-react";
 import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
 import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
+import EditChatbotRuleDialog from "@/components/EditChatbotRuleDialog"; // New import
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
@@ -38,7 +39,7 @@ interface ChatbotRule {
   trigger_value: string;
   trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
   response_message: string[];
-  buttons?: ButtonConfig[];
+  buttons?: ButtonConfig[] | null;
   account_name?: string;
 }
 
@@ -48,6 +49,8 @@ const Dashboard = () => {
   const [chatbotRules, setChatbotRules] = useState<ChatbotRule[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
   const [isLoadingRules, setIsLoadingRules] = useState(true);
+  const [isEditRuleDialogOpen, setIsEditRuleDialogOpen] = useState(false); // State for edit dialog
+  const [selectedRuleToEdit, setSelectedRuleToEdit] = useState<ChatbotRule | null>(null); // State for rule being edited
 
   const fetchWhatsappAccounts = async () => {
     if (!user) return;
@@ -132,6 +135,11 @@ const Dashboard = () => {
       console.error("Error deleting chatbot rule:", error.message);
       showError(`Failed to delete rule: ${error.message}`);
     }
+  };
+
+  const handleEditRuleClick = (rule: ChatbotRule) => {
+    setSelectedRuleToEdit(rule);
+    setIsEditRuleDialogOpen(true);
   };
 
   useEffect(() => {
@@ -269,27 +277,32 @@ const Dashboard = () => {
                         )}
                         <p className="text-xs text-gray-400 dark:text-gray-500 ml-8 mt-1">Account: {rule.account_name || 'N/A'}</p>
                       </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete this chatbot rule.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteRule(rule.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEditRuleClick(rule)} title="Edit Rule">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" title="Delete Rule">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this chatbot rule.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteRule(rule.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -299,6 +312,16 @@ const Dashboard = () => {
         </div>
       </div>
       <MadeWithDyad />
+
+      {selectedRuleToEdit && (
+        <EditChatbotRuleDialog
+          rule={selectedRuleToEdit}
+          whatsappAccounts={whatsappAccounts}
+          onRuleUpdated={fetchChatbotRules}
+          isOpen={isEditRuleDialogOpen}
+          onOpenChange={setIsEditRuleDialogOpen}
+        />
+      )}
     </div>
   );
 };
