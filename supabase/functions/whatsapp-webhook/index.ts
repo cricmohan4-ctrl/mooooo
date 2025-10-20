@@ -7,6 +7,13 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // --- START: Ultra-basic logging for ALL incoming requests ---
+  console.log('--- Webhook received request ---');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
+  // --- END: Ultra-basic logging ---
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
