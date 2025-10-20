@@ -463,8 +463,9 @@ serve(async (req) => {
       }
     }
 
+    // If no rule or flow was matched, send a default welcome message
     if (!responseSent) {
-      await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I didn't understand that. Please try again." });
+      await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
     }
 
     return new Response(JSON.stringify({ status: 'success', message: 'Webhook processed' }), {
