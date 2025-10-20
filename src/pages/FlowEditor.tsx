@@ -19,7 +19,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareIncoming } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText } from 'lucide-react'; // Changed from MessageSquareIncoming
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
@@ -92,7 +92,7 @@ const FlowEditorContent = () => {
         .from("chatbot_flows")
         .update({ flow_data: flowData, updated_at: new Date().toISOString() })
         .eq("id", flowId)
-        .eq("user.id", user.id); // Corrected user.id reference
+        .eq("user_id", user.id); // Corrected user.id reference
 
       if (error) throw error;
       showSuccess("Flow saved successfully!");
@@ -285,7 +285,7 @@ const FlowEditorContent = () => {
               <MousePointerClick className="h-4 w-4 mr-2" /> Button Message Node
             </Button>
             <Button className="w-full justify-start" variant="outline" onClick={() => addNode('incomingMessageNode')}>
-              <MessageSquareIncoming className="h-4 w-4 mr-2" /> Incoming Message Node
+              <MessageSquareText className="h-4 w-4 mr-2" /> Incoming Message Node
             </Button>
           </div>
         </div>
