@@ -36,11 +36,15 @@ interface Message {
 }
 
 const Inbox = () => {
-  const { user } = useSession();
+  const { session, user, isLoading: isSessionLoading } = useSession(); // Destructure session and user, rename isLoading to avoid conflict
+
   // TEMPORARY LOGS FOR DEBUGGING USER ID
+  console.log("Inbox Component Render: Session object:", session);
   console.log("Inbox Component Render: User object:", user);
   if (user) {
     console.log("Inbox Component Render: User ID:", user.id);
+  } else {
+    console.warn("Inbox Component Render: User object is NULL or UNDEFINED.");
   }
   // END TEMPORARY LOGS
 
@@ -49,7 +53,7 @@ const Inbox = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Local loading state for data fetching
 
   const fetchWhatsappAccounts = async () => {
     if (!user) {
