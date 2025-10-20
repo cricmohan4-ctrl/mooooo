@@ -280,9 +280,20 @@ serve(async (req) => {
         const currentNode = nodes.find((n: any) => n.id === currentConversation.current_node_id);
 
         if (currentNode && currentNode.type === 'incomingMessageNode') {
-          const expectedMessage = currentNode.data.expectedMessage?.toLowerCase();
-          if (expectedMessage && incomingText.toLowerCase() === expectedMessage) {
-            console.log(`Incoming message "${incomingText}" matched expected message "${expectedMessage}" for node ${currentNode.id}`);
+          const expectedInputType = currentNode.data.expectedInputType || 'any';
+          const promptMessage = currentNode.data.prompt || "Please provide the requested information.";
+
+          let inputMatchesExpectedType = false;
+          if (expectedInputType === 'any') {
+            inputMatchesExpectedType = true; // Any input is fine
+          } else if (expectedInputType === 'text' && messageType === 'text') {
+            inputMatchesExpectedType = true;
+          } else if (expectedInputType === 'image' && messageType === 'image') {
+            inputMatchesExpectedType = true;
+          }
+
+          if (inputMatchesExpectedType) {
+            console.log(`Incoming message type "${messageType}" matched expected input type "${expectedInputType}" for node ${currentNode.id}`);
             const outgoingEdge = edges.find((e: any) => e.source === currentNode.id);
             if (outgoingEdge) {
               const nextNode = nodes.find((n: any) => n.id === outgoingEdge.target);
@@ -309,14 +320,25 @@ serve(async (req) => {
                   .eq('id', currentConversation.id);
               } else {
                 console.warn('Next node not found in flow:', outgoingEdge.target);
+                // End flow if next node is not found
+                await supabaseServiceRoleClient
+                  .from('whatsapp_conversations')
+                  .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
+                  .eq('id', currentConversation.id);
               }
             } else {
               console.warn('No outgoing edge from current incomingMessageNode:', currentNode.id);
+              // End flow if no outgoing edge
+              await supabaseServiceRoleClient
+                .from('whatsapp_conversations')
+                .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
+                .eq('id', currentConversation.id);
             }
           } else {
-            console.log(`Incoming message "${incomingText}" did NOT match expected message "${expectedMessage}" for node ${currentNode.id}.`);
-            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: `I'm sorry, I was expecting "${expectedMessage}". Please try again.` });
+            console.log(`Incoming message type "${messageType}" did NOT match expected input type "${expectedInputType}" for node ${currentNode.id}. Re-prompting.`);
+            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: promptMessage });
             responseSent = true;
+            // Do NOT update current_node_id, stay on the same node to re-prompt
           }
         } else {
           console.log(`Current node ${currentNode?.id} is not an incomingMessageNode or not found. Falling back to rules.`);
@@ -410,6 +432,9 @@ serve(async (req) => {
                   body: { text: firstNodeToSend.data.message },
                   action: { buttons: interactiveButtons },
                 });
+              } else if (firstNodeToSend.type === 'incomingMessageNode') {
+                // If the first node is an incoming message node, send its prompt
+                await sendWhatsappMessage(fromPhoneNumber, 'text', { body: firstNodeToSend.data.prompt });
               }
               const { error: upsertConvError } = await supabaseServiceRoleClient
                 .from('whatsapp_conversations')

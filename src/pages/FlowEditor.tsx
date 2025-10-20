@@ -19,7 +19,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText, MessageSquareHeart } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText, MessageSquareHeart, Type, Image } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
@@ -40,6 +40,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const nodeTypes = {
   messageNode: MessageNode,
@@ -72,7 +79,8 @@ const FlowEditorContent = () => {
   const [editingNode, setEditingNode] = useState<any | null>(null);
   const [editedMessage, setEditedMessage] = useState("");
   const [editedButtons, setEditedButtons] = useState<ButtonConfig[]>([]);
-  const [editedExpectedMessage, setEditedExpectedMessage] = useState("");
+  const [editedExpectedInputType, setEditedExpectedInputType] = useState<'text' | 'image' | 'any'>('any');
+  const [editedPrompt, setEditedPrompt] = useState("");
 
   const onConnect = useCallback(
     (params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)),
@@ -195,7 +203,7 @@ const FlowEditorContent = () => {
         newNode = { ...baseNode, data: { label: 'Button Message', message: "New message content.", buttons: [] } };
         break;
       case 'incomingMessageNode':
-        newNode = { ...baseNode, data: { label: 'Incoming Message', expectedMessage: "" } };
+        newNode = { ...baseNode, data: { label: 'Incoming Message', expectedInputType: 'text', prompt: "Please provide the requested information." } };
         break;
       case 'welcomeMessageNode':
         newNode = { ...baseNode, data: { label: 'Welcome Message', message: "Hello! Welcome to our service." } };
@@ -212,7 +220,8 @@ const FlowEditorContent = () => {
     setEditingNode(node);
     setEditedMessage(node.data.message || "");
     setEditedButtons(node.data.buttons ? [...node.data.buttons] : []);
-    setEditedExpectedMessage(node.data.expectedMessage || "");
+    setEditedExpectedInputType(node.data.expectedInputType || 'any');
+    setEditedPrompt(node.data.prompt || "");
     setIsNodeEditorOpen(true);
   }, []);
 
@@ -229,7 +238,7 @@ const FlowEditorContent = () => {
               updatedData = { ...updatedData, buttons: editedButtons };
             }
             if (node.type === 'incomingMessageNode') {
-              updatedData = { ...updatedData, expectedMessage: editedExpectedMessage };
+              updatedData = { ...updatedData, expectedInputType: editedExpectedInputType, prompt: editedPrompt };
             }
             return { ...node, data: updatedData };
           }
@@ -354,18 +363,39 @@ const FlowEditorContent = () => {
             )}
 
             {editingNode?.type === 'incomingMessageNode' && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="expectedMessage" className="text-right">
-                  Expected Message
-                </Label>
-                <Input
-                  id="expectedMessage"
-                  value={editedExpectedMessage}
-                  onChange={(e) => setEditedExpectedMessage(e.target.value)}
-                  className="col-span-3"
-                  placeholder="e.g., 'yes', 'confirm', '1'"
-                />
-              </div>
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="expectedInputType" className="text-right">
+                    Expected Input Type
+                  </Label>
+                  <Select
+                    onValueChange={(value: 'text' | 'image' | 'any') => setEditedExpectedInputType(value)}
+                    value={editedExpectedInputType}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select input type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="image">Image</SelectItem>
+                      <SelectItem value="any">Any (Text or Image)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="nodePrompt" className="text-right">
+                    Prompt Message
+                  </Label>
+                  <Textarea
+                    id="nodePrompt"
+                    value={editedPrompt}
+                    onChange={(e) => setEditedPrompt(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Message to send if input is not received or incorrect."
+                    rows={2}
+                  />
+                </div>
+              </>
             )}
 
             {editingNode?.type === 'buttonMessageNode' && (
