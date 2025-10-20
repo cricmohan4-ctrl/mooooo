@@ -111,6 +111,7 @@ const Inbox = () => {
     if (!user) return;
     setIsLoadingMessages(true); // Set loading for messages
     console.log("Inbox: Attempting to fetch messages for conversation:", conversation);
+    console.log("Inbox: Querying messages for user:", user.id, "account:", conversation.whatsapp_account_id, "contact:", conversation.contact_phone_number);
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages")
@@ -120,7 +121,10 @@ const Inbox = () => {
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Inbox: Supabase error fetching messages:", error.message);
+        throw error;
+      }
       setMessages(data || []);
       console.log("Inbox: Fetched messages for conversation:", data);
     } catch (error: any) {
@@ -181,7 +185,7 @@ const Inbox = () => {
         .insert({
           user_id: user.id,
           whatsapp_account_id: selectedConversation.whatsapp_account_id,
-          from_phone_number: whatsappAccount.phone_number_id,
+          from_phone_number: whatsappAccount.phone_number_id, // This should be the actual phone number of the WA account
           to_phone_number: selectedConversation.contact_phone_number,
           message_body: newMessage.trim(),
           message_type: 'text',
