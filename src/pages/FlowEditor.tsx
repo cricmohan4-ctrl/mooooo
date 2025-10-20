@@ -12,6 +12,7 @@ import ReactFlow, {
   Edge,
   ReactFlowProvider,
   useReactFlow,
+  Viewport,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
@@ -44,6 +45,7 @@ const nodeTypes = {
 interface FlowData {
   nodes: any[];
   edges: any[];
+  viewport?: Viewport;
 }
 
 interface ButtonConfig {
@@ -56,8 +58,8 @@ const FlowEditorContent = () => {
   const navigate = useNavigate();
   const { user } = useSession();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesState] = useEdgesState([]);
-  const { setViewport, getViewport } = useReactFlow();
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { fitView, setViewport, getViewport } = useReactFlow();
   const [flowName, setFlowName] = useState("Loading Flow...");
   const [isSaving, setIsSaving] = useState(false);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
@@ -76,8 +78,9 @@ const FlowEditorContent = () => {
     setIsSaving(true);
     try {
       const flowData: FlowData = {
-        nodes: nodes.map(node => ({ ...node, selected: false })), // Remove selected state
-        edges: edges.map(edge => ({ ...edge, selected: false })), // Remove selected state
+        nodes: nodes.map(node => ({ ...node, selected: false })),
+        edges: edges.map(edge => ({ ...edge, selected: false })),
+        viewport: getViewport(),
       };
 
       const { error } = await supabase
@@ -94,7 +97,7 @@ const FlowEditorContent = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, flowId, user]);
+  }, [nodes, edges, flowId, user, getViewport]);
 
   const onRestore = useCallback(async () => {
     if (!user || !flowId) return;
@@ -108,7 +111,7 @@ const FlowEditorContent = () => {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') { // No rows found
+        if (error.code === 'PGRST116') {
           showError("Flow not found or you don't have permission to access it.");
           navigate('/flows');
           return;
@@ -119,29 +122,37 @@ const FlowEditorContent = () => {
       setFlowName(data.name);
       const flowData: FlowData = data.flow_data as FlowData;
 
-      if (flowData && flowData.nodes && flowData.edges) {
-        setNodes(flowData.nodes || []);
-        setEdges(flowData.edges || []);
-        // Restore viewport if saved, otherwise fit view
+      if (flowData && Array.isArray(flowData.nodes) && Array.isArray(flowData.edges) && flowData.nodes.length > 0) {
+        setNodes(flowData.nodes);
+        setEdges(flowData.edges);
         if (flowData.viewport) {
           setViewport(flowData.viewport);
         } else {
-          setTimeout(() => {
-            useReactFlow().fitView();
-          }, 100);
+          requestAnimationFrame(() => {
+            fitView();
+          });
         }
         showSuccess("Flow loaded successfully!");
       } else {
-        setNodes([]);
+        const initialNode = {
+          id: 'start-node',
+          type: 'input',
+          data: { label: 'Start Flow' },
+          position: { x: 250, y: 5 },
+        };
+        setNodes([initialNode]);
         setEdges([]);
-        showError("Loaded flow data is empty or invalid. Starting with a blank canvas.");
+        requestAnimationFrame(() => {
+          fitView();
+        });
+        showSuccess("Loaded flow data is empty or invalid. Starting with a default 'Start Flow' node.");
       }
     } catch (error: any) {
       console.error("Error loading flow:", error.message);
       showError(`Failed to load flow: ${error.message}`);
-      navigate('/flows'); // Redirect to flows list on error
+      navigate('/flows');
     }
-  }, [flowId, user, setNodes, setEdges, setViewport, navigate]);
+  }, [flowId, user, setNodes, setEdges, setViewport, fitView, navigate]);
 
   useEffect(() => {
     if (user && flowId) {
@@ -155,13 +166,13 @@ const FlowEditorContent = () => {
       type,
       position: { x: Math.random() * 250, y: Math.random() * 250 },
       data: {
-        label: `${type} Node`,
+        label: `${type === 'messageNode' ? 'Message' : 'Button Message'}`,
         message: "New message content.",
         buttons: [],
       },
     };
     setNodes((nds) => nds.concat(newNode));
-    showSuccess(`Added a new ${type} node.`);
+    showSuccess(`Added a new ${type === 'messageNode' ? 'Message' : 'Button Message'} node.`);
   }, [setNodes]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
@@ -223,7 +234,6 @@ const FlowEditorContent = () => {
         </Button>
       </div>
       <div className="flex flex-1">
-        {/* Node Panel */}
         <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
           <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Add Nodes</h3>
           <div className="space-y-2">
@@ -233,17 +243,15 @@ const FlowEditorContent = () => {
             <Button className="w-full justify-start" variant="outline" onClick={() => addNode('buttonMessageNode')}>
               <MousePointerClick className="h-4 w-4 mr-2" /> Button Message Node
             </Button>
-            {/* Add more node types here */}
           </div>
         </div>
 
-        {/* React Flow Canvas */}
         <div style={{ height: 'calc(100vh - 65px)', width: 'calc(100% - 256px)' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesState}
+            onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
@@ -257,7 +265,6 @@ const FlowEditorContent = () => {
         </div>
       </div>
 
-      {/* Node Editor Dialog */}
       <Dialog open={isNodeEditorOpen} onOpenChange={setIsNodeEditorOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

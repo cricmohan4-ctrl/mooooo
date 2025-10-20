@@ -80,13 +80,25 @@ const FlowsPage = () => {
 
     setIsAddingFlow(true);
     try {
+      const initialFlowData = {
+        nodes: [
+          {
+            id: 'start-node',
+            type: 'input',
+            data: { label: 'Start Flow' },
+            position: { x: 250, y: 5 },
+          },
+        ],
+        edges: [],
+      };
+
       const { error } = await supabase
         .from("chatbot_flows")
         .insert({
           user_id: user.id,
           name: newFlowName.trim(),
           description: newFlowDescription.trim() || null,
-          flow_data: { nodes: [], edges: [] }, // Initialize with empty flow data
+          flow_data: initialFlowData,
         });
 
       if (error) throw error;
