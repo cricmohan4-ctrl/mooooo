@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon, Edit } from "lucide-react";
 import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
+import EditWhatsappAccountDialog from "@/components/EditWhatsappAccountDialog"; // New import
 import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
-import EditChatbotRuleDialog from "@/components/EditChatbotRuleDialog"; // New import
+import EditChatbotRuleDialog from "@/components/EditChatbotRuleDialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
@@ -26,6 +27,7 @@ interface WhatsappAccount {
   id: string;
   account_name: string;
   phone_number_id: string;
+  access_token: string; // Include access_token for editing purposes
 }
 
 interface ButtonConfig {
@@ -40,9 +42,9 @@ interface ChatbotRule {
   trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
   response_message: string[];
   buttons?: ButtonConfig[] | null;
-  flow_id?: string | null; // Added flow_id
+  flow_id?: string | null;
   account_name?: string;
-  flow_name?: string; // Added flow_name for display
+  flow_name?: string;
 }
 
 const Dashboard = () => {
@@ -51,8 +53,10 @@ const Dashboard = () => {
   const [chatbotRules, setChatbotRules] = useState<ChatbotRule[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
   const [isLoadingRules, setIsLoadingRules] = useState(true);
-  const [isEditRuleDialogOpen, setIsEditRuleDialogOpen] = useState(false); // State for edit dialog
-  const [selectedRuleToEdit, setSelectedRuleToEdit] = useState<ChatbotRule | null>(null); // State for rule being edited
+  const [isEditRuleDialogOpen, setIsEditRuleDialogOpen] = useState(false);
+  const [selectedRuleToEdit, setSelectedRuleToEdit] = useState<ChatbotRule | null>(null);
+  const [isEditAccountDialogOpen, setIsEditAccountDialogOpen] = useState(false); // State for edit account dialog
+  const [selectedAccountToEdit, setSelectedAccountToEdit] = useState<WhatsappAccount | null>(null); // State for account being edited
 
   const fetchWhatsappAccounts = async () => {
     if (!user) return;
@@ -60,7 +64,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, account_name, phone_number_id")
+        .select("id, account_name, phone_number_id, access_token") // Select access_token for editing
         .eq("user_id", user.id);
 
       if (error) {
@@ -81,7 +85,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_rules")
-        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, whatsapp_accounts(account_name), chatbot_flows(name)") // Select flow_id and flow name
+        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, whatsapp_accounts(account_name), chatbot_flows(name)")
         .eq("user_id", user.id);
 
       if (error) {
@@ -90,7 +94,7 @@ const Dashboard = () => {
       const rulesWithAccountAndFlowNames = data?.map(rule => ({
         ...rule,
         account_name: (rule.whatsapp_accounts as { account_name: string }).account_name,
-        flow_name: rule.chatbot_flows ? (rule.chatbot_flows as { name: string }).name : undefined, // Extract flow name
+        flow_name: rule.chatbot_flows ? (rule.chatbot_flows as { name: string }).name : undefined,
       })) || [];
       setChatbotRules(rulesWithAccountAndFlowNames);
     } catch (error: any) {
@@ -145,6 +149,11 @@ const Dashboard = () => {
     setIsEditRuleDialogOpen(true);
   };
 
+  const handleEditAccountClick = (account: WhatsappAccount) => {
+    setSelectedAccountToEdit(account);
+    setIsEditAccountDialogOpen(true);
+  };
+
   useEffect(() => {
     if (user) {
       fetchWhatsappAccounts();
@@ -196,28 +205,33 @@ const Dashboard = () => {
                           <p className="text-sm text-gray-500 dark:text-gray-400">ID: {account.phone_number_id}</p>
                         </div>
                       </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete your WhatsApp account
-                              entry and remove its association from your dashboard.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteAccount(account.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEditAccountClick(account)} title="Edit Account">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your WhatsApp account
+                                entry and remove its association from your dashboard.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteAccount(account.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -331,6 +345,15 @@ const Dashboard = () => {
           onRuleUpdated={fetchChatbotRules}
           isOpen={isEditRuleDialogOpen}
           onOpenChange={setIsEditRuleDialogOpen}
+        />
+      )}
+
+      {selectedAccountToEdit && (
+        <EditWhatsappAccountDialog
+          account={selectedAccountToEdit}
+          onAccountUpdated={fetchWhatsappAccounts}
+          isOpen={isEditAccountDialogOpen}
+          onOpenChange={setIsEditAccountDialogOpen}
         />
       )}
     </div>
