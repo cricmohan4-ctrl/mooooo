@@ -3,14 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError } from '@/utils/toast';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Send } from 'lucide-react';
 
 interface WhatsappAccount {
   id: string;
@@ -43,14 +42,17 @@ const Inbox = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true); // Separate loading state for conversations
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false); // Loading state for messages
 
   const fetchWhatsappAccounts = async () => {
     if (!user) {
       console.log("Inbox: User not logged in, cannot fetch WhatsApp accounts.");
+      setIsLoadingConversations(false); // If no user, no conversations to load
       return;
     }
-    console.log("Inbox: Attempting to fetch WhatsApp accounts for user ID:", user.id);
+    console.log("Inbox: Starting fetchWhatsappAccounts for user ID:", user.id);
+    // No need to set isLoadingConversations here, as it's for conversations specifically.
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
@@ -59,24 +61,31 @@ const Inbox = () => {
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
-      console.log("Inbox: Fetched WhatsApp accounts:", data);
+      console.log("Inbox: Successfully fetched WhatsApp accounts:", data);
     } catch (error: any) {
-      console.error("Error fetching WhatsApp accounts:", error.message);
+      console.error("Inbox: Error fetching WhatsApp accounts:", error.message);
       showError("Failed to load WhatsApp accounts.");
+      setWhatsappAccounts([]); // Clear accounts on error
+      setIsLoadingConversations(false); // If accounts fail, no conversations can be loaded
+    } finally {
+      console.log("Inbox: fetchWhatsappAccounts finished.");
     }
   };
 
   const fetchConversations = async () => {
     if (!user || whatsappAccounts.length === 0) {
       console.log("Inbox: User not logged in or no WhatsApp accounts, skipping conversation fetch.");
-      setIsLoading(false);
+      setIsLoadingConversations(false); // Ensure loading is false if prerequisites are not met
       return;
     }
-    setIsLoading(true);
-    console.log("Inbox: Attempting to fetch conversations for user ID:", user.id);
+    setIsLoadingConversations(true); // Set loading true when starting this fetch
+    console.log("Inbox: Starting fetchConversations for user ID:", user.id);
+    console.log("Inbox: User ID for RPC call:", user.id); // Added log
     try {
+      console.log("Inbox: Calling Supabase RPC 'get_latest_whatsapp_conversations'...");
       const { data, error } = await supabase
         .rpc('get_latest_whatsapp_conversations', { p_user_id: user.id });
+      console.log("Inbox: Supabase RPC call returned.");
 
       if (error) throw error;
 
@@ -88,17 +97,20 @@ const Inbox = () => {
         whatsapp_account_name: conv.whatsapp_account_name,
       }));
       setConversations(formattedConversations);
-      console.log("Inbox: Fetched conversations:", formattedConversations);
+      console.log("Inbox: Successfully fetched conversations:", formattedConversations);
     } catch (error: any) {
-      console.error("Error fetching conversations:", error.message);
+      console.error("Inbox: Error fetching conversations:", error.message);
       showError("Failed to load conversations.");
+      setConversations([]); // Clear conversations on error
     } finally {
-      setIsLoading(false);
+      setIsLoadingConversations(false); // Always set loading to false when this fetch completes
+      console.log("Inbox: fetchConversations finished.");
     }
   };
 
   const fetchMessages = async (conversation: Conversation) => {
     if (!user) return;
+    setIsLoadingMessages(true); // Set loading for messages
     console.log("Inbox: Attempting to fetch messages for conversation:", conversation);
     try {
       const { data, error } = await supabase
@@ -115,31 +127,40 @@ const Inbox = () => {
     } catch (error: any) {
       console.error("Error fetching messages:", error.message);
       showError("Failed to load messages.");
+    } finally {
+      setIsLoadingMessages(false); // Always set loading to false for messages
     }
   };
 
   useEffect(() => {
     if (user) {
-      console.log("Inbox: User session available, fetching WhatsApp accounts.");
+      console.log("Inbox: User session available, initiating account fetch.");
       fetchWhatsappAccounts();
     } else {
-      console.log("Inbox: User session not available.");
-      setIsLoading(false);
+      console.log("Inbox: User session not available, setting isLoadingConversations to false.");
+      setIsLoadingConversations(false); // If no user, no conversations to load
     }
   }, [user]);
 
   useEffect(() => {
-    if (whatsappAccounts.length > 0) {
-      console.log("Inbox: WhatsApp accounts loaded, fetching conversations.");
-      fetchConversations();
-    } else if (user && !isLoading) {
-      console.log("Inbox: No WhatsApp accounts found for user, cannot fetch conversations.");
+    if (user) { // Only proceed if user is logged in
+      if (whatsappAccounts.length > 0) {
+        console.log("Inbox: WhatsApp accounts loaded and user present, initiating conversation fetch.");
+        fetchConversations();
+      } else {
+        // If user is present but no accounts, then no conversations can be fetched.
+        // Ensure isLoadingConversations is false here to stop the "Loading conversations..." message.
+        console.log("Inbox: User logged in but no WhatsApp accounts found, setting isLoadingConversations to false.");
+        setIsLoadingConversations(false); // Important: set to false here
+      }
     }
-  }, [whatsappAccounts, user, isLoading]);
+  }, [whatsappAccounts, user]);
 
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
+    } else {
+      setMessages([]); // Clear messages if no conversation is selected
     }
   }, [selectedConversation]);
 
@@ -197,7 +218,7 @@ const Inbox = () => {
         <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
           <div className="p-4 text-lg font-semibold">Conversations</div>
           <Separator />
-          {isLoading ? (
+          {isLoadingConversations ? (
             <div className="p-4 text-center text-gray-500">Loading conversations...</div>
           ) : conversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500">No conversations yet.</div>
@@ -238,25 +259,31 @@ const Inbox = () => {
                 </span>
               </div>
               <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
-                  >
+                {isLoadingMessages ? (
+                  <div className="text-center text-gray-500">Loading messages...</div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center text-gray-500">No messages in this conversation.</div>
+                ) : (
+                  messages.map((msg) => (
                     <div
-                      className={`max-w-[70%] p-3 rounded-lg ${
-                        msg.direction === 'outgoing'
-                          ? 'bg-blue-500 text-white rounded-br-none'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
-                      }`}
+                      key={msg.id}
+                      className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <p>{msg.message_body}</p>
-                      <p className="text-xs mt-1 opacity-75">
-                        {format(new Date(msg.created_at), 'HH:mm')}
-                      </p>
+                      <div
+                        className={`max-w-[70%] p-3 rounded-lg ${
+                          msg.direction === 'outgoing'
+                            ? 'bg-blue-500 text-white rounded-br-none'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
+                        }`}
+                      >
+                        <p>{msg.message_body}</p>
+                        <p className="text-xs mt-1 opacity-75">
+                          {format(new Date(msg.created_at), 'HH:mm')}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center">
                 <Input
