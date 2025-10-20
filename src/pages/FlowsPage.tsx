@@ -88,8 +88,16 @@ const FlowsPage = () => {
             data: { label: 'Start Flow' },
             position: { x: 250, y: 5 },
           },
+          {
+            id: 'welcome-message-node',
+            type: 'welcomeMessageNode',
+            data: { label: 'Welcome Message', message: "Hello! Welcome to our service. How can I help you today?" },
+            position: { x: 250, y: 150 },
+          },
         ],
-        edges: [],
+        edges: [
+          { id: 'e-start-welcome', source: 'start-node', target: 'welcome-message-node', animated: true },
+        ],
       };
 
       const { error } = await supabase

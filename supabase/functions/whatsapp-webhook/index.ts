@@ -390,15 +390,23 @@ serve(async (req) => {
             if (startNode) {
               const startEdge = edges.find((e: any) => e.source === startNode.id);
               if (startEdge) {
-                firstNodeToSend = nodes.find((n: any) => n.id === startEdge.target);
-                firstNodeId = firstNodeToSend?.id;
+                const nodeAfterStart = nodes.find((n: any) => n.id === startEdge.target);
+                if (nodeAfterStart && nodeAfterStart.type === 'welcomeMessageNode') {
+                  firstNodeToSend = nodeAfterStart;
+                  firstNodeId = nodeAfterStart.id;
+                } else {
+                  console.warn('Node after start-node is not a welcomeMessageNode. Sending default welcome message.');
+                  // Fallback to default welcome message if the first node isn't a welcome message
+                  await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
+                  responseSent = true;
+                }
               } else {
                 console.warn('Start node has no outgoing edge. No initial message from flow.');
               }
             }
 
             if (firstNodeToSend) {
-              if (firstNodeToSend.type === 'messageNode') {
+              if (firstNodeToSend.type === 'welcomeMessageNode' || firstNodeToSend.type === 'messageNode') {
                 await sendWhatsappMessage(fromPhoneNumber, 'text', { body: firstNodeToSend.data.message });
               } else if (firstNodeToSend.type === 'buttonMessageNode') {
                 const interactiveButtons = (firstNodeToSend.data.buttons || []).map((btn: any) => ({
@@ -426,11 +434,11 @@ serve(async (req) => {
                   { onConflict: 'whatsapp_account_id,contact_phone_number' }
                 );
               if (upsertConvError) console.error('Error upserting conversation for new flow:', upsertConvError.message);
-            } else {
+            } else if (!responseSent) { // Only send if no response was sent by fallback above
               await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, the flow could not be started correctly." });
             }
+            responseSent = true;
           }
-          responseSent = true;
         } else if (matchedRule.response_message.length > 0 || (matchedRule.buttons && matchedRule.buttons.length > 0)) {
           for (const responseMessage of matchedRule.response_message) {
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: responseMessage });
