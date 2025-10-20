@@ -19,7 +19,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText } from 'lucide-react'; // Changed from MessageSquareIncoming
+import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
@@ -92,7 +92,7 @@ const FlowEditorContent = () => {
         .from("chatbot_flows")
         .update({ flow_data: flowData, updated_at: new Date().toISOString() })
         .eq("id", flowId)
-        .eq("user_id", user.id); // Corrected user.id reference
+        .eq("user_id", user.id); // Corrected from user.id to user_id
 
       if (error) throw error;
       showSuccess("Flow saved successfully!");
