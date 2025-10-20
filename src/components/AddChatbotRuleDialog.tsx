@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch"; // Import Switch
 
 interface AddWhatsappAccountDialogProps {
   onRuleAdded: () => void;
@@ -51,6 +52,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
   const [responseMessage, setResponseMessage] = useState(""); // This will be a multi-line string
   const [buttons, setButtons] = useState<ButtonConfig[]>([]); // State for buttons
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null); // New state for selected flow
+  const [useAiResponse, setUseAiResponse] = useState(false); // New state for AI response
   const [chatbotFlows, setChatbotFlows] = useState<ChatbotFlow[]>([]); // State for available flows
   const [isLoading, setIsLoading] = useState(false);
 
@@ -108,13 +110,13 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
       return;
     }
 
-    if (!selectedFlowId && !responseMessage.trim()) {
-      showError("Please provide a response message or select a chatbot flow.");
+    if (!selectedFlowId && !useAiResponse && !responseMessage.trim()) {
+      showError("Please provide a response message, select a chatbot flow, or enable AI response.");
       return;
     }
 
-    // Validate buttons only if a flow is NOT selected and buttons are present
-    if (!selectedFlowId && buttons.length > 0) {
+    // Validate buttons only if a flow is NOT selected and AI is NOT used and buttons are present
+    if (!selectedFlowId && !useAiResponse && buttons.length > 0) {
       const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
       if (invalidButtons) {
         showError("Please ensure all button text and payload values are filled.");
@@ -124,7 +126,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
 
     setIsLoading(true);
     try {
-      const responseMessagesArray = selectedFlowId ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
+      const responseMessagesArray = (selectedFlowId || useAiResponse) ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
 
       const { error } = await supabase
         .from("chatbot_rules")
@@ -134,8 +136,9 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
           trigger_value: triggerValue,
           trigger_type: triggerType,
           response_message: responseMessagesArray,
-          buttons: selectedFlowId ? null : (buttons.length > 0 ? buttons : null),
-          flow_id: selectedFlowId, // Insert the selected flow ID
+          buttons: (selectedFlowId || useAiResponse) ? null : (buttons.length > 0 ? buttons : null),
+          flow_id: selectedFlowId,
+          use_ai_response: useAiResponse, // Save the new flag
         });
 
       if (error) {
@@ -147,7 +150,8 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
       setResponseMessage("");
       setTriggerType("EXACT_MATCH");
       setButtons([]);
-      setSelectedFlowId(null); // Reset selected flow
+      setSelectedFlowId(null);
+      setUseAiResponse(false); // Reset AI response toggle
       setIsOpen(false);
       onRuleAdded();
     } catch (error: any) {
@@ -160,16 +164,11 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon">
-          <PlusCircle className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Chatbot Rule</DialogTitle>
           <DialogDescription>
-            Define a trigger phrase and either an automated response or link a chatbot flow for a WhatsApp account.
+            Define a trigger phrase and either an automated response, link a chatbot flow, or use AI for a WhatsApp account.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -236,14 +235,20 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                 Link to Flow (Optional)
               </Label>
               <Select
-                onValueChange={(value) => setSelectedFlowId(value === "none" ? null : value)}
+                onValueChange={(value) => {
+                  setSelectedFlowId(value === "none" ? null : value);
+                  if (value !== "none") {
+                    setUseAiResponse(false); // Disable AI if flow is selected
+                  }
+                }}
                 value={selectedFlowId || "none"}
+                disabled={useAiResponse} // Disable if AI is enabled
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a chatbot flow" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No Flow (Use static response)</SelectItem>
+                  <SelectItem value="none">No Flow (Use static/AI response)</SelectItem>
                   {chatbotFlows.map((flow) => (
                     <SelectItem key={flow.id} value={flow.id}>
                       {flow.name}
@@ -253,8 +258,27 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
               </Select>
             </div>
 
+            {/* Use AI for Response Toggle */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="useAiResponse" className="text-right">
+                Use AI for Response
+              </Label>
+              <Switch
+                id="useAiResponse"
+                checked={useAiResponse}
+                onCheckedChange={(checked) => {
+                  setUseAiResponse(checked);
+                  if (checked) {
+                    setSelectedFlowId(null); // Disable flow if AI is enabled
+                  }
+                }}
+                className="col-span-3 justify-self-start"
+                disabled={!!selectedFlowId} // Disable if flow is selected
+              />
+            </div>
+
             {/* Conditional Response Message and Buttons */}
-            {!selectedFlowId && (
+            {!selectedFlowId && !useAiResponse && (
               <>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="responseMessage" className="text-right">
@@ -266,7 +290,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                     onChange={(e) => setResponseMessage(e.target.value)}
                     className="col-span-3"
                     placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
-                    required={!selectedFlowId}
+                    required={!selectedFlowId && !useAiResponse}
                     rows={4}
                   />
                 </div>
