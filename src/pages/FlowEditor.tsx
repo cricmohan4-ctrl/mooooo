@@ -13,11 +13,13 @@ import ReactFlow, {
   ReactFlowProvider,
   useReactFlow,
   Viewport,
+  Node,
+  Edge as ReactFlowEdge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
@@ -59,7 +61,7 @@ const FlowEditorContent = () => {
   const { user } = useSession();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const { fitView, setViewport, getViewport } = useReactFlow();
+  const { fitView, setViewport, getViewport, getNodes, getEdges } = useReactFlow();
   const [flowName, setFlowName] = useState("Loading Flow...");
   const [isSaving, setIsSaving] = useState(false);
   const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
@@ -218,6 +220,21 @@ const FlowEditorContent = () => {
     setEditedButtons(newButtons);
   };
 
+  const handleDeleteSelected = useCallback(() => {
+    const selectedNodes = getNodes().filter(node => node.selected);
+    const selectedEdges = getEdges().filter(edge => edge.selected);
+
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) {
+      showError("No elements selected to delete.");
+      return;
+    }
+
+    setNodes((nds) => nds.filter((node) => !node.selected));
+    setEdges((eds) => eds.filter((edge) => !edge.selected));
+    showSuccess(`Deleted ${selectedNodes.length} nodes and ${selectedEdges.length} edges.`);
+  }, [getNodes, getEdges, setNodes, setEdges]);
+
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -229,9 +246,14 @@ const FlowEditorContent = () => {
           </Button>
           <h1 className="text-2xl font-bold ml-4 text-gray-900 dark:text-gray-100">{flowName}</h1>
         </div>
-        <Button onClick={onSave} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Flow"} <Save className="h-4 w-4 ml-2" />
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={handleDeleteSelected} variant="outline" title="Delete Selected">
+            <Trash2 className="h-4 w-4 mr-2" /> Delete Selected
+          </Button>
+          <Button onClick={onSave} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save Flow"} <Save className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
       </div>
       <div className="flex flex-1">
         <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
