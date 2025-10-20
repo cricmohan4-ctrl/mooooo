@@ -19,12 +19,13 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareIncoming } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import MessageNode from '@/components/nodes/MessageNode';
 import ButtonMessageNode from '@/components/nodes/ButtonMessageNode';
+import IncomingMessageNode from '@/components/nodes/IncomingMessageNode'; // New import
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ import { Separator } from '@/components/ui/separator';
 const nodeTypes = {
   messageNode: MessageNode,
   buttonMessageNode: ButtonMessageNode,
+  incomingMessageNode: IncomingMessageNode, // Register new node type
 };
 
 interface FlowData {
@@ -68,6 +70,7 @@ const FlowEditorContent = () => {
   const [editingNode, setEditingNode] = useState<any | null>(null);
   const [editedMessage, setEditedMessage] = useState("");
   const [editedButtons, setEditedButtons] = useState<ButtonConfig[]>([]);
+  const [editedExpectedMessage, setEditedExpectedMessage] = useState(""); // New state for IncomingMessageNode
 
   const onConnect = useCallback(
     (params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)),
@@ -89,7 +92,7 @@ const FlowEditorContent = () => {
         .from("chatbot_flows")
         .update({ flow_data: flowData, updated_at: new Date().toISOString() })
         .eq("id", flowId)
-        .eq("user_id", user.id);
+        .eq("user.id", user.id); // Corrected user.id reference
 
       if (error) throw error;
       showSuccess("Flow saved successfully!");
@@ -163,42 +166,58 @@ const FlowEditorContent = () => {
   }, [user, flowId, onRestore]);
 
   const addNode = useCallback((type: string) => {
-    const newNode = {
+    const baseNode = {
       id: `node_${Date.now()}`,
       type,
       position: { x: Math.random() * 250, y: Math.random() * 250 },
-      data: {
-        label: `${type === 'messageNode' ? 'Message' : 'Button Message'}`,
-        message: "New message content.",
-        buttons: [],
-      },
     };
+
+    let newNode;
+    switch (type) {
+      case 'messageNode':
+        newNode = { ...baseNode, data: { label: 'Message', message: "New message content." } };
+        break;
+      case 'buttonMessageNode':
+        newNode = { ...baseNode, data: { label: 'Button Message', message: "New message content.", buttons: [] } };
+        break;
+      case 'incomingMessageNode': // New node type
+        newNode = { ...baseNode, data: { label: 'Incoming Message', expectedMessage: "" } };
+        break;
+      default:
+        newNode = { ...baseNode, data: { label: 'Unknown Node' } };
+    }
+
     setNodes((nds) => nds.concat(newNode));
-    showSuccess(`Added a new ${type === 'messageNode' ? 'Message' : 'Button Message'} node.`);
+    showSuccess(`Added a new ${newNode.data.label} node.`);
   }, [setNodes]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     setEditingNode(node);
     setEditedMessage(node.data.message || "");
     setEditedButtons(node.data.buttons ? [...node.data.buttons] : []);
+    setEditedExpectedMessage(node.data.expectedMessage || ""); // Initialize for IncomingMessageNode
     setIsNodeEditorOpen(true);
   }, []);
 
   const handleSaveNodeChanges = () => {
     if (editingNode) {
       setNodes((nds) =>
-        nds.map((node) =>
-          node.id === editingNode.id
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  message: editedMessage,
-                  buttons: editedButtons,
-                },
-              }
-            : node,
-        ),
+        nds.map((node) => {
+          if (node.id === editingNode.id) {
+            let updatedData = { ...node.data };
+            if (node.type === 'messageNode' || node.type === 'buttonMessageNode') {
+              updatedData = { ...updatedData, message: editedMessage };
+            }
+            if (node.type === 'buttonMessageNode') {
+              updatedData = { ...updatedData, buttons: editedButtons };
+            }
+            if (node.type === 'incomingMessageNode') { // Save for IncomingMessageNode
+              updatedData = { ...updatedData, expectedMessage: editedExpectedMessage };
+            }
+            return { ...node, data: updatedData };
+          }
+          return node;
+        }),
       );
       showSuccess("Node updated!");
       setIsNodeEditorOpen(false);
@@ -265,6 +284,9 @@ const FlowEditorContent = () => {
             <Button className="w-full justify-start" variant="outline" onClick={() => addNode('buttonMessageNode')}>
               <MousePointerClick className="h-4 w-4 mr-2" /> Button Message Node
             </Button>
+            <Button className="w-full justify-start" variant="outline" onClick={() => addNode('incomingMessageNode')}>
+              <MessageSquareIncoming className="h-4 w-4 mr-2" /> Incoming Message Node
+            </Button>
           </div>
         </div>
 
@@ -296,18 +318,35 @@ const FlowEditorContent = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="nodeMessage" className="text-right">
-                Message
-              </Label>
-              <Textarea
-                id="nodeMessage"
-                value={editedMessage}
-                onChange={(e) => setEditedMessage(e.target.value)}
-                className="col-span-3"
-                rows={3}
-              />
-            </div>
+            {(editingNode?.type === 'messageNode' || editingNode?.type === 'buttonMessageNode') && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="nodeMessage" className="text-right">
+                  Message
+                </Label>
+                <Textarea
+                  id="nodeMessage"
+                  value={editedMessage}
+                  onChange={(e) => setEditedMessage(e.target.value)}
+                  className="col-span-3"
+                  rows={3}
+                />
+              </div>
+            )}
+
+            {editingNode?.type === 'incomingMessageNode' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="expectedMessage" className="text-right">
+                  Expected Message
+                </Label>
+                <Input
+                  id="expectedMessage"
+                  value={editedExpectedMessage}
+                  onChange={(e) => setEditedExpectedMessage(e.target.value)}
+                  className="col-span-3"
+                  placeholder="e.g., 'yes', 'confirm', '1'"
+                />
+              </div>
+            )}
 
             {editingNode?.type === 'buttonMessageNode' && (
               <>
