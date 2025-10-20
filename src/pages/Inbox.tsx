@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, MessageCircle, User, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
@@ -93,7 +93,7 @@ const Inbox = () => {
         last_message_body: conv.last_message_body,
         last_message_time: conv.last_message_time,
         whatsapp_account_id: conv.whatsapp_account_id,
-        whatsapp_account_name: conv.whatsapp_account_name,
+        whatsapp_account_name: conv.account_name, // Corrected to use 'account_name' from RPC
       }));
       setConversations(formattedConversations);
       console.log("Inbox: Successfully fetched conversations:", formattedConversations);
@@ -180,24 +180,28 @@ const Inbox = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('whatsapp_messages')
-        .insert({
-          user_id: user.id,
-          whatsapp_account_id: selectedConversation.whatsapp_account_id,
-          from_phone_number: whatsappAccount.phone_number_id, // This should be the actual phone number of the WA account
-          to_phone_number: selectedConversation.contact_phone_number,
-          message_body: newMessage.trim(),
-          message_type: 'text',
-          direction: 'outgoing',
-        });
+      // Invoke the new Edge Function to send the message
+      const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
+        body: {
+          toPhoneNumber: selectedConversation.contact_phone_number,
+          messageBody: newMessage.trim(),
+          whatsappAccountId: selectedConversation.whatsapp_account_id,
+          userId: user.id,
+        },
+      });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      showSuccess("Message sent successfully!");
       setNewMessage("");
-      fetchMessages(selectedConversation);
-      fetchConversations();
-      showError("Message sent (database only). Real WhatsApp sending needs an Edge Function.");
+      fetchMessages(selectedConversation); // Refresh messages to show the sent message
+      fetchConversations(); // Refresh conversations to update last message
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
