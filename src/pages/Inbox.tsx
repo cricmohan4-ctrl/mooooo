@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MessageCircle, User, Send } from 'lucide-react';
@@ -45,14 +45,13 @@ const Inbox = () => {
   const [isLoadingConversations, setIsLoadingConversations] = useState(true); // Separate loading state for conversations
   const [isLoadingMessages, setIsLoadingMessages] = useState(false); // Loading state for messages
 
-  const fetchWhatsappAccounts = async () => {
+  const fetchWhatsappAccounts = useCallback(async () => {
     if (!user) {
       console.log("Inbox: User not logged in, cannot fetch WhatsApp accounts.");
       setIsLoadingConversations(false); // If no user, no conversations to load
       return;
     }
     console.log("Inbox: Starting fetchWhatsappAccounts for user ID:", user.id);
-    // No need to set isLoadingConversations here, as it's for conversations specifically.
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
@@ -70,9 +69,9 @@ const Inbox = () => {
     } finally {
       console.log("Inbox: fetchWhatsappAccounts finished.");
     }
-  };
+  }, [user]);
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!user || whatsappAccounts.length === 0) {
       console.log("Inbox: User not logged in or no WhatsApp accounts, skipping conversation fetch.");
       setIsLoadingConversations(false); // Ensure loading is false if prerequisites are not met
@@ -80,7 +79,7 @@ const Inbox = () => {
     }
     setIsLoadingConversations(true); // Set loading true when starting this fetch
     console.log("Inbox: Starting fetchConversations for user ID:", user.id);
-    console.log("Inbox: User ID for RPC call:", user.id); // Added log
+    console.log("Inbox: User ID for RPC call:", user.id);
     try {
       console.log("Inbox: Calling Supabase RPC 'get_latest_whatsapp_conversations'...");
       const { data, error } = await supabase
@@ -106,9 +105,9 @@ const Inbox = () => {
       setIsLoadingConversations(false); // Always set loading to false when this fetch completes
       console.log("Inbox: fetchConversations finished.");
     }
-  };
+  }, [user, whatsappAccounts]); // Dependencies for useCallback
 
-  const fetchMessages = async (conversation: Conversation) => {
+  const fetchMessages = useCallback(async (conversation: Conversation) => {
     if (!user) return;
     setIsLoadingMessages(true); // Set loading for messages
     console.log("Inbox: Attempting to fetch messages for conversation:", conversation);
@@ -130,7 +129,7 @@ const Inbox = () => {
     } finally {
       setIsLoadingMessages(false); // Always set loading to false for messages
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -140,21 +139,20 @@ const Inbox = () => {
       console.log("Inbox: User session not available, setting isLoadingConversations to false.");
       setIsLoadingConversations(false); // If no user, no conversations to load
     }
-  }, [user]);
+  }, [user, fetchWhatsappAccounts]);
 
   useEffect(() => {
+    console.log("Inbox: useEffect for conversations triggered. User:", !!user, "Accounts length:", whatsappAccounts.length); // NEW LOG
     if (user) { // Only proceed if user is logged in
       if (whatsappAccounts.length > 0) {
         console.log("Inbox: WhatsApp accounts loaded and user present, initiating conversation fetch.");
         fetchConversations();
       } else {
-        // If user is present but no accounts, then no conversations can be fetched.
-        // Ensure isLoadingConversations is false here to stop the "Loading conversations..." message.
         console.log("Inbox: User logged in but no WhatsApp accounts found, setting isLoadingConversations to false.");
         setIsLoadingConversations(false); // Important: set to false here
       }
     }
-  }, [whatsappAccounts, user]);
+  }, [whatsappAccounts, user, fetchConversations]); // Added fetchConversations to dependencies
 
   useEffect(() => {
     if (selectedConversation) {
@@ -162,7 +160,7 @@ const Inbox = () => {
     } else {
       setMessages([]); // Clear messages if no conversation is selected
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, fetchMessages]);
 
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
