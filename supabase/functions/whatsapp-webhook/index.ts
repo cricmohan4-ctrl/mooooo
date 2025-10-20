@@ -38,7 +38,7 @@ serve(async (req) => {
 
   // --- START: Existing POST request logic for actual messages ---
   try {
-    // Create a Supabase client with the anon key for general operations (e.g., inserting messages)
+    // Create a Supabase client with the anon key for general operations (e.g., inserting incoming messages)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -108,7 +108,7 @@ serve(async (req) => {
     const whatsappAccessToken = accountData.access_token;
     const whatsappAccountId = accountData.id;
 
-    // Save incoming message
+    // Save incoming message (still using supabaseClient as it's user-initiated and RLS should apply)
     const { error: insertIncomingError } = await supabaseClient
       .from('whatsapp_messages')
       .insert({
@@ -164,8 +164,8 @@ serve(async (req) => {
         console.log(`WhatsApp ${type} message sent successfully:`, responseData);
       }
 
-      // Save outgoing message
-      const { error: insertOutgoingError } = await supabaseClient
+      // Save outgoing message using supabaseServiceRoleClient to bypass RLS
+      const { error: insertOutgoingError } = await supabaseServiceRoleClient
         .from('whatsapp_messages')
         .insert({
           user_id: userId,
