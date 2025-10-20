@@ -26,10 +26,18 @@ serve(async (req) => {
     const payload = await req.json();
     console.log('Received payload for sending message:', JSON.stringify(payload, null, 2));
 
-    const { toPhoneNumber, messageBody, whatsappAccountId, userId } = payload;
+    const { toPhoneNumber, messageBody, whatsappAccountId, userId, mediaUrl, mediaType, mediaCaption } = payload;
 
-    if (!toPhoneNumber || !messageBody || !whatsappAccountId || !userId) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters: toPhoneNumber, messageBody, whatsappAccountId, userId' }), {
+    if (!toPhoneNumber || !whatsappAccountId || !userId) {
+      return new Response(JSON.stringify({ error: 'Missing required parameters: toPhoneNumber, whatsappAccountId, userId' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    // If it's a text message, messageBody is required
+    if (!mediaUrl && !messageBody) {
+      return new Response(JSON.stringify({ error: 'Either messageBody or mediaUrl must be provided.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
@@ -38,7 +46,7 @@ serve(async (req) => {
     // Fetch WhatsApp account details using service role client
     const { data: accountData, error: accountError } = await supabaseServiceRoleClient
       .from('whatsapp_accounts')
-      .select('phone_number_id, access_token')
+      .select('phone_number_id, access_token, account_name')
       .eq('id', whatsappAccountId)
       .eq('user_id', userId)
       .single();
@@ -53,6 +61,7 @@ serve(async (req) => {
 
     const whatsappBusinessPhoneNumberId = accountData.phone_number_id;
     const whatsappAccessToken = accountData.access_token;
+    const whatsappAccountName = accountData.account_name;
 
     if (!whatsappAccessToken || !whatsappBusinessPhoneNumberId) {
       return new Response(JSON.stringify({ error: 'WhatsApp access token or phone number ID not configured for this account.' }), {
@@ -62,14 +71,32 @@ serve(async (req) => {
     }
 
     const whatsappApiUrl = `https://graph.facebook.com/v19.0/${whatsappBusinessPhoneNumberId}/messages`;
-    const messagePayload = {
-      messaging_product: 'whatsapp',
-      to: toPhoneNumber,
-      type: 'text',
-      text: { body: messageBody },
-    };
+    let messagePayload: any;
+    let messageBodyToSave = messageBody; // Default to text message body
 
-    console.log(`Attempting to send message to ${toPhoneNumber} via WhatsApp API.`);
+    if (mediaUrl && mediaType) {
+      messagePayload = {
+        messaging_product: 'whatsapp',
+        to: toPhoneNumber,
+        type: mediaType,
+        [mediaType]: {
+          link: mediaUrl,
+        },
+      };
+      if (mediaCaption) {
+        messagePayload[mediaType].caption = mediaCaption;
+      }
+      messageBodyToSave = `[${mediaType} message]${mediaCaption ? `: ${mediaCaption}` : ''}`;
+    } else {
+      messagePayload = {
+        messaging_product: 'whatsapp',
+        to: toPhoneNumber,
+        type: 'text',
+        text: { body: messageBody },
+      };
+    }
+
+    console.log(`Attempting to send message to ${toPhoneNumber} via WhatsApp API. Payload:`, JSON.stringify(messagePayload));
     const response = await fetch(whatsappApiUrl, {
       method: 'POST',
       headers: {
@@ -99,9 +126,11 @@ serve(async (req) => {
         whatsapp_account_id: whatsappAccountId,
         from_phone_number: whatsappBusinessPhoneNumberId, // The WA Business Account's phone number ID
         to_phone_number: toPhoneNumber,
-        message_body: messageBody,
-        message_type: 'text',
+        message_body: messageBodyToSave,
+        message_type: mediaType || 'text',
         direction: 'outgoing',
+        media_url: mediaUrl || null,
+        media_caption: mediaCaption || null,
       });
 
     if (insertOutgoingError) {
@@ -118,7 +147,7 @@ serve(async (req) => {
             whatsapp_account_id: whatsappAccountId,
             contact_phone_number: toPhoneNumber,
             last_message_at: new Date().toISOString(),
-            last_message_body: messageBody,
+            last_message_body: messageBodyToSave,
           },
           { onConflict: 'whatsapp_account_id,contact_phone_number' }
         );

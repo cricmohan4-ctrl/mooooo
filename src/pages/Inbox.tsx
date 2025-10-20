@@ -3,13 +3,21 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface WhatsappAccount {
   id: string;
@@ -32,6 +40,9 @@ interface Message {
   message_body: string;
   direction: 'incoming' | 'outgoing';
   created_at: string;
+  message_type: string; // e.g., 'text', 'image', 'audio', 'document'
+  media_url?: string | null;
+  media_caption?: string | null;
 }
 
 const Inbox = () => {
@@ -44,6 +55,25 @@ const Inbox = () => {
   const [newMessage, setNewMessage] = useState("");
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+  // Media states
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [audioCaption, setAudioCaption] = useState("");
+
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [capturedImageBlob, setCapturedImageBlob] = useState<Blob | null>(null);
+  const [capturedImageUrl, setCapturedImageUrl] = useState<string | null>(null);
+  const [imageCaption, setImageCaption] = useState("");
+
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileCaption, setFileCaption] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -194,8 +224,50 @@ const Inbox = () => {
     setSelectedConversation(conversation);
   };
 
-  const handleSendMessage = async () => {
-    if (!user || !selectedConversation || !newMessage.trim()) return;
+  const uploadMediaToSupabase = async (file: Blob, fileName: string, fileType: string) => {
+    if (!user) {
+      showError("You must be logged in to upload media.");
+      return null;
+    }
+
+    const filePath = `${user.id}/${Date.now()}-${fileName}`;
+    try {
+      const { data, error } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: fileType,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('whatsapp-media')
+        .getPublicUrl(filePath);
+
+      return publicUrlData.publicUrl;
+    } catch (error: any) {
+      console.error("Error uploading media:", error.message);
+      showError(`Failed to upload media: ${error.message}`);
+      return null;
+    }
+  };
+
+  const handleSendMessage = async (
+    messageBody: string | null = null,
+    mediaUrl: string | null = null,
+    mediaType: string | null = null,
+    mediaCaption: string | null = null
+  ) => {
+    if (!user || !selectedConversation) return;
+
+    if (!messageBody && !mediaUrl) {
+      showError("Message cannot be empty.");
+      return;
+    }
 
     const whatsappAccount = whatsappAccounts.find(acc => acc.id === selectedConversation.whatsapp_account_id);
     if (!whatsappAccount) {
@@ -207,9 +279,12 @@ const Inbox = () => {
       const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
         body: {
           toPhoneNumber: selectedConversation.contact_phone_number,
-          messageBody: newMessage.trim(),
+          messageBody: messageBody,
           whatsappAccountId: selectedConversation.whatsapp_account_id,
           userId: user.id,
+          mediaUrl: mediaUrl,
+          mediaType: mediaType,
+          mediaCaption: mediaCaption,
         },
       });
 
@@ -223,11 +298,193 @@ const Inbox = () => {
 
       showSuccess("Message sent successfully!");
       setNewMessage("");
-      // Messages will be updated via realtime subscription, no need to fetchMessages here
-      // Conversations will be updated via realtime subscription, no need to fetchConversations here
+      setRecordedAudioBlob(null);
+      setRecordedAudioUrl(null);
+      setAudioCaption("");
+      setCapturedImageBlob(null);
+      setCapturedImageUrl(null);
+      setImageCaption("");
+      setSelectedFile(null);
+      setFileCaption("");
+      setIsAttachmentDialogOpen(false);
+      // Messages and conversations will be updated via realtime subscription
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
+    }
+  };
+
+  // --- Audio Recording Logic ---
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => {
+        setAudioChunks((prev) => [...prev, e.data]);
+      };
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' }); // WhatsApp prefers OGG
+        setRecordedAudioBlob(audioBlob);
+        setRecordedAudioUrl(URL.createObjectURL(audioBlob));
+        setAudioChunks([]);
+        stream.getTracks().forEach(track => track.stop()); // Stop microphone access
+      };
+      recorder.start();
+      setIsRecording(true);
+      setMediaRecorder(recorder);
+      setAudioChunks([]); // Clear previous chunks
+      setRecordedAudioBlob(null); // Clear previous recording
+      setRecordedAudioUrl(null);
+      setAudioCaption("");
+      showSuccess("Recording started...");
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      showError("Failed to start recording. Please check microphone permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      showSuccess("Recording stopped. Ready to send.");
+    }
+  };
+
+  const sendRecordedAudio = async () => {
+    if (recordedAudioBlob && user) {
+      const fileName = `audio-${Date.now()}.ogg`;
+      const mediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, 'audio/ogg');
+      if (mediaUrl) {
+        await handleSendMessage(null, mediaUrl, 'audio', audioCaption);
+      }
+    } else {
+      showError("No audio recorded to send.");
+    }
+  };
+
+  // --- Camera Logic ---
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+        setIsCameraOpen(true);
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      showError("Failed to open camera. Please check camera permissions.");
+    }
+  };
+
+  const closeCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+    }
+    setIsCameraOpen(false);
+    setCapturedImageBlob(null);
+    setCapturedImageUrl(null);
+    setImageCaption("");
+  };
+
+  const takePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext('2d');
+      if (context) {
+        canvasRef.current.width = videoRef.current.videoWidth;
+        canvasRef.current.height = videoRef.current.videoHeight;
+        context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
+        canvasRef.current.toBlob(async (blob) => {
+          if (blob) {
+            setCapturedImageBlob(blob);
+            setCapturedImageUrl(URL.createObjectURL(blob));
+            showSuccess("Photo captured!");
+          }
+        }, 'image/jpeg');
+      }
+    }
+  };
+
+  const sendCapturedImage = async () => {
+    if (capturedImageBlob && user) {
+      const fileName = `image-${Date.now()}.jpeg`;
+      const mediaUrl = await uploadMediaToSupabase(capturedImageBlob, fileName, 'image/jpeg');
+      if (mediaUrl) {
+        await handleSendMessage(null, mediaUrl, 'image', imageCaption);
+        closeCamera();
+      }
+    } else {
+      showError("No image captured to send.");
+    }
+  };
+
+  // --- Attachment Logic ---
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    }
+  };
+
+  const sendAttachment = async () => {
+    if (selectedFile && user) {
+      const fileExtension = selectedFile.name.split('.').pop();
+      const fileName = `document-${Date.now()}.${fileExtension}`;
+      const mediaUrl = await uploadMediaToSupabase(selectedFile, fileName, selectedFile.type);
+      if (mediaUrl) {
+        // Determine mediaType based on file type for WhatsApp API
+        let mediaType = 'document'; // Default
+        if (selectedFile.type.startsWith('image/')) mediaType = 'image';
+        if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
+        if (selectedFile.type.startsWith('video/')) mediaType = 'video';
+
+        await handleSendMessage(null, mediaUrl, mediaType, fileCaption);
+      }
+    } else {
+      showError("No file selected to send.");
+    }
+  };
+
+  // --- Render Media Messages ---
+  const renderMediaMessage = (message: Message) => {
+    if (!message.media_url) return null;
+
+    const commonClasses = "mt-2 rounded-lg overflow-hidden";
+    const captionClasses = "text-xs text-gray-600 dark:text-gray-300 mt-1";
+
+    switch (message.message_type) {
+      case 'image':
+        return (
+          <div className={commonClasses}>
+            <img src={message.media_url} alt={message.media_caption || "Image"} className="max-w-xs max-h-60 object-contain" />
+            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
+          </div>
+        );
+      case 'audio':
+        return (
+          <div className={commonClasses}>
+            <audio controls src={message.media_url} className="w-full"></audio>
+            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
+          </div>
+        );
+      case 'video':
+        return (
+          <div className={commonClasses}>
+            <video controls src={message.media_url} className="max-w-xs max-h-60 object-contain"></video>
+            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
+          </div>
+        );
+      case 'document':
+        return (
+          <div className={commonClasses}>
+            <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-500 hover:underline">
+              <Download className="h-4 w-4 mr-2" />
+              {message.media_caption || `Document (${message.media_url.split('/').pop()})`}
+            </a>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
@@ -305,7 +562,11 @@ const Inbox = () => {
                             : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
                         }`}
                       >
-                        <p>{msg.message_body}</p>
+                        {msg.message_type === 'text' ? (
+                          <p>{msg.message_body}</p>
+                        ) : (
+                          renderMediaMessage(msg)
+                        )}
                         <p className="text-xs mt-1 opacity-75">
                           {format(new Date(msg.created_at), 'HH:mm')}
                         </p>
@@ -316,6 +577,32 @@ const Inbox = () => {
                 <div ref={messagesEndRef} /> {/* Scroll target */}
               </div>
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="mr-2">
+                      <Paperclip className="h-5 w-5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2 flex flex-col space-y-2">
+                    <Button variant="ghost" className="justify-start" onClick={openCamera}>
+                      <Camera className="h-4 w-4 mr-2" /> Camera
+                    </Button>
+                    <Button variant="ghost" className="justify-start" onClick={() => setIsAttachmentDialogOpen(true)}>
+                      <Paperclip className="h-4 w-4 mr-2" /> Document
+                    </Button>
+                  </PopoverContent>
+                </Popover>
+
+                {isRecording ? (
+                  <Button variant="destructive" size="icon" onClick={stopRecording} className="mr-2">
+                    <StopCircle className="h-5 w-5" />
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="icon" onClick={startRecording} className="mr-2">
+                    <Mic className="h-5 w-5" />
+                  </Button>
+                )}
+
                 <Input
                   type="text"
                   placeholder="Type a message..."
@@ -323,12 +610,12 @@ const Inbox = () => {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
-                      handleSendMessage();
+                      handleSendMessage(newMessage);
                     }
                   }}
                   className="flex-1 mr-2"
                 />
-                <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim()}>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
@@ -340,6 +627,117 @@ const Inbox = () => {
           )}
         </div>
       </div>
+
+      {/* Audio Recording Dialog */}
+      <Dialog open={!!recordedAudioUrl} onOpenChange={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Audio Message</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {recordedAudioUrl && (
+              <audio controls src={recordedAudioUrl} className="w-full"></audio>
+            )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="audioCaption" className="text-right">
+                Caption (Optional)
+              </Label>
+              <Input
+                id="audioCaption"
+                value={audioCaption}
+                onChange={(e) => setAudioCaption(e.target.value)}
+                className="col-span-3"
+                placeholder="Add a caption to your audio"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>Cancel</Button>
+            <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob}>Send Audio</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Camera Dialog */}
+      <Dialog open={isCameraOpen} onOpenChange={closeCamera}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Take Photo</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            {!capturedImageUrl ? (
+              <video ref={videoRef} className="w-full h-auto rounded-md bg-black" autoPlay playsInline></video>
+            ) : (
+              <img src={capturedImageUrl} alt="Captured" className="w-full h-auto rounded-md object-contain" />
+            )}
+            <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+            <div className="grid grid-cols-4 items-center gap-4 w-full">
+              <Label htmlFor="imageCaption" className="text-right">
+                Caption (Optional)
+              </Label>
+              <Input
+                id="imageCaption"
+                value={imageCaption}
+                onChange={(e) => setImageCaption(e.target.value)}
+                className="col-span-3"
+                placeholder="Add a caption to your image"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeCamera}>Cancel</Button>
+            {!capturedImageUrl ? (
+              <Button onClick={takePhoto}>Take Photo</Button>
+            ) : (
+              <Button onClick={sendCapturedImage} disabled={!capturedImageBlob}>Send Photo</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attachment Dialog */}
+      <Dialog open={isAttachmentDialogOpen} onOpenChange={setIsAttachmentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Attachment</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="fileInput" className="text-right">
+                File
+              </Label>
+              <Input
+                id="fileInput"
+                type="file"
+                onChange={handleFileChange}
+                className="col-span-3"
+              />
+            </div>
+            {selectedFile && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Selected:</Label>
+                <span className="col-span-3 text-sm truncate">{selectedFile.name}</span>
+              </div>
+            )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="fileCaption" className="text-right">
+                Caption (Optional)
+              </Label>
+              <Input
+                id="fileCaption"
+                value={fileCaption}
+                onChange={(e) => setFileCaption(e.target.value)}
+                className="col-span-3"
+                placeholder="Add a caption to your file"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsAttachmentDialogOpen(false); setSelectedFile(null); setFileCaption(""); }}>Cancel</Button>
+            <Button onClick={sendAttachment} disabled={!selectedFile}>Send File</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

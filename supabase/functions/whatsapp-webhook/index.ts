@@ -75,11 +75,44 @@ serve(async (req) => {
 
     let incomingText = "";
     let messageType = incomingMessage.type;
+    let mediaUrl: string | null = null;
+    let mediaCaption: string | null = null;
 
     if (incomingMessage.type === 'text') {
       incomingText = incomingMessage.text.body;
     } else if (incomingMessage.type === 'interactive' && incomingMessage.interactive.type === 'button_reply') {
       incomingText = incomingMessage.interactive.button_reply.payload;
+    } else if (['image', 'audio', 'video', 'document'].includes(incomingMessage.type)) {
+      // Handle media messages
+      const mediaId = incomingMessage[incomingMessage.type]?.id;
+      if (mediaId) {
+        // Fetch media URL from Meta API
+        const { data: accountData, error: accountError } = await supabaseServiceRoleClient
+          .from('whatsapp_accounts')
+          .select('access_token')
+          .eq('phone_number_id', whatsappBusinessAccountId)
+          .single();
+
+        if (accountError || !accountData) {
+          console.error('Error fetching WhatsApp account access token for media download:', accountError?.message);
+          // Proceed without media if token not found
+        } else {
+          const mediaApiUrl = `https://graph.facebook.com/v19.0/${mediaId}`;
+          const mediaResponse = await fetch(mediaApiUrl, {
+            headers: {
+              'Authorization': `Bearer ${accountData.access_token}`,
+            },
+          });
+          const mediaData = await mediaResponse.json();
+          if (mediaResponse.ok && mediaData.url) {
+            mediaUrl = mediaData.url;
+            mediaCaption = incomingMessage[incomingMessage.type]?.caption || null;
+            incomingText = `[${incomingMessage.type} message]`; // Placeholder text for media
+          } else {
+            console.error('Error fetching media URL from Meta API:', mediaData);
+          }
+        }
+      }
     } else {
       console.log(`Unhandled message type: ${incomingMessage.type}`);
       incomingText = `[${incomingMessage.type} message]`;
@@ -119,6 +152,8 @@ serve(async (req) => {
         message_body: incomingText,
         message_type: messageType,
         direction: 'incoming',
+        media_url: mediaUrl,
+        media_caption: mediaCaption,
       });
 
     if (insertIncomingError) {
@@ -158,6 +193,11 @@ serve(async (req) => {
         body.text = { body: content.body };
       } else if (type === 'interactive') {
         body.interactive = content;
+      } else if (['image', 'audio', 'video', 'document'].includes(type)) {
+        body[type] = { link: content.mediaUrl };
+        if (content.caption) {
+          body[type].caption = content.caption;
+        }
       }
 
       console.log(`Sending ${type} message to ${to} using account ${whatsappBusinessAccountId}`);
@@ -185,9 +225,11 @@ serve(async (req) => {
           whatsapp_account_id: whatsappAccountId,
           from_phone_number: whatsappBusinessPhoneNumber,
           to_phone_number: to,
-          message_body: type === 'text' ? content.body : JSON.stringify(content),
+          message_body: type === 'text' ? content.body : `[${type} message]`,
           message_type: type,
           direction: 'outgoing',
+          media_url: content.mediaUrl || null,
+          media_caption: content.caption || null,
         });
 
       if (insertOutgoingError) {
@@ -203,7 +245,7 @@ serve(async (req) => {
               whatsapp_account_id: whatsappAccountId,
               contact_phone_number: to,
               last_message_at: new Date().toISOString(),
-              last_message_body: type === 'text' ? content.body : JSON.stringify(content),
+              last_message_body: type === 'text' ? content.body : `[${type} message]`,
             },
             { onConflict: 'whatsapp_account_id,contact_phone_number' }
           );
