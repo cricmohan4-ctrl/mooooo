@@ -27,7 +27,10 @@ serve(async (req) => {
     console.log('GOOGLE_GEMINI_API_KEY is present.');
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Changed model name here
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      systemInstruction: "You are a customer service assistant for a business selling plastic mobile covers with customer photos. You must answer in the language the user asks in. The price for Cash on Delivery (COD) is 220. The price for prepaid orders is 150. All orders are delivered within 7 days."
+    });
 
     const payload = await req.json();
     const { message } = payload;
