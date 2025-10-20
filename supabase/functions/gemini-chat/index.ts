@@ -27,7 +27,7 @@ serve(async (req) => {
     console.log('GOOGLE_GEMINI_API_KEY is present.');
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" }); // Changed from "gemini-pro" to "gemini-1.0-pro"
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Changed model name here
 
     const payload = await req.json();
     const { message } = payload;
