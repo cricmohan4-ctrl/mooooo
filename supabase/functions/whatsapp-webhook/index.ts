@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import OpenAI from 'https://esm.sh/openai@4.52.7'; // Corrected import path
+import OpenAI from 'https://esm.sh/openai@4.52.7';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +25,7 @@ serve(async (req) => {
     const token = url.searchParams.get('hub.verify_token');
     const challenge = url.searchParams.get('hub.challenge');
 
-    const VERIFY_TOKEN = Deno.env.get('WHATSAPP_VERIFY_TOKEN'); // Get token from environment variable
+    const VERIFY_TOKEN = Deno.env.get('WHATSAPP_VERIFY_TOKEN');
 
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
       console.log('Webhook verified successfully!');
@@ -39,7 +39,6 @@ serve(async (req) => {
 
   // --- START: Existing POST request logic for actual messages ---
   try {
-    // Create a Supabase client with the anon key for general operations (e.g., inserting incoming messages)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -50,7 +49,6 @@ serve(async (req) => {
       }
     );
 
-    // Create a Supabase client with the service role key to bypass RLS for specific queries
     const supabaseServiceRoleClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -84,10 +82,8 @@ serve(async (req) => {
     } else if (incomingMessage.type === 'interactive' && incomingMessage.interactive.type === 'button_reply') {
       incomingText = incomingMessage.interactive.button_reply.payload;
     } else if (['image', 'audio', 'video', 'document'].includes(incomingMessage.type)) {
-      // Handle media messages
       const mediaId = incomingMessage[incomingMessage.type]?.id;
       if (mediaId) {
-        // Fetch media URL from Meta API
         const { data: accountData, error: accountError } = await supabaseServiceRoleClient
           .from('whatsapp_accounts')
           .select('access_token')
@@ -96,7 +92,6 @@ serve(async (req) => {
 
         if (accountError || !accountData) {
           console.error('Error fetching WhatsApp account access token for media download:', accountError?.message);
-          // Proceed without media if token not found
         } else {
           const mediaApiUrl = `https://graph.facebook.com/v19.0/${mediaId}`;
           const mediaResponse = await fetch(mediaApiUrl, {
@@ -108,7 +103,7 @@ serve(async (req) => {
           if (mediaResponse.ok && mediaData.url) {
             mediaUrl = mediaData.url;
             mediaCaption = incomingMessage[incomingMessage.type]?.caption || null;
-            incomingText = `[${incomingMessage.type} message]`; // Placeholder text for media
+            incomingText = `[${incomingMessage.type} message]`;
           } else {
             console.error('Error fetching media URL from Meta API:', mediaData);
           }
@@ -123,7 +118,6 @@ serve(async (req) => {
 
     console.log(`Processing message from ${fromPhoneNumber} to ${whatsappBusinessAccountId}: "${incomingText}"`);
 
-    // Use supabaseServiceRoleClient to fetch account data, bypassing RLS
     const { data: accountData, error: accountError } = await supabaseServiceRoleClient
       .from('whatsapp_accounts')
       .select('id, user_id, access_token')
@@ -142,7 +136,6 @@ serve(async (req) => {
     const whatsappAccessToken = accountData.access_token;
     const whatsappAccountId = accountData.id;
 
-    // Save incoming message (still using supabaseClient as it's user-initiated and RLS should apply)
     const { error: insertIncomingError } = await supabaseClient
       .from('whatsapp_messages')
       .insert({
@@ -161,7 +154,6 @@ serve(async (req) => {
       console.error('Error saving incoming message:', insertIncomingError.message);
     } else {
       console.log('Incoming message saved to database.');
-      // Update or create conversation entry for incoming message
       await supabaseServiceRoleClient
         .from('whatsapp_conversations')
         .upsert(
@@ -176,7 +168,6 @@ serve(async (req) => {
         );
     }
 
-    // Function to send WhatsApp message
     const sendWhatsappMessage = async (to: string, type: string, content: any) => {
       if (!whatsappAccessToken || !whatsappBusinessAccountId) {
         console.warn('No WhatsApp access token or business account ID. Cannot send message.');
@@ -218,7 +209,6 @@ serve(async (req) => {
         console.log(`WhatsApp ${type} message sent successfully:`, responseData);
       }
 
-      // Save outgoing message using supabaseServiceRoleClient to bypass RLS
       const { error: insertOutgoingError } = await supabaseServiceRoleClient
         .from('whatsapp_messages')
         .insert({
@@ -237,7 +227,6 @@ serve(async (req) => {
         console.error('Error saving outgoing message:', insertOutgoingError.message);
       } else {
         console.log('Outgoing message saved to database.');
-        // Update or create conversation entry for outgoing message
         await supabaseServiceRoleClient
           .from('whatsapp_conversations')
           .upsert(
@@ -262,7 +251,7 @@ serve(async (req) => {
       .eq('contact_phone_number', fromPhoneNumber)
       .single();
 
-    if (convError && convError.code !== 'PGRST116') { // PGRST116 means no rows found
+    if (convError && convError.code !== 'PGRST116') {
       console.error('Error fetching conversation:', convError.message);
     } else if (conversationData) {
       currentConversation = conversationData;
@@ -272,7 +261,6 @@ serve(async (req) => {
 
     if (currentConversation && currentConversation.current_flow_id && currentConversation.current_node_id) {
       console.log(`Active flow detected: ${currentConversation.current_flow_id}, current node: ${currentConversation.current_node_id}`);
-      // Load flow data
       const { data: flowData, error: flowError } = await supabaseServiceRoleClient
         .from('chatbot_flows')
         .select('flow_data')
@@ -281,7 +269,6 @@ serve(async (req) => {
 
       if (flowError || !flowData?.flow_data) {
         console.error('Error fetching flow data:', flowError?.message);
-        // Reset conversation if flow data is invalid
         await supabaseServiceRoleClient
           .from('whatsapp_conversations')
           .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
@@ -297,13 +284,11 @@ serve(async (req) => {
           const expectedMessage = currentNode.data.expectedMessage?.toLowerCase();
           if (expectedMessage && incomingText.toLowerCase() === expectedMessage) {
             console.log(`Incoming message "${incomingText}" matched expected message "${expectedMessage}" for node ${currentNode.id}`);
-            // Find next node
             const outgoingEdge = edges.find((e: any) => e.source === currentNode.id);
             if (outgoingEdge) {
               const nextNode = nodes.find((n: any) => n.id === outgoingEdge.target);
               if (nextNode) {
                 console.log('Transitioning to next node:', nextNode.id, nextNode.type);
-                // Process next node
                 if (nextNode.type === 'messageNode') {
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: nextNode.data.message });
                   responseSent = true;
@@ -319,7 +304,6 @@ serve(async (req) => {
                   });
                   responseSent = true;
                 }
-                // Update conversation state
                 await supabaseServiceRoleClient
                   .from('whatsapp_conversations')
                   .update({ current_node_id: nextNode.id, last_message_at: new Date().toISOString() })
@@ -332,14 +316,11 @@ serve(async (req) => {
             }
           } else {
             console.log(`Incoming message "${incomingText}" did NOT match expected message "${expectedMessage}" for node ${currentNode.id}.`);
-            // Re-send current node's message or a "didn't understand" message
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: `I'm sorry, I was expecting "${expectedMessage}". Please try again.` });
             responseSent = true;
           }
         } else {
           console.log(`Current node ${currentNode?.id} is not an incomingMessageNode or not found. Falling back to rules.`);
-          // If current node is not an incoming message node, or if it's a message node and we're still here,
-          // it means the flow might be stuck or completed. Reset flow.
           await supabaseServiceRoleClient
             .from('whatsapp_conversations')
             .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
@@ -348,11 +329,10 @@ serve(async (req) => {
       }
     }
 
-    // If no response was sent by flow logic, check chatbot rules
     if (!responseSent) {
       const { data: rules, error: rulesError } = await supabaseServiceRoleClient
         .from('chatbot_rules')
-        .select('trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response') // Select use_ai_response
+        .select('trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response')
         .eq('whatsapp_account_id', whatsappAccountId);
 
       if (rulesError) {
@@ -390,7 +370,7 @@ serve(async (req) => {
       if (matchedRule) {
         if (matchedRule.use_ai_response) {
           console.log(`Chatbot rule matched with AI response enabled. Generating AI response.`);
-          // Fetch OpenAI config for this account
+          console.log(`Fetching OpenAI config for whatsappAccountId: ${whatsappAccountId}, userId: ${userId}`);
           const { data: openaiConfig, error: openaiConfigError } = await supabaseServiceRoleClient
             .from('openai_configs')
             .select('openai_api_key, is_enabled, system_prompt')
@@ -401,19 +381,21 @@ serve(async (req) => {
           if (openaiConfigError && openaiConfigError.code !== 'PGRST116') {
             console.error('Error fetching OpenAI config for rule AI response:', openaiConfigError.message);
           }
+          console.log('OpenAI Config Data:', openaiConfig);
+          console.log('is_enabled:', openaiConfig?.is_enabled, 'openai_api_key present:', !!openaiConfig?.openai_api_key);
+
 
           if (openaiConfig?.is_enabled && openaiConfig?.openai_api_key) {
             try {
               const openai = new OpenAI({ apiKey: openaiConfig.openai_api_key });
 
-              // Fetch recent messages for context
               const { data: recentMessages, error: messagesError } = await supabaseServiceRoleClient
                 .from('whatsapp_messages')
                 .select('message_body, direction')
                 .eq('whatsapp_account_id', whatsappAccountId)
                 .or(`from_phone_number.eq.${fromPhoneNumber},to_phone_number.eq.${fromPhoneNumber}`)
                 .order('created_at', { ascending: true })
-                .limit(10); // Get last 10 messages for context
+                .limit(10);
 
               if (messagesError) {
                 console.error('Error fetching recent messages for AI context:', messagesError.message);
@@ -435,7 +417,6 @@ serve(async (req) => {
                 }
               }
               
-              // Add the current incoming message
               messagesForAI.push({ role: 'user', content: incomingText });
 
               const chatCompletion = await openai.chat.completions.create({
@@ -461,7 +442,6 @@ serve(async (req) => {
           }
         } else if (matchedRule.flow_id) {
           console.log(`Chatbot rule matched to start flow: ${matchedRule.flow_id}`);
-          // Load flow data to find the start node
           const { data: flowData, error: flowError } = await supabaseServiceRoleClient
             .from('chatbot_flows')
             .select('flow_data')
@@ -504,7 +484,6 @@ serve(async (req) => {
                   action: { buttons: interactiveButtons },
                 });
               }
-              // Update or create conversation state
               const { error: upsertConvError } = await supabaseServiceRoleClient
                 .from('whatsapp_conversations')
                 .upsert(
@@ -524,9 +503,8 @@ serve(async (req) => {
               await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, the flow could not be started correctly." });
             }
           }
-          responseSent = true; // A flow was matched and attempted to start
+          responseSent = true;
         } else if (matchedRule.response_message.length > 0 || (matchedRule.buttons && matchedRule.buttons.length > 0)) {
-          // Send static response if no flow is linked and AI is not used
           for (const responseMessage of matchedRule.response_message) {
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: responseMessage });
           }
@@ -547,20 +525,19 @@ serve(async (req) => {
               action: { buttons: interactiveButtons },
             });
           }
-          // Ensure conversation state is reset if it was previously in a flow
           if (currentConversation) {
             await supabaseServiceRoleClient
               .from('whatsapp_conversations')
               .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
               .eq('id', currentConversation.id);
           }
-          responseSent = true; // A rule was matched and a static response was sent
+          responseSent = true;
         }
       }
     }
 
-    // If no response was sent by flows or rules, check for general AI assistant fallback
     if (!responseSent) {
+      console.log(`No rule matched, checking for general AI assistant fallback for whatsappAccountId: ${whatsappAccountId}, userId: ${userId}`);
       const { data: openaiConfig, error: openaiConfigError } = await supabaseServiceRoleClient
         .from('openai_configs')
         .select('openai_api_key, is_enabled, system_prompt')
@@ -571,20 +548,22 @@ serve(async (req) => {
       if (openaiConfigError && openaiConfigError.code !== 'PGRST116') {
         console.error('Error fetching OpenAI config for general fallback:', openaiConfigError.message);
       }
+      console.log('General Fallback OpenAI Config Data:', openaiConfig);
+      console.log('General Fallback is_enabled:', openaiConfig?.is_enabled, 'openai_api_key present:', !!openaiConfig?.openai_api_key);
+
 
       if (openaiConfig?.is_enabled && openaiConfig?.openai_api_key) {
         console.log('General AI assistant fallback is enabled. Generating response...');
         try {
           const openai = new OpenAI({ apiKey: openaiConfig.openai_api_key });
 
-          // Fetch recent messages for context
           const { data: recentMessages, error: messagesError } = await supabaseServiceRoleClient
             .from('whatsapp_messages')
             .select('message_body, direction')
             .eq('whatsapp_account_id', whatsappAccountId)
             .or(`from_phone_number.eq.${fromPhoneNumber},to_phone_number.eq.${fromPhoneNumber}`)
             .order('created_at', { ascending: true })
-            .limit(10); // Get last 10 messages for context
+            .limit(10);
 
           if (messagesError) {
             console.error('Error fetching recent messages for AI context:', messagesError.message);
@@ -606,7 +585,6 @@ serve(async (req) => {
             }
           }
           
-          // Add the current incoming message
           messagesForAI.push({ role: 'user', content: incomingText });
 
           const chatCompletion = await openai.chat.completions.create({
@@ -628,7 +606,6 @@ serve(async (req) => {
       }
     }
 
-    // If still no response, send a default "didn't understand" message
     if (!responseSent) {
       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I didn't understand that. Please try again." });
     }
