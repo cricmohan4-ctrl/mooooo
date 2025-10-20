@@ -232,7 +232,7 @@ serve(async (req) => {
             {
               user_id: userId,
               whatsapp_account_id: whatsappAccountId,
-              contact_phone_number: to,
+              contact_phone_number: fromPhoneNumber,
               last_message_at: new Date().toISOString(),
               last_message_body: type === 'text' ? content.body : `[${type} message]`,
             },
@@ -463,31 +463,31 @@ serve(async (req) => {
       }
     }
 
-    // If no rule or flow was matched, try OpenAI
+    // If no rule or flow was matched, try Google Gemini
     if (!responseSent) {
-      console.log('No rule or flow matched. Attempting to get AI response from OpenAI.');
+      console.log('No rule or flow matched. Attempting to get AI response from Google Gemini.');
       try {
-        const openaiResponse = await supabaseClient.functions.invoke('openai-chat', {
+        const geminiResponse = await supabaseClient.functions.invoke('gemini-chat', {
           body: { message: incomingText },
         });
 
-        if (openaiResponse.error) {
-          console.error('Error invoking OpenAI chat function:', openaiResponse.error.message);
+        if (geminiResponse.error) {
+          console.error('Error invoking Gemini chat function:', geminiResponse.error.message);
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment." });
-        } else if (openaiResponse.data.status === 'success') {
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: openaiResponse.data.response });
+        } else if (geminiResponse.data.status === 'success') {
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
           responseSent = true;
         } else {
-          console.error('OpenAI chat function returned an error status:', openaiResponse.data.message);
+          console.error('Gemini chat function returned an error status:', geminiResponse.data.message);
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
         }
       } catch (aiInvokeError) {
-        console.error('Unexpected error during OpenAI invocation:', aiInvokeError.message);
+        console.error('Unexpected error during Gemini invocation:', aiInvokeError.message);
         await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
       }
     }
 
-    // If still no response (e.g., OpenAI failed or was not enabled), send a generic fallback
+    // If still no response (e.g., Gemini failed or was not enabled), send a generic fallback
     if (!responseSent) {
       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
     }
