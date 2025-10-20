@@ -7,8 +7,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-import FlowsPage from "./pages/FlowsPage"; // Updated import
-import FlowEditor from "./pages/FlowEditor"; // New import for the editor
+import FlowsPage from "./pages/FlowsPage";
+import FlowEditor from "./pages/FlowEditor";
 import Inbox from "./pages/Inbox";
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 
@@ -34,7 +34,12 @@ const AppContent = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
@@ -50,7 +55,7 @@ const AppContent = () => (
             path="/flows"
             element={
               <ProtectedRoute>
-                <FlowsPage /> {/* Main page for listing flows */}
+                <FlowsPage />
               </ProtectedRoute>
             }
           />
@@ -58,7 +63,7 @@ const AppContent = () => (
             path="/flows/edit/:flowId"
             element={
               <ProtectedRoute>
-                <FlowEditor /> {/* Editor for a specific flow */}
+                <FlowEditor />
               </ProtectedRoute>
             }
           />
