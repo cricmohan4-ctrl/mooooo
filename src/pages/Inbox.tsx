@@ -284,7 +284,7 @@ const Inbox = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
+      const { data, error: invokeError } = await supabase.functions.invoke('send-whatsapp-message', {
         body: {
           toPhoneNumber: selectedConversation.contact_phone_number,
           messageBody: messageBody,
@@ -296,12 +296,18 @@ const Inbox = () => {
         },
       });
 
-      if (error) {
-        throw error;
+      if (invokeError) {
+        // This error is from the invoke call itself (e.g., network error, function not found)
+        console.error("Supabase Function Invoke Error:", invokeError.message);
+        showError(`Failed to send message: ${invokeError.message}`);
+        return;
       }
 
-      if (data.error) {
-        throw new Error(data.error);
+      // Check for application-level errors returned by the Edge Function
+      if (data.status === 'error') {
+        console.error("Edge Function returned error status:", data.message, data.details);
+        showError(`Failed to send message: ${data.message} ${data.details ? `(${JSON.stringify(data.details)})` : ''}`);
+        return;
       }
 
       showSuccess("Message sent successfully!");

@@ -29,17 +29,17 @@ serve(async (req) => {
     const { toPhoneNumber, messageBody, whatsappAccountId, userId, mediaUrl, mediaType, mediaCaption } = payload;
 
     if (!toPhoneNumber || !whatsappAccountId || !userId) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters: toPhoneNumber, whatsappAccountId, userId' }), {
+      return new Response(JSON.stringify({ status: 'error', message: 'Missing required parameters: toPhoneNumber, whatsappAccountId, userId' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 200,
       });
     }
 
     // If it's a text message, messageBody is required
     if (!mediaUrl && !messageBody) {
-      return new Response(JSON.stringify({ error: 'Either messageBody or mediaUrl must be provided.' }), {
+      return new Response(JSON.stringify({ status: 'error', message: 'Either messageBody or mediaUrl must be provided.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 200,
       });
     }
 
@@ -53,9 +53,9 @@ serve(async (req) => {
 
     if (accountError || !accountData) {
       console.error('Error fetching WhatsApp account details:', accountError?.message);
-      return new Response(JSON.stringify({ error: 'WhatsApp account not found or access denied.' }), {
+      return new Response(JSON.stringify({ status: 'error', message: 'WhatsApp account not found or access denied.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 404,
+        status: 200,
       });
     }
 
@@ -64,9 +64,9 @@ serve(async (req) => {
     const whatsappAccountName = accountData.account_name;
 
     if (!whatsappAccessToken || !whatsappBusinessPhoneNumberId) {
-      return new Response(JSON.stringify({ error: 'WhatsApp access token or phone number ID not configured for this account.' }), {
+      return new Response(JSON.stringify({ status: 'error', message: 'WhatsApp access token or phone number ID not configured for this account.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 200,
       });
     }
 
@@ -110,9 +110,9 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error('Error from WhatsApp API:', responseData);
-      return new Response(JSON.stringify({ error: 'Failed to send message via WhatsApp API', details: responseData }), {
+      return new Response(JSON.stringify({ status: 'error', message: 'Failed to send message via WhatsApp API', details: responseData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: response.status,
+        status: 200, // Always return 200 for client to parse body
       });
     }
 
@@ -160,9 +160,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in send-whatsapp-message Edge Function:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ status: 'error', message: 'Internal server error in Edge Function', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 200, // Always return 200 for client to parse body
     });
   }
 });
