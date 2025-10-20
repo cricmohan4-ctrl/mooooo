@@ -38,6 +38,7 @@ serve(async (req) => {
 
   // --- START: Existing POST request logic for actual messages ---
   try {
+    // Create a Supabase client with the anon key for general operations (e.g., inserting messages)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -46,6 +47,12 @@ serve(async (req) => {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
+    );
+
+    // Create a Supabase client with the service role key to bypass RLS for specific queries
+    const supabaseServiceRoleClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const payload = await req.json();
@@ -82,9 +89,10 @@ serve(async (req) => {
 
     console.log(`Processing message from ${fromPhoneNumber} to ${whatsappBusinessAccountId}: "${incomingText}"`);
 
-    const { data: accountData, error: accountError } = await supabaseClient
+    // Use supabaseServiceRoleClient to fetch account data, bypassing RLS
+    const { data: accountData, error: accountError } = await supabaseServiceRoleClient
       .from('whatsapp_accounts')
-      .select('user_id, access_token')
+      .select('id, user_id, access_token') // Select 'id' as well
       .eq('phone_number_id', whatsappBusinessAccountId)
       .single();
 
@@ -98,12 +106,13 @@ serve(async (req) => {
 
     const userId = accountData.user_id;
     const whatsappAccessToken = accountData.access_token;
+    const whatsappAccountId = accountData.id; // Get the account ID
 
     const { error: insertIncomingError } = await supabaseClient
       .from('whatsapp_messages')
       .insert({
         user_id: userId,
-        whatsapp_account_id: accountData.id,
+        whatsapp_account_id: whatsappAccountId, // Use the fetched account ID
         from_phone_number: fromPhoneNumber,
         to_phone_number: whatsappBusinessPhoneNumber,
         message_body: incomingText,
@@ -117,10 +126,10 @@ serve(async (req) => {
       console.log('Incoming message saved to database.');
     }
 
-    const { data: rules, error: rulesError } = await supabaseClient
+    const { data: rules, error: rulesError } = await supabaseServiceRoleClient // Use service role client for rules
       .from('chatbot_rules')
       .select('trigger_value, trigger_type, response_message, buttons')
-      .eq('whatsapp_account_id', accountData.id);
+      .eq('whatsapp_account_id', whatsappAccountId); // Filter by the fetched account ID
 
     if (rulesError) {
       console.error('Error fetching chatbot rules:', rulesError.message);
@@ -187,7 +196,7 @@ serve(async (req) => {
           .from('whatsapp_messages')
           .insert({
             user_id: userId,
-            whatsapp_account_id: accountData.id,
+            whatsapp_account_id: whatsappAccountId, // Use the fetched account ID
             from_phone_number: whatsappBusinessPhoneNumber,
             to_phone_number: fromPhoneNumber,
             message_body: responseMessage,
@@ -249,7 +258,7 @@ serve(async (req) => {
           .from('whatsapp_messages')
           .insert({
             user_id: userId,
-            whatsapp_account_id: accountData.id,
+            whatsapp_account_id: whatsappAccountId, // Use the fetched account ID
             from_phone_number: whatsappBusinessPhoneNumber,
             to_phone_number: fromPhoneNumber,
             message_body: interactiveBodyText,
