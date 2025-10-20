@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback } from 'react';
-import ReactFlow, { Controls, Background, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge } from 'react-flow-renderer';
+import ReactFlow, { Controls, Background, MiniMap, useNodesState, useEdgesState, addEdge, Connection, Edge } from 'reactflow'; // Changed import from 'react-flow-renderer' to 'reactflow'
+import 'reactflow/dist/style.css'; // Import the default styles for reactflow
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -52,7 +53,7 @@ const Flows = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={onNodeClick} {/* Added onNodeClick handler */}
+          onNodeClick={onNodeClick}
           fitView
           attributionPosition="bottom-left"
         >
