@@ -6,8 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
-import Login from "./pages/Login"; // Import the Login component
-import { SessionContextProvider, useSession } from "./integrations/supabase/auth"; // Import SessionContextProvider and useSession
+import Login from "./pages/Login";
+import Flows from "./pages/Flows"; // Import the new Flows component
+import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 
 const queryClient = new QueryClient();
 
@@ -34,12 +35,20 @@ const AppContent = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} /> {/* Login Route */}
+          <Route path="/login" element={<Login />} />
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/flows"
+            element={
+              <ProtectedRoute>
+                <Flows /> {/* New route for the Flow Builder */}
               </ProtectedRoute>
             }
           />

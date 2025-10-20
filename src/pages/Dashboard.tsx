@@ -1,7 +1,7 @@
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick } from "lucide-react";
+import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow } from "lucide-react";
 import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
 import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
 import { useEffect, useState } from "react";
@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Link } from "react-router-dom"; // Import Link
 
 interface WhatsappAccount {
   id: string;
@@ -212,7 +213,14 @@ const Dashboard = () => {
               <CardTitle className="text-2xl font-medium">
                 Chatbot Rules
               </CardTitle>
-              <AddChatbotRuleDialog onRuleAdded={fetchChatbotRules} whatsappAccounts={whatsappAccounts} />
+              <div className="flex space-x-2">
+                <Link to="/flows">
+                  <Button variant="outline" size="icon" title="Go to Flow Builder">
+                    <Workflow className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <AddChatbotRuleDialog onRuleAdded={fetchChatbotRules} whatsappAccounts={whatsappAccounts} />
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
