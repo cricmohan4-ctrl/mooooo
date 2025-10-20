@@ -7,8 +7,9 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-import Flows from "./pages/Flows";
-import Inbox from "./pages/Inbox"; // Import the new Inbox component
+import FlowsPage from "./pages/FlowsPage"; // Updated import
+import FlowEditor from "./pages/FlowEditor"; // New import for the editor
+import Inbox from "./pages/Inbox";
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 
 const queryClient = new QueryClient();
@@ -49,7 +50,15 @@ const AppContent = () => (
             path="/flows"
             element={
               <ProtectedRoute>
-                <Flows />
+                <FlowsPage /> {/* Main page for listing flows */}
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/flows/edit/:flowId"
+            element={
+              <ProtectedRoute>
+                <FlowEditor /> {/* Editor for a specific flow */}
               </ProtectedRoute>
             }
           />
@@ -57,7 +66,7 @@ const AppContent = () => (
             path="/inbox"
             element={
               <ProtectedRoute>
-                <Inbox /> {/* New route for the Inbox */}
+                <Inbox />
               </ProtectedRoute>
             }
           />
