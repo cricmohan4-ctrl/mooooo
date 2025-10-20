@@ -45,7 +45,10 @@ const Inbox = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchWhatsappAccounts = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("Inbox: User not logged in, cannot fetch WhatsApp accounts.");
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
@@ -54,6 +57,7 @@ const Inbox = () => {
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
+      console.log("Inbox: Fetched WhatsApp accounts:", data);
     } catch (error: any) {
       console.error("Error fetching WhatsApp accounts:", error.message);
       showError("Failed to load WhatsApp accounts.");
@@ -61,7 +65,11 @@ const Inbox = () => {
   };
 
   const fetchConversations = async () => {
-    if (!user || whatsappAccounts.length === 0) return;
+    if (!user || whatsappAccounts.length === 0) {
+      console.log("Inbox: User not logged in or no WhatsApp accounts, skipping conversation fetch.");
+      setIsLoading(false); // Ensure loading state is reset
+      return;
+    }
     setIsLoading(true);
     try {
       // Fetch the latest message for each unique contact_phone_number per whatsapp_account
@@ -78,6 +86,7 @@ const Inbox = () => {
         whatsapp_account_name: conv.whatsapp_account_name,
       }));
       setConversations(formattedConversations);
+      console.log("Inbox: Fetched conversations:", formattedConversations);
     } catch (error: any) {
       console.error("Error fetching conversations:", error.message);
       showError("Failed to load conversations.");
@@ -99,6 +108,7 @@ const Inbox = () => {
 
       if (error) throw error;
       setMessages(data || []);
+      console.log("Inbox: Fetched messages for conversation:", data);
     } catch (error: any) {
       console.error("Error fetching messages:", error.message);
       showError("Failed to load messages.");
@@ -114,8 +124,11 @@ const Inbox = () => {
   useEffect(() => {
     if (whatsappAccounts.length > 0) {
       fetchConversations();
+    } else if (!user) {
+      // If user logs out, reset loading state
+      setIsLoading(false);
     }
-  }, [whatsappAccounts]);
+  }, [whatsappAccounts, user]); // Added user to dependency array for clarity
 
   useEffect(() => {
     if (selectedConversation) {
