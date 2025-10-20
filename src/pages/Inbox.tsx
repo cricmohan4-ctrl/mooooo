@@ -36,24 +36,14 @@ interface Message {
 }
 
 const Inbox = () => {
-  const { session, user, isLoading: isSessionLoading } = useSession(); // Destructure session and user, rename isLoading to avoid conflict
-
-  // TEMPORARY LOGS FOR DEBUGGING USER ID
-  console.log("Inbox Component Render: Session object:", session);
-  console.log("Inbox Component Render: User object:", user);
-  if (user) {
-    console.log("Inbox Component Render: User ID:", user.id);
-  } else {
-    console.warn("Inbox Component Render: User object is NULL or UNDEFINED.");
-  }
-  // END TEMPORARY LOGS
+  const { user } = useSession();
 
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsappAccount[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true); // Local loading state for data fetching
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchWhatsappAccounts = async () => {
     if (!user) {
@@ -79,13 +69,12 @@ const Inbox = () => {
   const fetchConversations = async () => {
     if (!user || whatsappAccounts.length === 0) {
       console.log("Inbox: User not logged in or no WhatsApp accounts, skipping conversation fetch.");
-      setIsLoading(false); // Ensure loading state is reset
+      setIsLoading(false);
       return;
     }
     setIsLoading(true);
     console.log("Inbox: Attempting to fetch conversations for user ID:", user.id);
     try {
-      // Fetch the latest message for each unique contact_phone_number per whatsapp_account
       const { data, error } = await supabase
         .rpc('get_latest_whatsapp_conversations', { p_user_id: user.id });
 
@@ -135,7 +124,7 @@ const Inbox = () => {
       fetchWhatsappAccounts();
     } else {
       console.log("Inbox: User session not available.");
-      setIsLoading(false); // Ensure loading state is reset if no user
+      setIsLoading(false);
     }
   }, [user]);
 
@@ -143,10 +132,10 @@ const Inbox = () => {
     if (whatsappAccounts.length > 0) {
       console.log("Inbox: WhatsApp accounts loaded, fetching conversations.");
       fetchConversations();
-    } else if (user && !isLoading) { // Only log if user is present and not already loading
+    } else if (user && !isLoading) {
       console.log("Inbox: No WhatsApp accounts found for user, cannot fetch conversations.");
     }
-  }, [whatsappAccounts, user, isLoading]); // Added user and isLoading to dependency array for clarity
+  }, [whatsappAccounts, user, isLoading]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -167,16 +156,14 @@ const Inbox = () => {
       return;
     }
 
-    // For now, we'll just add it to the local state and database.
-    // Actual sending via WhatsApp API would involve an Edge Function.
     try {
       const { error } = await supabase
         .from('whatsapp_messages')
         .insert({
           user_id: user.id,
           whatsapp_account_id: selectedConversation.whatsapp_account_id,
-          from_phone_number: whatsappAccount.phone_number_id, // Business's number
-          to_phone_number: selectedConversation.contact_phone_number, // Contact's number
+          from_phone_number: whatsappAccount.phone_number_id,
+          to_phone_number: selectedConversation.contact_phone_number,
           message_body: newMessage.trim(),
           message_type: 'text',
           direction: 'outgoing',
@@ -185,9 +172,9 @@ const Inbox = () => {
       if (error) throw error;
 
       setNewMessage("");
-      fetchMessages(selectedConversation); // Refresh messages
-      fetchConversations(); // Refresh conversations to update last message
-      showError("Message sent (database only). Real WhatsApp sending needs an Edge Function."); // Placeholder for actual sending
+      fetchMessages(selectedConversation);
+      fetchConversations();
+      showError("Message sent (database only). Real WhatsApp sending needs an Edge Function.");
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
