@@ -37,6 +37,13 @@ interface Message {
 
 const Inbox = () => {
   const { user } = useSession();
+  // TEMPORARY LOGS FOR DEBUGGING USER ID
+  console.log("Inbox Component Render: User object:", user);
+  if (user) {
+    console.log("Inbox Component Render: User ID:", user.id);
+  }
+  // END TEMPORARY LOGS
+
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsappAccount[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -121,7 +128,6 @@ const Inbox = () => {
   useEffect(() => {
     if (user) {
       console.log("Inbox: User session available, fetching WhatsApp accounts.");
-      console.log("Inbox: Current User ID:", user.id); // TEMPORARY LOG FOR USER ID
       fetchWhatsappAccounts();
     } else {
       console.log("Inbox: User session not available.");
