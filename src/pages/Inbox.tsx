@@ -49,6 +49,7 @@ const Inbox = () => {
       console.log("Inbox: User not logged in, cannot fetch WhatsApp accounts.");
       return;
     }
+    console.log("Inbox: Attempting to fetch WhatsApp accounts for user ID:", user.id);
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
@@ -71,6 +72,7 @@ const Inbox = () => {
       return;
     }
     setIsLoading(true);
+    console.log("Inbox: Attempting to fetch conversations for user ID:", user.id);
     try {
       // Fetch the latest message for each unique contact_phone_number per whatsapp_account
       const { data, error } = await supabase
@@ -97,6 +99,7 @@ const Inbox = () => {
 
   const fetchMessages = async (conversation: Conversation) => {
     if (!user) return;
+    console.log("Inbox: Attempting to fetch messages for conversation:", conversation);
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages")
@@ -117,18 +120,22 @@ const Inbox = () => {
 
   useEffect(() => {
     if (user) {
+      console.log("Inbox: User session available, fetching WhatsApp accounts.");
       fetchWhatsappAccounts();
+    } else {
+      console.log("Inbox: User session not available.");
+      setIsLoading(false); // Ensure loading state is reset if no user
     }
   }, [user]);
 
   useEffect(() => {
     if (whatsappAccounts.length > 0) {
+      console.log("Inbox: WhatsApp accounts loaded, fetching conversations.");
       fetchConversations();
-    } else if (!user) {
-      // If user logs out, reset loading state
-      setIsLoading(false);
+    } else if (user && !isLoading) { // Only log if user is present and not already loading
+      console.log("Inbox: No WhatsApp accounts found for user, cannot fetch conversations.");
     }
-  }, [whatsappAccounts, user]); // Added user to dependency array for clarity
+  }, [whatsappAccounts, user, isLoading]); // Added user and isLoading to dependency array for clarity
 
   useEffect(() => {
     if (selectedConversation) {
