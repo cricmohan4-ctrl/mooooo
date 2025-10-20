@@ -24,6 +24,7 @@ serve(async (req) => {
         status: 200,
       });
     }
+    console.log('OPENAI_API_KEY is present.'); // Log that the key is found
 
     const openai = new OpenAI({
       apiKey: openaiApiKey,
@@ -41,11 +42,25 @@ serve(async (req) => {
 
     console.log('Sending message to OpenAI:', message);
 
-    const chatCompletion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // You can change this to a different model like "gpt-4" if preferred
-      messages: [{ role: "user", content: message }],
-      max_tokens: 150,
-    });
+    let chatCompletion;
+    try {
+      chatCompletion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo", // You can change this to a different model like "gpt-4" if preferred
+        messages: [{ role: "user", content: message }],
+        max_tokens: 150,
+      });
+      console.log('OpenAI API call successful. Response:', JSON.stringify(chatCompletion, null, 2));
+    } catch (openaiApiError: any) {
+      console.error('Error calling OpenAI API:', openaiApiError.message);
+      // If there's a specific error response from OpenAI, log it
+      if (openaiApiError.response) {
+        console.error('OpenAI API Error Response Data:', JSON.stringify(openaiApiError.response.data, null, 2));
+      }
+      return new Response(JSON.stringify({ status: 'error', message: 'Failed to get response from OpenAI API', details: openaiApiError.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
     const aiResponse = chatCompletion.choices[0].message.content;
     console.log('Received AI response:', aiResponse);
