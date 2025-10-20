@@ -1,7 +1,7 @@
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow } from "lucide-react";
+import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon } from "lucide-react";
 import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
 import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
 import { useEffect, useState } from "react";
@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Link } from "react-router-dom"; // Import Link
+import { Link } from "react-router-dom";
 
 interface WhatsappAccount {
   id: string;
@@ -38,7 +38,7 @@ interface ChatbotRule {
   trigger_value: string;
   trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
   response_message: string[];
-  buttons?: ButtonConfig[]; // Optional buttons array
+  buttons?: ButtonConfig[];
   account_name?: string;
 }
 
@@ -155,7 +155,14 @@ const Dashboard = () => {
               <CardTitle className="text-2xl font-medium">
                 WhatsApp Accounts
               </CardTitle>
-              <AddWhatsappAccountDialog onAccountAdded={fetchWhatsappAccounts} />
+              <div className="flex space-x-2">
+                <Link to="/inbox">
+                  <Button variant="outline" size="icon" title="Go to Inbox">
+                    <InboxIcon className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <AddWhatsappAccountDialog onAccountAdded={fetchWhatsappAccounts} />
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 dark:text-gray-400 mb-4">

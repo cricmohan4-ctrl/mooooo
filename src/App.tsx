@@ -7,7 +7,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-import Flows from "./pages/Flows"; // Import the new Flows component
+import Flows from "./pages/Flows";
+import Inbox from "./pages/Inbox"; // Import the new Inbox component
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 
 const queryClient = new QueryClient();
@@ -48,7 +49,15 @@ const AppContent = () => (
             path="/flows"
             element={
               <ProtectedRoute>
-                <Flows /> {/* New route for the Flow Builder */}
+                <Flows />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inbox"
+            element={
+              <ProtectedRoute>
+                <Inbox /> {/* New route for the Inbox */}
               </ProtectedRoute>
             }
           />
