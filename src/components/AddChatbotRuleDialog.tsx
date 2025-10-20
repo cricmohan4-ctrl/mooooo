@@ -37,7 +37,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
   const [selectedWhatsappAccountId, setSelectedWhatsappAccountId] = useState<string>("");
   const [triggerValue, setTriggerValue] = useState("");
   const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH">("EXACT_MATCH");
-  const [responseMessage, setResponseMessage] = useState("");
+  const [responseMessage, setResponseMessage] = useState(""); // This will be a multi-line string
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -52,13 +52,16 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       showError("You must be logged in to add a chatbot rule.");
       return;
     }
-    if (!selectedWhatsappAccountId || !triggerValue || !responseMessage) {
+    if (!selectedWhatsappAccountId || !triggerValue || !responseMessage.trim()) {
       showError("Please fill in all fields.");
       return;
     }
 
     setIsLoading(true);
     try {
+      // Split the multi-line response into an array of messages
+      const responseMessagesArray = responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
+
       const { error } = await supabase
         .from("chatbot_rules")
         .insert({
@@ -66,7 +69,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
           whatsapp_account_id: selectedWhatsappAccountId,
           trigger_value: triggerValue,
           trigger_type: triggerType,
-          response_message: responseMessage,
+          response_message: responseMessagesArray, // Store as an array
         });
 
       if (error) {
@@ -98,7 +101,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
         <DialogHeader>
           <DialogTitle>Add Chatbot Rule</DialogTitle>
           <DialogDescription>
-            Define a trigger phrase and the automated response for a WhatsApp account.
+            Define a trigger phrase and the automated response for a WhatsApp account. Each line in the response will be a separate message.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -158,15 +161,16 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="responseMessage" className="text-right">
-                Response Message
+                Response Messages
               </Label>
               <Textarea
                 id="responseMessage"
                 value={responseMessage}
                 onChange={(e) => setResponseMessage(e.target.value)}
                 className="col-span-3"
-                placeholder="e.g., 'Hi there! How can I help you?'"
+                placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
                 required
+                rows={4}
               />
             </div>
           </div>

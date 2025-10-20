@@ -31,7 +31,7 @@ interface ChatbotRule {
   whatsapp_account_id: string;
   trigger_value: string;
   trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
-  response_message: string;
+  response_message: string[]; // Now an array of strings
   account_name?: string; // To display the associated account name
 }
 
@@ -228,7 +228,12 @@ const Dashboard = () => {
                           <p className="font-medium text-gray-900 dark:text-gray-100">
                             Trigger: <span className="font-normal text-gray-700 dark:text-gray-300">[{rule.trigger_type}] "{rule.trigger_value}"</span>
                           </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Response: "{rule.response_message}"</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Response:
+                            {rule.response_message.map((msg, index) => (
+                              <span key={index} className="block ml-2">"{msg}"</span>
+                            ))}
+                          </p>
                           <p className="text-xs text-gray-400 dark:text-gray-500">Account: {rule.account_name || 'N/A'}</p>
                         </div>
                       </div>

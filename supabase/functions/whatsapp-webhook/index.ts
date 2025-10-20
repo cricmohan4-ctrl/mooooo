@@ -49,7 +49,7 @@ serve(async (req) => {
         throw rulesError;
       }
 
-      let aiResponse = "I'm sorry, I didn't understand that. Please try again."; // Default response
+      let matchedResponseMessages: string[] = ["I'm sorry, I didn't understand that. Please try again."]; // Default response
       let whatsappAccessToken = null;
 
       for (const rule of rules || []) {
@@ -73,36 +73,38 @@ serve(async (req) => {
         }
 
         if (match) {
-          aiResponse = rule.response_message;
+          matchedResponseMessages = rule.response_message as string[]; // Cast to string array
           break; // Found a match, use this rule's response
         }
       }
 
-      // If an access token was found for the account, attempt to send a response
+      // If an access token was found for the account, attempt to send responses
       if (whatsappAccessToken && whatsappBusinessAccountId) {
-        console.log(`Sending response: "${aiResponse}" to ${fromPhoneNumber} using account ${whatsappBusinessAccountId}`);
         const whatsappApiUrl = `https://graph.facebook.com/v19.0/${whatsappBusinessAccountId}/messages`;
         
-        const response = await fetch(whatsappApiUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${whatsappAccessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: fromPhoneNumber,
-            type: 'text',
-            text: { body: aiResponse },
-          }),
-        });
+        for (const responseMessage of matchedResponseMessages) {
+          console.log(`Sending response: "${responseMessage}" to ${fromPhoneNumber} using account ${whatsappBusinessAccountId}`);
+          const response = await fetch(whatsappApiUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${whatsappAccessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              to: fromPhoneNumber,
+              type: 'text',
+              text: { body: responseMessage },
+            }),
+          });
 
-        const responseData = await response.json();
-        if (!response.ok) {
-          console.error('Error sending WhatsApp message:', responseData);
-          throw new Error(`Failed to send WhatsApp message: ${JSON.stringify(responseData)}`);
+          const responseData = await response.json();
+          if (!response.ok) {
+            console.error('Error sending WhatsApp message:', responseData);
+            throw new Error(`Failed to send WhatsApp message: ${JSON.stringify(responseData)}`);
+          }
+          console.log('WhatsApp message sent successfully:', responseData);
         }
-        console.log('WhatsApp message sent successfully:', responseData);
       } else {
         console.warn('No WhatsApp access token found for the account or phone number ID. Cannot send automated response.');
       }
