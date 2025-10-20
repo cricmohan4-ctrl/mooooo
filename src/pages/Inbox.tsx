@@ -18,6 +18,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from '@/hooks/use-mobile'; // Import the hook
 
 interface WhatsappAccount {
   id: string;
@@ -47,6 +48,7 @@ interface Message {
 
 const Inbox = () => {
   const { user } = useSession();
+  const isMobile = useIsMobile(); // Use the mobile detection hook
 
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsappAccount[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -491,141 +493,151 @@ const Inbox = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center">
-        <Button variant="ghost" size="icon" asChild>
-          <Link to="/dashboard">
+        {isMobile && selectedConversation ? (
+          <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/dashboard">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+        )}
         <h1 className="text-2xl font-bold ml-4">WhatsApp Inbox</h1>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Conversations Sidebar */}
-        <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
-          <div className="p-4 text-lg font-semibold">Conversations</div>
-          <Separator />
-          {isLoadingConversations ? (
-            <div className="p-4 text-center text-gray-500">Loading conversations...</div>
-          ) : conversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">No conversations yet.</div>
-          ) : (
-            conversations.map((conv) => (
-              <div
-                key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
-                className={`flex items-center p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                  selectedConversation?.contact_phone_number === conv.contact_phone_number &&
-                  selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
-                    ? 'bg-blue-50 dark:bg-blue-900'
-                    : ''
-                }`}
-                onClick={() => handleConversationSelect(conv)}
-              >
-                <User className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 p-1 mr-3" />
-                <div className="flex-1">
-                  <p className="font-medium">{conv.contact_phone_number}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.last_message_body}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                    {conv.whatsapp_account_name} - {format(new Date(conv.last_message_time), 'MMM d, HH:mm')}
-                  </p>
+        {(!isMobile || (isMobile && !selectedConversation)) && (
+          <div className={`w-full ${!isMobile ? 'md:w-1/3' : ''} border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto`}>
+            <div className="p-4 text-lg font-semibold">Conversations</div>
+            <Separator />
+            {isLoadingConversations ? (
+              <div className="p-4 text-center text-gray-500">Loading conversations...</div>
+            ) : conversations.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">No conversations yet.</div>
+            ) : (
+              conversations.map((conv) => (
+                <div
+                  key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
+                  className={`flex items-center p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    selectedConversation?.contact_phone_number === conv.contact_phone_number &&
+                    selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
+                      ? 'bg-blue-50 dark:bg-blue-900'
+                      : ''
+                  }`}
+                  onClick={() => handleConversationSelect(conv)}
+                >
+                  <User className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 p-1 mr-3" />
+                  <div className="flex-1">
+                    <p className="font-medium">{conv.contact_phone_number}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.last_message_body}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      {conv.whatsapp_account_name} - {format(new Date(conv.last_message_time), 'MMM d, HH:mm')}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* Message Area */}
-        <div className="flex flex-col flex-1 bg-gray-50 dark:bg-gray-900">
-          {selectedConversation ? (
-            <>
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center">
-                <MessageCircle className="h-6 w-6 text-green-500 mr-3" />
-                <h2 className="text-xl font-semibold">{selectedConversation.contact_phone_number}</h2>
-                <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                  ({selectedConversation.whatsapp_account_name})
-                </span>
-              </div>
-              <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                {isLoadingMessages ? (
-                  <div className="text-center text-gray-500">Loading messages...</div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center text-gray-500">No messages in this conversation.</div>
-                ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
-                    >
+        {(!isMobile || (isMobile && selectedConversation)) && (
+          <div className={`flex flex-col flex-1 bg-gray-50 dark:bg-gray-900 ${isMobile && selectedConversation ? 'w-full' : ''}`}>
+            {selectedConversation ? (
+              <>
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center">
+                  <MessageCircle className="h-6 w-6 text-green-500 mr-3" />
+                  <h2 className="text-xl font-semibold">{selectedConversation.contact_phone_number}</h2>
+                  <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                    ({selectedConversation.whatsapp_account_name})
+                  </span>
+                </div>
+                <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                  {isLoadingMessages ? (
+                    <div className="text-center text-gray-500">Loading messages...</div>
+                  ) : messages.length === 0 ? (
+                    <div className="text-center text-gray-500">No messages in this conversation.</div>
+                  ) : (
+                    messages.map((msg) => (
                       <div
-                        className={`max-w-[70%] p-3 rounded-lg ${
-                          msg.direction === 'outgoing'
-                            ? 'bg-blue-500 text-white rounded-br-none'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
-                        }`}
+                        key={msg.id}
+                        className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                       >
-                        {msg.message_type === 'text' ? (
-                          <p>{msg.message_body}</p>
-                        ) : (
-                          renderMediaMessage(msg)
-                        )}
-                        <p className="text-xs mt-1 opacity-75">
-                          {format(new Date(msg.created_at), 'HH:mm')}
-                        </p>
+                        <div
+                          className={`max-w-[70%] p-3 rounded-lg ${
+                            msg.direction === 'outgoing'
+                              ? 'bg-blue-500 text-white rounded-br-none'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
+                          }`}
+                        >
+                          {msg.message_type === 'text' ? (
+                            <p>{msg.message_body}</p>
+                          ) : (
+                            renderMediaMessage(msg)
+                          )}
+                          <p className="text-xs mt-1 opacity-75">
+                            {format(new Date(msg.created_at), 'HH:mm')}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} /> {/* Scroll target */}
-              </div>
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="mr-2">
-                      <Paperclip className="h-5 w-5" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-2 flex flex-col space-y-2">
-                    <Button variant="ghost" className="justify-start" onClick={openCamera}>
-                      <Camera className="h-4 w-4 mr-2" /> Camera
-                    </Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => setIsAttachmentDialogOpen(true)}>
-                      <Paperclip className="h-4 w-4 mr-2" /> Document
-                    </Button>
-                  </PopoverContent>
-                </Popover>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} /> {/* Scroll target */}
+                </div>
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="mr-2">
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2 flex flex-col space-y-2">
+                      <Button variant="ghost" className="justify-start" onClick={openCamera}>
+                        <Camera className="h-4 w-4 mr-2" /> Camera
+                      </Button>
+                      <Button variant="ghost" className="justify-start" onClick={() => setIsAttachmentDialogOpen(true)}>
+                        <Paperclip className="h-4 w-4 mr-2" /> Document
+                      </Button>
+                    </PopoverContent>
+                  </Popover>
 
-                {isRecording ? (
-                  <Button variant="destructive" size="icon" onClick={stopRecording} className="mr-2">
-                    <StopCircle className="h-5 w-5" />
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon" onClick={startRecording} className="mr-2">
-                    <Mic className="h-5 w-5" />
-                  </Button>
-                )}
+                  {isRecording ? (
+                    <Button variant="destructive" size="icon" onClick={stopRecording} className="mr-2">
+                      <StopCircle className="h-5 w-5" />
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="icon" onClick={startRecording} className="mr-2">
+                      <Mic className="h-5 w-5" />
+                    </Button>
+                  )}
 
-                <Input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSendMessage(newMessage);
-                    }
-                  }}
-                  className="flex-1 mr-2"
-                />
-                <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
+                  <Input
+                    type="text"
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSendMessage(newMessage);
+                      }
+                    }}
+                    className="flex-1 mr-2"
+                  />
+                  <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                Select a conversation to start chatting.
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-              Select a conversation to start chatting.
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Audio Recording Dialog */}
