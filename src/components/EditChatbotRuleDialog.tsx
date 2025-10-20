@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { XCircle, Edit } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { showSuccess, showError } from "@/utils/toast";
@@ -24,10 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 interface ButtonConfig {
   text: string;
   payload: string;
+}
+
+interface ChatbotFlow {
+  id: string;
+  name: string;
 }
 
 interface ChatbotRule {
@@ -37,6 +43,7 @@ interface ChatbotRule {
   trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
   response_message: string[];
   buttons?: ButtonConfig[] | null;
+  flow_id?: string | null; // New field
   account_name?: string; // For display purposes, not directly updated
 }
 
@@ -61,6 +68,8 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
   const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH">(rule.trigger_type);
   const [responseMessage, setResponseMessage] = useState(rule.response_message.join('\n'));
   const [buttons, setButtons] = useState<ButtonConfig[]>(rule.buttons ? [...rule.buttons] : []);
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(rule.flow_id || null); // Initialize with rule's flow_id
+  const [chatbotFlows, setChatbotFlows] = useState<ChatbotFlow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Update state when the rule prop changes (e.g., if a different rule is selected for editing)
@@ -70,7 +79,31 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
     setTriggerType(rule.trigger_type);
     setResponseMessage(rule.response_message.join('\n'));
     setButtons(rule.buttons ? [...rule.buttons] : []);
+    setSelectedFlowId(rule.flow_id || null);
   }, [rule]);
+
+  useEffect(() => {
+    const fetchChatbotFlows = async () => {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from("chatbot_flows")
+          .select("id, name")
+          .eq("user_id", user.id)
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+        setChatbotFlows(data || []);
+      } catch (error: any) {
+        console.error("Error fetching chatbot flows:", error.message);
+        showError("Failed to load chatbot flows for selection.");
+      }
+    };
+
+    if (user && isOpen) {
+      fetchChatbotFlows();
+    }
+  }, [user, isOpen]);
 
   const handleAddButton = () => {
     setButtons([...buttons, { text: "", payload: "" }]);
@@ -83,7 +116,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
   const handleButtonChange = (index: number, field: keyof ButtonConfig, value: string) => {
     const newButtons = [...buttons];
     newButtons[index] = { ...newButtons[index], [field]: value };
-    setButtons(newButtons);
+    setEditedButtons(newButtons);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,20 +125,27 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
       showError("You must be logged in to edit a chatbot rule.");
       return;
     }
-    if (!selectedWhatsappAccountId || !triggerValue || !responseMessage.trim()) {
-      showError("Please fill in all required fields.");
+    if (!selectedWhatsappAccountId || !triggerValue.trim()) {
+      showError("Please fill in all required fields (WhatsApp Account, Trigger Value).");
       return;
     }
 
-    const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
-    if (buttons.length > 0 && invalidButtons) {
-      showError("Please ensure all button text and payload values are filled.");
+    if (!selectedFlowId && !responseMessage.trim()) {
+      showError("Please provide a response message or select a chatbot flow.");
       return;
+    }
+
+    if (!selectedFlowId && buttons.length > 0) {
+      const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
+      if (invalidButtons) {
+        showError("Please ensure all button text and payload values are filled.");
+        return;
+      }
     }
 
     setIsLoading(true);
     try {
-      const responseMessagesArray = responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
+      const responseMessagesArray = selectedFlowId ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
 
       const { error } = await supabase
         .from("chatbot_rules")
@@ -114,7 +154,8 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
           trigger_value: triggerValue,
           trigger_type: triggerType,
           response_message: responseMessagesArray,
-          buttons: buttons.length > 0 ? buttons : null,
+          buttons: selectedFlowId ? null : (buttons.length > 0 ? buttons : null),
+          flow_id: selectedFlowId, // Update the flow ID
         })
         .eq("id", rule.id)
         .eq("user_id", user.id);
@@ -140,7 +181,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Edit Chatbot Rule</DialogTitle>
           <DialogDescription>
-            Modify the trigger and response for this chatbot rule. Each line in the response will be a separate message.
+            Modify the trigger and either the automated response or linked chatbot flow for this rule.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -198,56 +239,86 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                 required
               />
             </div>
+
+            <Separator className="my-2" />
+
+            {/* Flow Selection */}
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="responseMessage" className="text-right">
-                Response Messages
+              <Label htmlFor="chatbotFlow" className="text-right">
+                Link to Flow (Optional)
               </Label>
-              <Textarea
-                id="responseMessage"
-                value={responseMessage}
-                onChange={(e) => setResponseMessage(e.target.value)}
-                className="col-span-3"
-                placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
-                required
-                rows={4}
-              />
+              <Select
+                onValueChange={(value) => setSelectedFlowId(value === "none" ? null : value)}
+                value={selectedFlowId || "none"}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a chatbot flow" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Flow (Use static response)</SelectItem>
+                  {chatbotFlows.map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id}>
+                      {flow.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Buttons Section */}
-            <div className="col-span-4">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-right">Buttons (Optional)</Label>
-                <Button type="button" variant="outline" size="sm" onClick={handleAddButton} disabled={buttons.length >= 3}>
-                  Add Button
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {buttons.map((button, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      placeholder="Button Text"
-                      value={button.text}
-                      onChange={(e) => handleButtonChange(index, "text", e.target.value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      placeholder="Payload (triggers next rule)"
-                      value={button.payload}
-                      onChange={(e) => handleButtonChange(index, "payload", e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveButton(index)}
-                    >
-                      <XCircle className="h-4 w-4 text-red-500" />
+            {/* Conditional Response Message and Buttons */}
+            {!selectedFlowId && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="responseMessage" className="text-right">
+                    Response Messages
+                  </Label>
+                  <Textarea
+                    id="responseMessage"
+                    value={responseMessage}
+                    onChange={(e) => setResponseMessage(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
+                    required={!selectedFlowId}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="col-span-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-right">Buttons (Optional)</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddButton} disabled={buttons.length >= 3}>
+                      Add Button
                     </Button>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    {buttons.map((button, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Button Text"
+                          value={button.text}
+                          onChange={(e) => handleButtonChange(index, "text", e.target.value)}
+                          className="flex-1"
+                        />
+                        <Input
+                          placeholder="Payload (triggers next rule)"
+                          value={button.payload}
+                          onChange={(e) => handleButtonChange(index, "payload", e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveButton(index)}
+                        >
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isLoading}>

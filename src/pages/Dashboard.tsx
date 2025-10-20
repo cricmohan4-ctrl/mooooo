@@ -40,7 +40,9 @@ interface ChatbotRule {
   trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
   response_message: string[];
   buttons?: ButtonConfig[] | null;
+  flow_id?: string | null; // Added flow_id
   account_name?: string;
+  flow_name?: string; // Added flow_name for display
 }
 
 const Dashboard = () => {
@@ -79,17 +81,18 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_rules")
-        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, whatsapp_accounts(account_name)")
+        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, whatsapp_accounts(account_name), chatbot_flows(name)") // Select flow_id and flow name
         .eq("user_id", user.id);
 
       if (error) {
         throw error;
       }
-      const rulesWithAccountNames = data?.map(rule => ({
+      const rulesWithAccountAndFlowNames = data?.map(rule => ({
         ...rule,
-        account_name: (rule.whatsapp_accounts as { account_name: string }).account_name
+        account_name: (rule.whatsapp_accounts as { account_name: string }).account_name,
+        flow_name: rule.chatbot_flows ? (rule.chatbot_flows as { name: string }).name : undefined, // Extract flow name
       })) || [];
-      setChatbotRules(rulesWithAccountNames);
+      setChatbotRules(rulesWithAccountAndFlowNames);
     } catch (error: any) {
       console.error("Error fetching chatbot rules:", error.message);
       showError("Failed to load chatbot rules.");
@@ -258,22 +261,30 @@ const Dashboard = () => {
                             Trigger: <span className="font-normal text-gray-700 dark:text-gray-300">[{rule.trigger_type}] "{rule.trigger_value}"</span>
                           </p>
                         </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
-                          Response Messages:
-                          {rule.response_message.map((msg, index) => (
-                            <span key={index} className="block ml-2">"{msg}"</span>
-                          ))}
-                        </p>
-                        {rule.buttons && rule.buttons.length > 0 && (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 ml-8 mt-2">
-                            Buttons:
-                            {rule.buttons.map((button, index) => (
-                              <div key={index} className="flex items-center ml-2">
-                                <MousePointerClick className="h-3 w-3 mr-1" />
-                                <span className="font-medium">"{button.text}"</span> (Payload: "{button.payload}")
+                        {rule.flow_id ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
+                            Linked Flow: <span className="font-medium text-blue-600 dark:text-blue-400">{rule.flow_name || 'Unnamed Flow'}</span>
+                          </p>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
+                              Response Messages:
+                              {rule.response_message.map((msg, index) => (
+                                <span key={index} className="block ml-2">"{msg}"</span>
+                              ))}
+                            </p>
+                            {rule.buttons && rule.buttons.length > 0 && (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 ml-8 mt-2">
+                                Buttons:
+                                {rule.buttons.map((button, index) => (
+                                  <div key={index} className="flex items-center ml-2">
+                                    <MousePointerClick className="h-3 w-3 mr-1" />
+                                    <span className="font-medium">"{button.text}"</span> (Payload: "{button.payload}")
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            )}
+                          </>
                         )}
                         <p className="text-xs text-gray-400 dark:text-gray-500 ml-8 mt-1">Account: {rule.account_name || 'N/A'}</p>
                       </div>

@@ -25,8 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
-interface AddChatbotRuleDialogProps {
+interface AddWhatsappAccountDialogProps {
   onRuleAdded: () => void;
   whatsappAccounts: { id: string; account_name: string }[];
 }
@@ -36,7 +37,12 @@ interface ButtonConfig {
   payload: string; // This will be the trigger_value for the next rule
 }
 
-const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded, whatsappAccounts }) => {
+interface ChatbotFlow {
+  id: string;
+  name: string;
+}
+
+const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleAdded, whatsappAccounts }) => {
   const { user } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedWhatsappAccountId, setSelectedWhatsappAccountId] = useState<string>("");
@@ -44,6 +50,8 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
   const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH">("EXACT_MATCH");
   const [responseMessage, setResponseMessage] = useState(""); // This will be a multi-line string
   const [buttons, setButtons] = useState<ButtonConfig[]>([]); // State for buttons
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null); // New state for selected flow
+  const [chatbotFlows, setChatbotFlows] = useState<ChatbotFlow[]>([]); // State for available flows
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -51,6 +59,29 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       setSelectedWhatsappAccountId(whatsappAccounts[0].id);
     }
   }, [whatsappAccounts, selectedWhatsappAccountId]);
+
+  useEffect(() => {
+    const fetchChatbotFlows = async () => {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from("chatbot_flows")
+          .select("id, name")
+          .eq("user_id", user.id)
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+        setChatbotFlows(data || []);
+      } catch (error: any) {
+        console.error("Error fetching chatbot flows:", error.message);
+        showError("Failed to load chatbot flows for selection.");
+      }
+    };
+
+    if (user && isOpen) {
+      fetchChatbotFlows();
+    }
+  }, [user, isOpen]);
 
   const handleAddButton = () => {
     setButtons([...buttons, { text: "", payload: "" }]);
@@ -72,22 +103,28 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       showError("You must be logged in to add a chatbot rule.");
       return;
     }
-    if (!selectedWhatsappAccountId || !triggerValue || !responseMessage.trim()) {
-      showError("Please fill in all fields.");
+    if (!selectedWhatsappAccountId || !triggerValue.trim()) {
+      showError("Please fill in all required fields (WhatsApp Account, Trigger Value).");
       return;
     }
 
-    // Validate buttons: ensure text and payload are not empty if buttons exist
-    const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
-    if (buttons.length > 0 && invalidButtons) {
-      showError("Please ensure all button text and payload values are filled.");
+    if (!selectedFlowId && !responseMessage.trim()) {
+      showError("Please provide a response message or select a chatbot flow.");
       return;
+    }
+
+    // Validate buttons only if a flow is NOT selected and buttons are present
+    if (!selectedFlowId && buttons.length > 0) {
+      const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
+      if (invalidButtons) {
+        showError("Please ensure all button text and payload values are filled.");
+        return;
+      }
     }
 
     setIsLoading(true);
     try {
-      // Split the multi-line response into an array of messages
-      const responseMessagesArray = responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
+      const responseMessagesArray = selectedFlowId ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
 
       const { error } = await supabase
         .from("chatbot_rules")
@@ -96,8 +133,9 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
           whatsapp_account_id: selectedWhatsappAccountId,
           trigger_value: triggerValue,
           trigger_type: triggerType,
-          response_message: responseMessagesArray, // Store as an array
-          buttons: buttons.length > 0 ? buttons : null, // Store buttons if present, otherwise null
+          response_message: responseMessagesArray,
+          buttons: selectedFlowId ? null : (buttons.length > 0 ? buttons : null),
+          flow_id: selectedFlowId, // Insert the selected flow ID
         });
 
       if (error) {
@@ -108,9 +146,10 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       setTriggerValue("");
       setResponseMessage("");
       setTriggerType("EXACT_MATCH");
-      setButtons([]); // Clear buttons after submission
+      setButtons([]);
+      setSelectedFlowId(null); // Reset selected flow
       setIsOpen(false);
-      onRuleAdded(); // Notify parent component that a rule was added
+      onRuleAdded();
     } catch (error: any) {
       console.error("Error adding chatbot rule:", error.message);
       showError(`Failed to add rule: ${error.message}`);
@@ -130,7 +169,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
         <DialogHeader>
           <DialogTitle>Add Chatbot Rule</DialogTitle>
           <DialogDescription>
-            Define a trigger phrase and the automated response for a WhatsApp account. Each line in the response will be a separate message.
+            Define a trigger phrase and either an automated response or link a chatbot flow for a WhatsApp account.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -188,56 +227,86 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
                 required
               />
             </div>
+
+            <Separator className="my-2" />
+
+            {/* Flow Selection */}
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="responseMessage" className="text-right">
-                Response Messages
+              <Label htmlFor="chatbotFlow" className="text-right">
+                Link to Flow (Optional)
               </Label>
-              <Textarea
-                id="responseMessage"
-                value={responseMessage}
-                onChange={(e) => setResponseMessage(e.target.value)}
-                className="col-span-3"
-                placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
-                required
-                rows={4}
-              />
+              <Select
+                onValueChange={(value) => setSelectedFlowId(value === "none" ? null : value)}
+                value={selectedFlowId || "none"}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a chatbot flow" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Flow (Use static response)</SelectItem>
+                  {chatbotFlows.map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id}>
+                      {flow.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Buttons Section */}
-            <div className="col-span-4">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-right">Buttons (Optional)</Label>
-                <Button type="button" variant="outline" size="sm" onClick={handleAddButton} disabled={buttons.length >= 3}>
-                  Add Button
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {buttons.map((button, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      placeholder="Button Text"
-                      value={button.text}
-                      onChange={(e) => handleButtonChange(index, "text", e.target.value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      placeholder="Payload (triggers next rule)"
-                      value={button.payload}
-                      onChange={(e) => handleButtonChange(index, "payload", e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveButton(index)}
-                    >
-                      <XCircle className="h-4 w-4 text-red-500" />
+            {/* Conditional Response Message and Buttons */}
+            {!selectedFlowId && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="responseMessage" className="text-right">
+                    Response Messages
+                  </Label>
+                  <Textarea
+                    id="responseMessage"
+                    value={responseMessage}
+                    onChange={(e) => setResponseMessage(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
+                    required={!selectedFlowId}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="col-span-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-right">Buttons (Optional)</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddButton} disabled={buttons.length >= 3}>
+                      Add Button
                     </Button>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    {buttons.map((button, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Button Text"
+                          value={button.text}
+                          onChange={(e) => handleButtonChange(index, "text", e.target.value)}
+                          className="flex-1"
+                        />
+                        <Input
+                          placeholder="Payload (triggers next rule)"
+                          value={button.payload}
+                          onChange={(e) => handleButtonChange(index, "payload", e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveButton(index)}
+                        >
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isLoading}>
