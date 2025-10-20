@@ -1,9 +1,9 @@
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MessageCircle, Trash2, Bot } from "lucide-react";
+import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick } from "lucide-react";
 import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
-import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog"; // Import the new dialog
+import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
@@ -26,13 +26,19 @@ interface WhatsappAccount {
   phone_number_id: string;
 }
 
+interface ButtonConfig {
+  text: string;
+  payload: string;
+}
+
 interface ChatbotRule {
   id: string;
   whatsapp_account_id: string;
   trigger_value: string;
   trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
-  response_message: string[]; // Now an array of strings
-  account_name?: string; // To display the associated account name
+  response_message: string[];
+  buttons?: ButtonConfig[]; // Optional buttons array
+  account_name?: string;
 }
 
 const Dashboard = () => {
@@ -69,7 +75,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_rules")
-        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, whatsapp_accounts(account_name)")
+        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, whatsapp_accounts(account_name)")
         .eq("user_id", user.id);
 
       if (error) {
@@ -94,14 +100,14 @@ const Dashboard = () => {
         .from("whatsapp_accounts")
         .delete()
         .eq("id", accountId)
-        .eq("user_id", user?.id); // Ensure user can only delete their own accounts
+        .eq("user_id", user?.id);
 
       if (error) {
         throw error;
       }
       showSuccess("WhatsApp account deleted successfully!");
-      fetchWhatsappAccounts(); // Refresh the list
-      fetchChatbotRules(); // Also refresh rules as they might be linked
+      fetchWhatsappAccounts();
+      fetchChatbotRules();
     } catch (error: any) {
       console.error("Error deleting WhatsApp account:", error.message);
       showError(`Failed to delete account: ${error.message}`);
@@ -114,13 +120,13 @@ const Dashboard = () => {
         .from("chatbot_rules")
         .delete()
         .eq("id", ruleId)
-        .eq("user_id", user?.id); // Ensure user can only delete their own rules
+        .eq("user_id", user?.id);
 
       if (error) {
         throw error;
       }
       showSuccess("Chatbot rule deleted successfully!");
-      fetchChatbotRules(); // Refresh the list
+      fetchChatbotRules();
     } catch (error: any) {
       console.error("Error deleting chatbot rule:", error.message);
       showError(`Failed to delete rule: ${error.message}`);
@@ -222,20 +228,31 @@ const Dashboard = () => {
                 <div className="space-y-4">
                   {chatbotRules.map((rule) => (
                     <div key={rule.id} className="flex items-center justify-between p-3 border rounded-md bg-gray-50 dark:bg-gray-800">
-                      <div className="flex items-center">
-                        <Bot className="h-5 w-5 text-blue-500 mr-3" />
-                        <div>
+                      <div className="flex-1 flex flex-col">
+                        <div className="flex items-center mb-1">
+                          <Bot className="h-5 w-5 text-blue-500 mr-3" />
                           <p className="font-medium text-gray-900 dark:text-gray-100">
                             Trigger: <span className="font-normal text-gray-700 dark:text-gray-300">[{rule.trigger_type}] "{rule.trigger_value}"</span>
                           </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Response:
-                            {rule.response_message.map((msg, index) => (
-                              <span key={index} className="block ml-2">"{msg}"</span>
-                            ))}
-                          </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500">Account: {rule.account_name || 'N/A'}</p>
                         </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
+                          Response Messages:
+                          {rule.response_message.map((msg, index) => (
+                            <span key={index} className="block ml-2">"{msg}"</span>
+                          ))}
+                        </p>
+                        {rule.buttons && rule.buttons.length > 0 && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 ml-8 mt-2">
+                            Buttons:
+                            {rule.buttons.map((button, index) => (
+                              <div key={index} className="flex items-center ml-2">
+                                <MousePointerClick className="h-3 w-3 mr-1" />
+                                <span className="font-medium">"{button.text}"</span> (Payload: "{button.payload}")
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-400 dark:text-gray-500 ml-8 mt-1">Account: {rule.account_name || 'N/A'}</p>
                       </div>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>

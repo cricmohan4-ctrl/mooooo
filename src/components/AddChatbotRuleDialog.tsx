@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { showSuccess, showError } from "@/utils/toast";
@@ -31,6 +31,11 @@ interface AddChatbotRuleDialogProps {
   whatsappAccounts: { id: string; account_name: string }[];
 }
 
+interface ButtonConfig {
+  text: string;
+  payload: string; // This will be the trigger_value for the next rule
+}
+
 const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded, whatsappAccounts }) => {
   const { user } = useSession();
   const [isOpen, setIsOpen] = useState(false);
@@ -38,6 +43,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
   const [triggerValue, setTriggerValue] = useState("");
   const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH">("EXACT_MATCH");
   const [responseMessage, setResponseMessage] = useState(""); // This will be a multi-line string
+  const [buttons, setButtons] = useState<ButtonConfig[]>([]); // State for buttons
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -45,6 +51,20 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       setSelectedWhatsappAccountId(whatsappAccounts[0].id);
     }
   }, [whatsappAccounts, selectedWhatsappAccountId]);
+
+  const handleAddButton = () => {
+    setButtons([...buttons, { text: "", payload: "" }]);
+  };
+
+  const handleRemoveButton = (index: number) => {
+    setButtons(buttons.filter((_, i) => i !== index));
+  };
+
+  const handleButtonChange = (index: number, field: keyof ButtonConfig, value: string) => {
+    const newButtons = [...buttons];
+    newButtons[index] = { ...newButtons[index], [field]: value };
+    setButtons(newButtons);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +74,13 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
     }
     if (!selectedWhatsappAccountId || !triggerValue || !responseMessage.trim()) {
       showError("Please fill in all fields.");
+      return;
+    }
+
+    // Validate buttons: ensure text and payload are not empty if buttons exist
+    const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
+    if (buttons.length > 0 && invalidButtons) {
+      showError("Please ensure all button text and payload values are filled.");
       return;
     }
 
@@ -70,6 +97,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
           trigger_value: triggerValue,
           trigger_type: triggerType,
           response_message: responseMessagesArray, // Store as an array
+          buttons: buttons.length > 0 ? buttons : null, // Store buttons if present, otherwise null
         });
 
       if (error) {
@@ -80,6 +108,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       setTriggerValue("");
       setResponseMessage("");
       setTriggerType("EXACT_MATCH");
+      setButtons([]); // Clear buttons after submission
       setIsOpen(false);
       onRuleAdded(); // Notify parent component that a rule was added
     } catch (error: any) {
@@ -172,6 +201,42 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
                 required
                 rows={4}
               />
+            </div>
+
+            {/* Buttons Section */}
+            <div className="col-span-4">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-right">Buttons (Optional)</Label>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddButton} disabled={buttons.length >= 3}>
+                  Add Button
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {buttons.map((button, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      placeholder="Button Text"
+                      value={button.text}
+                      onChange={(e) => handleButtonChange(index, "text", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Payload (triggers next rule)"
+                      value={button.payload}
+                      onChange={(e) => handleButtonChange(index, "payload", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveButton(index)}
+                    >
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
