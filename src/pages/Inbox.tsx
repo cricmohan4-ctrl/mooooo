@@ -121,6 +121,7 @@ const Inbox = () => {
   useEffect(() => {
     if (user) {
       console.log("Inbox: User session available, fetching WhatsApp accounts.");
+      console.log("Inbox: Current User ID:", user.id); // TEMPORARY LOG FOR USER ID
       fetchWhatsappAccounts();
     } else {
       console.log("Inbox: User session not available.");
