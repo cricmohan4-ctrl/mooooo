@@ -1,7 +1,7 @@
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon, Edit, Brain } from "lucide-react"; // Added Brain icon
+import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon, Edit } from "lucide-react";
 import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
 import EditWhatsappAccountDialog from "@/components/EditWhatsappAccountDialog";
 import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
@@ -43,7 +43,6 @@ interface ChatbotRule {
   response_message: string[];
   buttons?: ButtonConfig[] | null;
   flow_id?: string | null;
-  use_ai_response?: boolean; // New field
   account_name?: string;
   flow_name?: string;
 }
@@ -86,7 +85,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_rules")
-        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response, whatsapp_accounts(account_name), chatbot_flows(name)")
+        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, whatsapp_accounts(account_name), chatbot_flows(name)")
         .eq("user_id", user.id);
 
       if (error) {
@@ -279,10 +278,6 @@ const Dashboard = () => {
                         {rule.flow_id ? (
                           <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
                             Linked Flow: <span className="font-medium text-blue-600 dark:text-blue-400">{rule.flow_name || 'Unnamed Flow'}</span>
-                          </p>
-                        ) : rule.use_ai_response ? (
-                          <p className="text-sm text-gray-500 dark:text-gray-400 ml-8 flex items-center">
-                            Response: <Brain className="h-4 w-4 ml-1 mr-1 text-purple-500" /> <span className="font-medium text-purple-600 dark:text-purple-400">AI Assistant</span>
                           </p>
                         ) : (
                           <>

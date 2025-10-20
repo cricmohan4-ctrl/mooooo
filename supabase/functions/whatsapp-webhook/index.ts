@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import OpenAI from 'https://esm.sh/openai@4.52.7';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -332,7 +331,7 @@ serve(async (req) => {
     if (!responseSent) {
       const { data: rules, error: rulesError } = await supabaseServiceRoleClient
         .from('chatbot_rules')
-        .select('trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response')
+        .select('trigger_value, trigger_type, response_message, buttons, flow_id')
         .eq('whatsapp_account_id', whatsappAccountId);
 
       if (rulesError) {
@@ -368,79 +367,7 @@ serve(async (req) => {
       }
 
       if (matchedRule) {
-        if (matchedRule.use_ai_response) {
-          console.log(`Chatbot rule matched with AI response enabled. Generating AI response.`);
-          console.log(`Fetching OpenAI config for whatsappAccountId: ${whatsappAccountId}, userId: ${userId}`);
-          const { data: openaiConfig, error: openaiConfigError } = await supabaseServiceRoleClient
-            .from('openai_configs')
-            .select('openai_api_key, is_enabled, system_prompt')
-            .eq('whatsapp_account_id', whatsappAccountId)
-            .eq('user_id', userId)
-            .single();
-
-          if (openaiConfigError && openaiConfigError.code !== 'PGRST116') {
-            console.error('Error fetching OpenAI config for rule AI response:', openaiConfigError.message);
-          }
-          console.log('OpenAI Config Data:', openaiConfig);
-          console.log('is_enabled:', openaiConfig?.is_enabled, 'openai_api_key present:', !!openaiConfig?.openai_api_key);
-
-
-          if (openaiConfig?.is_enabled && openaiConfig?.openai_api_key) {
-            try {
-              const openai = new OpenAI({ apiKey: openaiConfig.openai_api_key });
-
-              const { data: recentMessages, error: messagesError } = await supabaseServiceRoleClient
-                .from('whatsapp_messages')
-                .select('message_body, direction')
-                .eq('whatsapp_account_id', whatsappAccountId)
-                .or(`from_phone_number.eq.${fromPhoneNumber},to_phone_number.eq.${fromPhoneNumber}`)
-                .order('created_at', { ascending: true })
-                .limit(10);
-
-              if (messagesError) {
-                console.error('Error fetching recent messages for AI context:', messagesError.message);
-              }
-
-              const messagesForAI: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-
-              if (openaiConfig.system_prompt) {
-                messagesForAI.push({ role: 'system', content: openaiConfig.system_prompt });
-              }
-
-              if (recentMessages) {
-                for (const msg of recentMessages) {
-                  if (msg.direction === 'incoming') {
-                    messagesForAI.push({ role: 'user', content: msg.message_body });
-                  } else if (msg.direction === 'outgoing') {
-                    messagesForAI.push({ role: 'assistant', content: msg.message_body });
-                  }
-                }
-              }
-              
-              messagesForAI.push({ role: 'user', content: incomingText });
-
-              const chatCompletion = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                messages: messagesForAI,
-                max_tokens: 150,
-              });
-
-              const aiResponse = chatCompletion.choices[0].message.content;
-              if (aiResponse) {
-                await sendWhatsappMessage(fromPhoneNumber, 'text', { body: aiResponse });
-                responseSent = true;
-              }
-            } catch (aiError: any) {
-              console.error('Error calling OpenAI API for rule AI response:', aiError.message);
-              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble with my AI assistant for this rule right now." });
-              responseSent = true;
-            }
-          } else {
-            console.warn('AI assistant not enabled or API key missing for rule AI response.');
-            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, the AI assistant for this rule is not configured correctly." });
-            responseSent = true;
-          }
-        } else if (matchedRule.flow_id) {
+        if (matchedRule.flow_id) {
           console.log(`Chatbot rule matched to start flow: ${matchedRule.flow_id}`);
           const { data: flowData, error: flowError } = await supabaseServiceRoleClient
             .from('chatbot_flows')
@@ -531,76 +458,6 @@ serve(async (req) => {
               .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
               .eq('id', currentConversation.id);
           }
-          responseSent = true;
-        }
-      }
-    }
-
-    if (!responseSent) {
-      console.log(`No rule matched, checking for general AI assistant fallback for whatsappAccountId: ${whatsappAccountId}, userId: ${userId}`);
-      const { data: openaiConfig, error: openaiConfigError } = await supabaseServiceRoleClient
-        .from('openai_configs')
-        .select('openai_api_key, is_enabled, system_prompt')
-        .eq('whatsapp_account_id', whatsappAccountId)
-        .eq('user_id', userId)
-        .single();
-
-      if (openaiConfigError && openaiConfigError.code !== 'PGRST116') {
-        console.error('Error fetching OpenAI config for general fallback:', openaiConfigError.message);
-      }
-      console.log('General Fallback OpenAI Config Data:', openaiConfig);
-      console.log('General Fallback is_enabled:', openaiConfig?.is_enabled, 'openai_api_key present:', !!openaiConfig?.openai_api_key);
-
-
-      if (openaiConfig?.is_enabled && openaiConfig?.openai_api_key) {
-        console.log('General AI assistant fallback is enabled. Generating response...');
-        try {
-          const openai = new OpenAI({ apiKey: openaiConfig.openai_api_key });
-
-          const { data: recentMessages, error: messagesError } = await supabaseServiceRoleClient
-            .from('whatsapp_messages')
-            .select('message_body, direction')
-            .eq('whatsapp_account_id', whatsappAccountId)
-            .or(`from_phone_number.eq.${fromPhoneNumber},to_phone_number.eq.${fromPhoneNumber}`)
-            .order('created_at', { ascending: true })
-            .limit(10);
-
-          if (messagesError) {
-            console.error('Error fetching recent messages for AI context:', messagesError.message);
-          }
-
-          const messagesForAI: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-
-          if (openaiConfig.system_prompt) {
-            messagesForAI.push({ role: 'system', content: openaiConfig.system_prompt });
-          }
-
-          if (recentMessages) {
-            for (const msg of recentMessages) {
-              if (msg.direction === 'incoming') {
-                messagesForAI.push({ role: 'user', content: msg.message_body });
-              } else if (msg.direction === 'outgoing') {
-                messagesForAI.push({ role: 'assistant', content: msg.message_body });
-              }
-            }
-          }
-          
-          messagesForAI.push({ role: 'user', content: incomingText });
-
-          const chatCompletion = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: messagesForAI,
-            max_tokens: 150,
-          });
-
-          const aiResponse = chatCompletion.choices[0].message.content;
-          if (aiResponse) {
-            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: aiResponse });
-            responseSent = true;
-          }
-        } catch (aiError: any) {
-          console.error('Error calling OpenAI API for general fallback:', aiError.message);
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI assistant right now." });
           responseSent = true;
         }
       }

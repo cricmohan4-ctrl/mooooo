@@ -15,8 +15,6 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { showSuccess, showError } from "@/utils/toast";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
 interface WhatsappAccount {
@@ -24,13 +22,6 @@ interface WhatsappAccount {
   account_name: string;
   phone_number_id: string;
   access_token: string; // We'll fetch this to pre-fill, but not display
-}
-
-interface OpenAIConfig {
-  id: string;
-  openai_api_key: string;
-  is_enabled: boolean;
-  system_prompt: string | null;
 }
 
 interface EditWhatsappAccountDialogProps {
@@ -50,55 +41,13 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
   const [accountName, setAccountName] = useState(account.account_name);
   const [phoneNumberId, setPhoneNumberId] = useState(account.phone_number_id);
   const [accessToken, setAccessToken] = useState(""); // Not pre-filled for security
-  const [openaiApiKeyInput, setOpenaiApiKeyInput] = useState(""); // For the input field (always empty on load)
-  const [existingOpenaiApiKey, setExistingOpenaiApiKey] = useState<string | null>(null); // To hold the actual key from DB
-  const [isAiEnabled, setIsAiEnabled] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isAiConfigLoading, setIsAiConfigLoading] = useState(true);
 
   useEffect(() => {
     setAccountName(account.account_name);
     setPhoneNumberId(account.phone_number_id);
     setAccessToken(""); 
-    setOpenaiApiKeyInput(""); // Ensure input is always empty on dialog open
-
-    const fetchOpenAIConfig = async () => {
-      if (!user || !account.id) return;
-      setIsAiConfigLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("openai_configs")
-          .select("openai_api_key, is_enabled, system_prompt")
-          .eq("whatsapp_account_id", account.id)
-          .eq("user_id", user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
-          throw error;
-        }
-
-        if (data) {
-          setExistingOpenaiApiKey(data.openai_api_key); // Store the actual key
-          setIsAiEnabled(data.is_enabled);
-          setSystemPrompt(data.system_prompt || "");
-        } else {
-          setExistingOpenaiApiKey(null);
-          setIsAiEnabled(false);
-          setSystemPrompt("");
-        }
-      } catch (error: any) {
-        console.error("Error fetching OpenAI config:", error.message);
-        showError("Failed to load AI assistant configuration.");
-      } finally {
-        setIsAiConfigLoading(false);
-      }
-    };
-
-    if (isOpen) {
-      fetchOpenAIConfig();
-    }
-  }, [account, user, isOpen]);
+  }, [account]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,79 +81,11 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
         throw accountError;
       }
 
-      // Determine which OpenAI API key to use for update
-      let finalOpenaiApiKey: string | null = null;
-      if (openaiApiKeyInput.trim()) {
-        finalOpenaiApiKey = openaiApiKeyInput.trim(); // User entered a new key
-      } else if (existingOpenaiApiKey) {
-        finalOpenaiApiKey = existingOpenaiApiKey; // Use the existing key if input is empty
-      }
-
-      // Update or Insert OpenAI Config
-      if (isAiEnabled && !finalOpenaiApiKey) {
-        showError("OpenAI API Key is required if AI assistant is enabled.");
-        setIsLoading(false);
-        return;
-      }
-
-      const { data: existingAiConfig, error: fetchAiConfigError } = await supabase
-        .from("openai_configs")
-        .select("id")
-        .eq("whatsapp_account_id", account.id)
-        .single();
-
-      if (fetchAiConfigError && fetchAiConfigError.code !== 'PGRST116') {
-        throw fetchAiConfigError;
-      }
-
-      if (existingAiConfig) {
-        // Update existing config
-        const updateAiConfigPayload: { openai_api_key?: string; is_enabled: boolean; system_prompt: string | null } = {
-          is_enabled: isAiEnabled,
-          system_prompt: systemPrompt.trim() || null,
-        };
-        if (finalOpenaiApiKey) { // Only update if a key is available
-          updateAiConfigPayload.openai_api_key = finalOpenaiApiKey;
-        } else if (!isAiEnabled) { // If AI is disabled and no new key, explicitly set to null
-          updateAiConfigPayload.openai_api_key = null;
-        }
-
-        const { error: updateAiError } = await supabase
-          .from("openai_configs")
-          .update(updateAiConfigPayload)
-          .eq("id", existingAiConfig.id)
-          .eq("user_id", user.id);
-
-        if (updateAiError) throw updateAiError;
-      } else if (isAiEnabled && finalOpenaiApiKey) {
-        // Insert new config
-        const { error: insertAiError } = await supabase
-          .from("openai_configs")
-          .insert({
-            whatsapp_account_id: account.id,
-            user_id: user.id,
-            openai_api_key: finalOpenaiApiKey,
-            is_enabled: isAiEnabled,
-            system_prompt: systemPrompt.trim() || null,
-          });
-
-        if (insertAiError) throw insertAiError;
-      } else if (!isAiEnabled && existingAiConfig) {
-        // If AI is disabled and a config exists, update is_enabled to false and clear key
-        const { error: disableAiError } = await supabase
-          .from("openai_configs")
-          .update({ is_enabled: false, openai_api_key: null })
-          .eq("id", existingAiConfig.id)
-          .eq("user_id", user.id);
-        if (disableAiError) throw disableAiError;
-      }
-
-
-      showSuccess("WhatsApp account and AI settings updated successfully!");
+      showSuccess("WhatsApp account updated successfully!");
       onOpenChange(false);
       onAccountUpdated();
     } catch (error: any) {
-      console.error("Error updating WhatsApp account or AI config:", error.message);
+      console.error("Error updating WhatsApp account:", error.message);
       showError(`Failed to update: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -217,7 +98,7 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Edit WhatsApp Account</DialogTitle>
           <DialogDescription>
-            Update your WhatsApp Business Account details and configure AI assistant settings.
+            Update your WhatsApp Business Account details.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -261,62 +142,6 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
                 placeholder="Re-enter if changing (Bearer token from Meta)"
               />
             </div>
-
-            <Separator className="my-4" />
-
-            <h3 className="text-lg font-semibold col-span-4">AI Assistant Configuration</h3>
-            {isAiConfigLoading ? (
-              <div className="col-span-4 text-center text-gray-500">Loading AI config...</div>
-            ) : (
-              <>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="isAiEnabled" className="text-right">
-                    Enable AI Assistant
-                  </Label>
-                  <Switch
-                    id="isAiEnabled"
-                    checked={isAiEnabled}
-                    onCheckedChange={setIsAiEnabled}
-                    className="col-span-3 justify-self-start"
-                  />
-                </div>
-
-                {isAiEnabled && (
-                  <>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="openaiApiKey" className="text-right">
-                        OpenAI API Key
-                      </Label>
-                      <Input
-                        id="openaiApiKey"
-                        type="password"
-                        value={openaiApiKeyInput}
-                        onChange={(e) => setOpenaiApiKeyInput(e.target.value)}
-                        className="col-span-3"
-                        placeholder="sk-..."
-                        required={isAiEnabled && !existingOpenaiApiKey}
-                      />
-                    </div>
-                    <p className="col-span-4 text-sm text-gray-500 dark:text-gray-400 -mt-2 mb-2">
-                      {existingOpenaiApiKey ? "API Key is set. Re-enter only if you want to change it." : "No API Key set."}
-                    </p>
-                    <div className="grid grid-cols-4 items-start gap-4">
-                      <Label htmlFor="systemPrompt" className="text-right pt-2">
-                        System Prompt
-                      </Label>
-                      <Textarea
-                        id="systemPrompt"
-                        value={systemPrompt}
-                        onChange={(e) => setSystemPrompt(e.target.value)}
-                        className="col-span-3"
-                        rows={5}
-                        placeholder="You are a helpful AI assistant for a business. Respond concisely and professionally."
-                      />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isLoading}>
