@@ -26,7 +26,7 @@ import { useSession } from '@/integrations/supabase/auth';
 import MessageNode from '@/components/nodes/MessageNode';
 import ButtonMessageNode from '@/components/nodes/ButtonMessageNode';
 import IncomingMessageNode from '@/components/nodes/IncomingMessageNode';
-import WelcomeMessageNode from '@/components/nodes/WelcomeMessageNode'; // New import
+import WelcomeMessageNode from '@/components/nodes/WelcomeMessageNode';
 import {
   Dialog,
   DialogContent,
@@ -45,7 +45,7 @@ const nodeTypes = {
   messageNode: MessageNode,
   buttonMessageNode: ButtonMessageNode,
   incomingMessageNode: IncomingMessageNode,
-  welcomeMessageNode: WelcomeMessageNode, // Register new node type
+  welcomeMessageNode: WelcomeMessageNode,
 };
 
 interface FlowData {
@@ -64,7 +64,7 @@ const FlowEditorContent = () => {
   const navigate = useNavigate();
   const { user } = useSession();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesState] = useEdgesState([]);
   const { fitView, setViewport, getViewport, getNodes, getEdges } = useReactFlow();
   const [flowName, setFlowName] = useState("Loading Flow...");
   const [isSaving, setIsSaving] = useState(false);
@@ -197,7 +197,7 @@ const FlowEditorContent = () => {
       case 'incomingMessageNode':
         newNode = { ...baseNode, data: { label: 'Incoming Message', expectedMessage: "" } };
         break;
-      case 'welcomeMessageNode': // Allow adding, though it's usually initial
+      case 'welcomeMessageNode':
         newNode = { ...baseNode, data: { label: 'Welcome Message', message: "Hello! Welcome to our service." } };
         break;
       default:
@@ -304,10 +304,9 @@ const FlowEditorContent = () => {
             <Button className="w-full justify-start" variant="outline" onClick={() => addNode('incomingMessageNode')}>
               <MessageSquareText className="h-4 w-4 mr-2" /> Incoming Message Node
             </Button>
-            {/* Optional: Add a button for Welcome Message Node if user wants to add it manually */}
-            {/* <Button className="w-full justify-start" variant="outline" onClick={() => addNode('welcomeMessageNode')}>
+            <Button className="w-full justify-start" variant="outline" onClick={() => addNode('welcomeMessageNode')}>
               <MessageSquareHeart className="h-4 w-4 mr-2" /> Welcome Message Node
-            </Button> */}
+            </Button>
           </div>
         </div>
 
@@ -316,7 +315,7 @@ const FlowEditorContent = () => {
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onEdgesChange={onEdgesState}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
