@@ -24,7 +24,7 @@ serve(async (req) => {
     );
 
     const payload = await req.json();
-    console.log('Received WhatsApp webhook payload:', JSON.stringify(payload, null, 2));
+    console.log('Received WhatsApp webhook payload:', JSON.stringify(payload, null, 2)); // This should always log if the webhook is received
 
     // Extract relevant WhatsApp message data
     const messageEntry = payload.entry?.[0];
@@ -35,6 +35,7 @@ serve(async (req) => {
     const whatsappBusinessPhoneNumber = messageValue?.metadata?.display_phone_number; // The phone number of your WhatsApp Business Account
 
     if (!incomingMessage || !whatsappBusinessAccountId || !whatsappBusinessPhoneNumber) {
+      console.log('No incoming message, account ID, or phone number in payload. Returning 200.'); // Added log
       return new Response(JSON.stringify({ status: 'success', message: 'No message or account info to process' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -67,7 +68,11 @@ serve(async (req) => {
 
     if (accountError || !accountData) {
       console.error('Error fetching WhatsApp account or user_id:', accountError?.message);
-      throw new Error('WhatsApp account not found or user_id missing.');
+      // It's important to return a 200 here for Meta, even if we can't process it, to avoid retries.
+      return new Response(JSON.stringify({ status: 'error', message: 'WhatsApp account not found or user_id missing.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, // Return 200 to Meta to prevent retries, but log the error
+      });
     }
 
     const userId = accountData.user_id;
@@ -99,7 +104,8 @@ serve(async (req) => {
       .eq('whatsapp_account_id', accountData.id); // Use the ID from the fetched account
 
     if (rulesError) {
-      throw rulesError;
+      console.error('Error fetching chatbot rules:', rulesError.message); // Added log
+      // Continue processing even if rules fail to fetch, just won't send automated response
     }
 
     let matchedResponseMessages: string[] = ["I'm sorry, I didn't understand that. Please try again."]; // Default response
@@ -157,9 +163,10 @@ serve(async (req) => {
         const responseData = await response.json();
         if (!response.ok) {
           console.error('Error sending WhatsApp text message:', responseData);
-          throw new Error(`Failed to send WhatsApp text message: ${JSON.stringify(responseData)}`);
+          // Don't throw here, just log and continue to avoid breaking the entire webhook
+        } else {
+          console.log('WhatsApp text message sent successfully:', responseData);
         }
-        console.log('WhatsApp text message sent successfully:', responseData);
 
         // Save outgoing text message to database
         const { error: insertOutgoingError } = await supabaseClient
@@ -222,9 +229,10 @@ serve(async (req) => {
         const responseData = await response.json();
         if (!response.ok) {
           console.error('Error sending WhatsApp interactive message:', responseData);
-          throw new Error(`Failed to send WhatsApp interactive message: ${JSON.stringify(responseData)}`);
+          // Don't throw here, just log and continue
+        } else {
+          console.log('WhatsApp interactive message sent successfully:', responseData);
         }
-        console.log('WhatsApp interactive message sent successfully:', responseData);
 
         // Save outgoing interactive message to database
         const { error: insertOutgoingInteractiveError } = await supabaseClient
