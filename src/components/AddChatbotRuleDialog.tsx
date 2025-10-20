@@ -35,7 +35,8 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
   const { user } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedWhatsappAccountId, setSelectedWhatsappAccountId] = useState<string>("");
-  const [triggerPhrase, setTriggerPhrase] = useState("");
+  const [triggerValue, setTriggerValue] = useState("");
+  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH">("EXACT_MATCH");
   const [responseMessage, setResponseMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -51,7 +52,7 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       showError("You must be logged in to add a chatbot rule.");
       return;
     }
-    if (!selectedWhatsappAccountId || !triggerPhrase || !responseMessage) {
+    if (!selectedWhatsappAccountId || !triggerValue || !responseMessage) {
       showError("Please fill in all fields.");
       return;
     }
@@ -63,7 +64,8 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
         .insert({
           user_id: user.id,
           whatsapp_account_id: selectedWhatsappAccountId,
-          trigger_phrase: triggerPhrase,
+          trigger_value: triggerValue,
+          trigger_type: triggerType,
           response_message: responseMessage,
         });
 
@@ -72,8 +74,9 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
       }
 
       showSuccess("Chatbot rule added successfully!");
-      setTriggerPhrase("");
+      setTriggerValue("");
       setResponseMessage("");
+      setTriggerType("EXACT_MATCH");
       setIsOpen(false);
       onRuleAdded(); // Notify parent component that a rule was added
     } catch (error: any) {
@@ -122,13 +125,32 @@ const AddChatbotRuleDialog: React.FC<AddChatbotRuleDialogProps> = ({ onRuleAdded
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="triggerPhrase" className="text-right">
-                Trigger Phrase
+              <Label htmlFor="triggerType" className="text-right">
+                Trigger Type
+              </Label>
+              <Select
+                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH") => setTriggerType(value)}
+                value={triggerType}
+                required
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select trigger type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EXACT_MATCH">Exact Match</SelectItem>
+                  <SelectItem value="CONTAINS">Contains</SelectItem>
+                  <SelectItem value="STARTS_WITH">Starts With</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="triggerValue" className="text-right">
+                Trigger Value
               </Label>
               <Input
-                id="triggerPhrase"
-                value={triggerPhrase}
-                onChange={(e) => setTriggerPhrase(e.target.value)}
+                id="triggerValue"
+                value={triggerValue}
+                onChange={(e) => setTriggerValue(e.target.value)}
                 className="col-span-3"
                 placeholder="e.g., 'hello', 'support', 'pricing'"
                 required

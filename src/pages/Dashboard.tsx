@@ -29,7 +29,8 @@ interface WhatsappAccount {
 interface ChatbotRule {
   id: string;
   whatsapp_account_id: string;
-  trigger_phrase: string;
+  trigger_value: string;
+  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH";
   response_message: string;
   account_name?: string; // To display the associated account name
 }
@@ -68,7 +69,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_rules")
-        .select("id, whatsapp_account_id, trigger_phrase, response_message, whatsapp_accounts(account_name)")
+        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, whatsapp_accounts(account_name)")
         .eq("user_id", user.id);
 
       if (error) {
@@ -224,7 +225,9 @@ const Dashboard = () => {
                       <div className="flex items-center">
                         <Bot className="h-5 w-5 text-blue-500 mr-3" />
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-gray-100">Trigger: "{rule.trigger_phrase}"</p>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">
+                            Trigger: <span className="font-normal text-gray-700 dark:text-gray-300">[{rule.trigger_type}] "{rule.trigger_value}"</span>
+                          </p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">Response: "{rule.response_message}"</p>
                           <p className="text-xs text-gray-400 dark:text-gray-500">Account: {rule.account_name || 'N/A'}</p>
                         </div>
