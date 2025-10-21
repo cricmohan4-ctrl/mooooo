@@ -189,6 +189,11 @@ const Dashboard = () => {
               WhatsApp Accounts
             </CardTitle>
             <div className="flex space-x-2">
+              <Link to="/connect-account"> {/* Added Link to ConnectAccount */}
+                <Button variant="outline" size="icon" title="Connect New Account">
+                  <LinkIcon className="h-4 w-4" />
+                </Button>
+              </Link>
               <Link to="/inbox">
                 <Button variant="outline" size="icon" title="Go to Inbox">
                   <InboxIcon className="h-4 w-4" />
