@@ -148,6 +148,11 @@ const Dashboard = () => {
               Chatbot Rules
             </CardTitle>
             <div className="flex space-x-2">
+              <Link to="/connect-account"> {/* Added Link to ConnectAccount */}
+                <Button variant="outline" size="icon" title="Connect WhatsApp Account">
+                  <LinkIcon className="h-4 w-4" />
+                </Button>
+              </Link>
               <Link to="/flows">
                 <Button variant="outline" size="icon" title="Go to Flow Builder">
                   <Workflow className="h-4 w-4" />
