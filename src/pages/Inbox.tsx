@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, MoreVertical } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import AddNewContactDialog from '@/components/AddNewContactDialog'; // Import the new component
 import { cn } from '@/lib/utils'; // Import cn for conditional classNames
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Import Avatar components
 
 interface WhatsappAccount {
   id: string;
@@ -506,8 +507,8 @@ const Inbox = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Top Header for Inbox/Chat */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
+      {/* Dynamic Header for Inbox/Chat */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
         <div className="flex items-center">
           {selectedConversation ? (
             <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
@@ -522,7 +523,10 @@ const Inbox = () => {
           )}
           {selectedConversation ? (
             <div className="flex items-center">
-              <User className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 p-1 mr-3" />
+              <Avatar className="h-8 w-8 mr-3">
+                <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
+                <AvatarFallback>{selectedConversation.contact_phone_number.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
               <div>
                 <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -534,14 +538,11 @@ const Inbox = () => {
             <h1 className="text-2xl font-bold ml-4">WhatsApp Inbox</h1>
           )}
         </div>
-        {selectedConversation && (
-          <Button variant="ghost" size="icon">
-            <MoreVertical className="h-5 w-5" />
-          </Button>
-        )}
+        {/* Removed MoreVertical button as per WhatsApp UI */}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      {/* Main Content Area (Conversations List or Message Area) */}
+      <div className="flex-1 flex overflow-hidden">
         {/* Conversations List */}
         {!selectedConversation && (
           <div className="relative w-full bg-white dark:bg-gray-800 overflow-y-auto">
@@ -577,7 +578,10 @@ const Inbox = () => {
                   }`}
                   onClick={() => handleConversationSelect(conv)}
                 >
-                  <User className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-600 p-2 mr-3" />
+                  <Avatar className="h-10 w-10 mr-3">
+                    <AvatarImage src={undefined} alt={conv.contact_phone_number} />
+                    <AvatarFallback>{conv.contact_phone_number.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
                   <div className="flex-1">
                     <p className="font-medium">{conv.contact_phone_number}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.last_message_body}</p>
@@ -605,51 +609,64 @@ const Inbox = () => {
         {/* Message Area */}
         {selectedConversation && (
           <div className="flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900">
-            <>
-              <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                {isLoadingMessages ? (
-                  <div className="text-center text-gray-500">Loading messages...</div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center text-gray-500">No messages in this conversation.</div>
-                ) : (
-                  messages.map((msg) => (
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {isLoadingMessages ? (
+                <div className="text-center text-gray-500">Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-gray-500">No messages in this conversation.</div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex",
+                      msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
                     <div
-                      key={msg.id}
                       className={cn(
-                        "flex",
-                        msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
+                        "max-w-[80%] p-2 rounded-xl flex flex-col relative", // Added relative for timestamp positioning
+                        msg.direction === 'outgoing'
+                          ? 'bg-brand-green text-white rounded-br-none'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
                       )}
                     >
-                      <div
-                        className={cn(
-                          "max-w-[80%] p-2 rounded-xl flex flex-col",
-                          msg.direction === 'outgoing'
-                            ? 'bg-brand-green text-white rounded-br-none'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
-                        )}
-                      >
-                        <span className="text-xs font-semibold mb-1 opacity-80">
-                          {msg.direction === 'outgoing' ? 'You' : selectedConversation.contact_phone_number}
-                        </span>
-                        {msg.message_type === 'text' ? (
-                          <p className="text-sm">{msg.message_body}</p>
-                        ) : (
-                          renderMediaMessage(msg)
-                        )}
-                        <span className="text-xs mt-1 self-end opacity-75">
-                          {format(new Date(msg.created_at), 'HH:mm')}
-                        </span>
-                      </div>
+                      {/* Sender name/phone number - removed for WhatsApp-like bubbles */}
+                      {msg.message_type === 'text' ? (
+                        <p className="text-sm pr-10">{msg.message_body}</p> // Added padding for timestamp
+                      ) : (
+                        <>
+                          {renderMediaMessage(msg)}
+                          {msg.message_body && <p className="text-sm pr-10">{msg.message_body}</p>}
+                        </>
+                      )}
+                      <span className="absolute bottom-1 right-2 text-xs opacity-75">
+                        {format(new Date(msg.created_at), 'HH:mm')}
+                      </span>
                     </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} /> {/* Scroll target */}
-              </div>
-              <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex items-end bg-white dark:bg-gray-800">
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} /> {/* Scroll target */}
+            </div>
+            <div className="p-2 flex items-end bg-gray-50 dark:bg-gray-900 flex-shrink-0">
+              <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
+                <Input
+                  type="text"
+                  placeholder="Message"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newMessage.trim()) {
+                      handleSendMessage(newMessage);
+                    }
+                  }}
+                  className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
+                />
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400">
-                      <Paperclip className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
+                      <Paperclip className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-2 flex flex-col space-y-2">
@@ -661,35 +678,23 @@ const Inbox = () => {
                     </Button>
                   </PopoverContent>
                 </Popover>
-
-                <Input
-                  type="text"
-                  placeholder="Message"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && newMessage.trim()) {
-                      handleSendMessage(newMessage);
-                    }
-                  }}
-                  className="flex-1 mx-2 rounded-full bg-gray-100 dark:bg-gray-700 border-none h-10"
-                />
-                
-                {isRecording ? (
-                  <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
-                    <StopCircle className="h-5 w-5" />
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon" onClick={startRecording} className="text-gray-500 dark:text-gray-400">
-                    <Mic className="h-5 w-5" />
-                  </Button>
-                )}
-
-                <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim()} className="ml-2 rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
+              </div>
+              
+              {/* Mic/Send Button */}
+              {newMessage.trim() ? (
+                <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
                   <Send className="h-5 w-5 text-white" />
                 </Button>
-              </div>
-            </>
+              ) : isRecording ? (
+                <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
+                  <StopCircle className="h-5 w-5" />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon" onClick={startRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white">
+                  <Mic className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
