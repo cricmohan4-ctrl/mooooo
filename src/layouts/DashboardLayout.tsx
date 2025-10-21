@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  hideHeader?: boolean; // New prop to conditionally hide the header
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, hideHeader }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
@@ -35,8 +36,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         "flex flex-col flex-1 transition-all duration-300 ease-in-out",
         { "lg:ml-64": !isMobile || !isSidebarOpen } // Adjust margin for desktop sidebar
       )}>
-        {/* Header */}
-        <Header onMenuClick={toggleSidebar} />
+        {/* Header - Conditionally rendered */}
+        {!hideHeader && <Header onMenuClick={toggleSidebar} />}
 
         {/* Main Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
