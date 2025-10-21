@@ -6,7 +6,7 @@ import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
 import EditWhatsappAccountDialog from "@/components/EditWhatsappAccountDialog";
 import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
 import EditChatbotRuleDialog from "@/components/EditChatbotRuleDialog";
-import GeminiConfigDialog from "@/components/GeminiConfigDialog"; // Import the new component
+import GeminiConfigDialog from "@/components/GeminiConfigDialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
@@ -29,7 +29,7 @@ interface WhatsappAccount {
   account_name: string;
   phone_number_id: string;
   access_token: string;
-  gemini_system_instruction: string | null; // Include the new field
+  gemini_system_instruction: string | null;
 }
 
 interface ButtonConfig {
@@ -41,11 +41,11 @@ interface ChatbotRule {
   id: string;
   whatsapp_account_id: string;
   trigger_value: string;
-  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE" | "WELCOME_MESSAGE"; // Updated trigger_type
+  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE";
   response_message: string[];
   buttons?: ButtonConfig[] | null;
   flow_id?: string | null;
-  use_ai_response: boolean; // Include the new field
+  use_ai_response: boolean;
   account_name?: string;
   flow_name?: string;
 }
@@ -60,8 +60,8 @@ const Dashboard = () => {
   const [selectedRuleToEdit, setSelectedRuleToEdit] = useState<ChatbotRule | null>(null);
   const [isEditAccountDialogOpen, setIsEditAccountDialogOpen] = useState(false);
   const [selectedAccountToEdit, setSelectedAccountToEdit] = useState<WhatsappAccount | null>(null);
-  const [isGeminiConfigDialogOpen, setIsGeminiConfigDialogOpen] = useState(false); // New state for Gemini config dialog
-  const [selectedAccountForGeminiConfig, setSelectedAccountForGeminiConfig] = useState<WhatsappAccount | null>(null); // New state for selected account for Gemini config
+  const [isGeminiConfigDialogOpen, setIsGeminiConfigDialogOpen] = useState(false);
+  const [selectedAccountForGeminiConfig, setSelectedAccountForGeminiConfig] = useState<WhatsappAccount | null>(null);
 
   const fetchWhatsappAccounts = async () => {
     if (!user) return;
@@ -69,7 +69,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, account_name, phone_number_id, access_token, gemini_system_instruction") // Select the new field
+        .select("id, account_name, phone_number_id, access_token, gemini_system_instruction")
         .eq("user_id", user.id);
 
       if (error) {

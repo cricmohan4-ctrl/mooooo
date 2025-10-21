@@ -373,7 +373,7 @@ serve(async (req) => {
                   const nextNode = nodes.find((n: any) => n.id === outgoingEdge.target);
                   if (nextNode) {
                     console.log('Transitioning to next node:', nextNode.id, nextNode.type);
-                    if (nextNode.type === 'messageNode' || nextNode.type === 'welcomeMessageNode') {
+                    if (nextNode.type === 'messageNode') { // Removed || nextNode.type === 'welcomeMessageNode'
                       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: nextNode.data.message });
                       responseSent = true;
                     } else if (nextNode.type === 'buttonMessageNode') {
@@ -439,52 +439,35 @@ serve(async (req) => {
           }
 
           let matchedRule = null;
-          // const lowerCaseIncomingText = incomingText.toLowerCase(); // Already defined above
 
-          // Check for WELCOME_MESSAGE rule ONLY if it's a truly new conversation
-          const isTrulyNewConversation = !currentConversation; // If currentConversation is null, it's a new contact
-          if (isTrulyNewConversation) {
-            const welcomeRule = (rules || []).find(rule => rule.trigger_type === 'WELCOME_MESSAGE');
-            if (welcomeRule) {
-              matchedRule = welcomeRule;
-              console.log('Matched WELCOME_MESSAGE rule for a truly new conversation.');
-            }
-          }
+          for (const rule of rules || []) {
+            const triggerValue = rule.trigger_value.toLowerCase();
+            const triggerType = rule.trigger_type;
 
-          // If no welcome rule matched for a new conversation, or if it's an existing conversation,
-          // then try to match other specific rules.
-          if (!matchedRule) {
-            for (const rule of rules || []) {
-              if (rule.trigger_type === 'WELCOME_MESSAGE') continue; // Skip welcome message rules here, they were handled above
-
-              const triggerValue = rule.trigger_value.toLowerCase();
-              const triggerType = rule.trigger_type;
-
-              let match = false;
-              switch (triggerType) {
-                case 'EXACT_MATCH':
-                  match = lowerCaseIncomingText === triggerValue;
-                  break;
-                case 'CONTAINS':
-                  match = lowerCaseIncomingText.includes(triggerValue);
-                  break;
-                case 'STARTS_WITH':
-                  match = lowerCaseIncomingText.startsWith(triggerValue);
-                  break;
-                case 'AI_RESPONSE':
-                  // If AI_RESPONSE has a trigger value, it's a specific AI trigger
-                  if (triggerValue) {
-                    match = lowerCaseIncomingText.includes(triggerValue);
-                  }
-                  break;
-                default:
-                  break;
-              }
-
-              if (match) {
-                matchedRule = rule;
+            let match = false;
+            switch (triggerType) {
+              case 'EXACT_MATCH':
+                match = lowerCaseIncomingText === triggerValue;
                 break;
-              }
+              case 'CONTAINS':
+                match = lowerCaseIncomingText.includes(triggerValue);
+                break;
+              case 'STARTS_WITH':
+                match = lowerCaseIncomingText.startsWith(triggerValue);
+                break;
+              case 'AI_RESPONSE':
+                // If AI_RESPONSE has a trigger value, it's a specific AI trigger
+                if (triggerValue) {
+                  match = lowerCaseIncomingText.includes(triggerValue);
+                }
+                break;
+              default:
+                break;
+            }
+
+            if (match) {
+              matchedRule = rule;
+              break;
             }
           }
 
@@ -554,7 +537,7 @@ serve(async (req) => {
                 }
 
                 if (firstNodeToSend) {
-                  if (firstNodeToSend.type === 'welcomeMessageNode' || firstNodeToSend.type === 'messageNode') {
+                  if (firstNodeToSend.type === 'messageNode') { // Removed || firstNodeToSend.type === 'welcomeMessageNode'
                     await sendWhatsappMessage(fromPhoneNumber, 'text', { body: firstNodeToSend.data.message });
                   } else if (firstNodeToSend.type === 'buttonMessageNode') {
                     const interactiveButtons = (firstNodeToSend.data.buttons || []).map((btn: any) => ({
@@ -625,7 +608,8 @@ serve(async (req) => {
         // If still no response (e.g., no language change, no rule or flow was matched), send a generic fallback
         if (!responseSent) {
           console.log('No specific response sent, sending generic fallback.');
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
+          // Removed the explicit welcome message. If no rule matches, no response will be sent.
+          // If you want a different fallback, you can add it here.
         }
 
       } catch (error: any) {

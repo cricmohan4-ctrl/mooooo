@@ -19,14 +19,13 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText, MessageSquareHeart, Type, Image } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText, Type, Image } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import MessageNode from '@/components/nodes/MessageNode';
 import ButtonMessageNode from '@/components/nodes/ButtonMessageNode';
 import IncomingMessageNode from '@/components/nodes/IncomingMessageNode';
-import WelcomeMessageNode from '@/components/nodes/WelcomeMessageNode';
 import {
   Dialog,
   DialogContent,
@@ -52,7 +51,6 @@ const nodeTypes = {
   messageNode: MessageNode,
   buttonMessageNode: ButtonMessageNode,
   incomingMessageNode: IncomingMessageNode,
-  welcomeMessageNode: WelcomeMessageNode,
 };
 
 interface FlowData {
@@ -149,7 +147,7 @@ const FlowEditorContent = () => {
         }
         showSuccess("Flow loaded successfully!");
       } else {
-        // Initialize with Start Flow and Welcome Message nodes if flow data is empty
+        // Initialize with Start Flow node if flow data is empty
         const initialNodes = [
           {
             id: 'start-node',
@@ -157,22 +155,14 @@ const FlowEditorContent = () => {
             data: { label: 'Start Flow' },
             position: { x: 250, y: 5 },
           },
-          {
-            id: 'welcome-message-node',
-            type: 'welcomeMessageNode',
-            data: { label: 'Welcome Message', message: "Hello! Welcome to our service. How can I help you today?" },
-            position: { x: 250, y: 150 },
-          },
         ];
-        const initialEdges = [
-          { id: 'e-start-welcome', source: 'start-node', target: 'welcome-message-node', animated: true },
-        ];
+        const initialEdges: ReactFlowEdge[] = []; // No initial edges
         setNodes(initialNodes);
         setEdges(initialEdges);
         requestAnimationFrame(() => {
           fitView();
         });
-        showSuccess("Loaded flow data is empty or invalid. Starting with a default 'Welcome Message' flow.");
+        showSuccess("Loaded flow data is empty or invalid. Starting with a default 'Start Flow' node.");
       }
     } catch (error: any) {
       console.error("Error loading flow:", error.message);
@@ -205,9 +195,6 @@ const FlowEditorContent = () => {
       case 'incomingMessageNode':
         newNode = { ...baseNode, data: { label: 'Incoming Message', expectedInputType: 'text', prompt: "Please provide the requested information." } };
         break;
-      case 'welcomeMessageNode':
-        newNode = { ...baseNode, data: { label: 'Welcome Message', message: "Hello! Welcome to our service." } };
-        break;
       default:
         newNode = { ...baseNode, data: { label: 'Unknown Node' } };
     }
@@ -231,7 +218,7 @@ const FlowEditorContent = () => {
         nds.map((node) => {
           if (node.id === editingNode.id) {
             let updatedData = { ...node.data };
-            if (node.type === 'messageNode' || node.type === 'buttonMessageNode' || node.type === 'welcomeMessageNode') {
+            if (node.type === 'messageNode' || node.type === 'buttonMessageNode') {
               updatedData = { ...updatedData, message: editedMessage };
             }
             if (node.type === 'buttonMessageNode') {
@@ -313,9 +300,6 @@ const FlowEditorContent = () => {
             <Button className="w-full justify-start" variant="outline" onClick={() => addNode('incomingMessageNode')}>
               <MessageSquareText className="h-4 w-4 mr-2" /> Incoming Message Node
             </Button>
-            <Button className="w-full justify-start" variant="outline" onClick={() => addNode('welcomeMessageNode')}>
-              <MessageSquareHeart className="h-4 w-4 mr-2" /> Welcome Message Node
-            </Button>
           </div>
         </div>
 
@@ -347,7 +331,7 @@ const FlowEditorContent = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {(editingNode?.type === 'messageNode' || editingNode?.type === 'buttonMessageNode' || editingNode?.type === 'welcomeMessageNode') && (
+            {(editingNode?.type === 'messageNode' || editingNode?.type === 'buttonMessageNode') && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="nodeMessage" className="text-right">
                   Message
