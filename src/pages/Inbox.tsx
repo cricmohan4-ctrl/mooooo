@@ -61,6 +61,7 @@ const Inbox = () => {
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0); // New state for total unread
+  const [filterType, setFilterType] = useState<'all' | 'unread'>('all'); // New state for filter
 
   // Media states
   const [isRecording, setIsRecording] = useState(false);
@@ -129,6 +130,7 @@ const Inbox = () => {
         whatsapp_account_name: conv.whatsapp_account_name,
         unread_count: conv.unread_count,
       }));
+      
       setConversations(formattedConversations);
 
       // Calculate total unread count
@@ -539,6 +541,10 @@ const Inbox = () => {
     }
   };
 
+  const filteredConversations = filterType === 'unread'
+    ? conversations.filter(conv => conv.unread_count > 0)
+    : conversations;
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Dynamic Header for Inbox/Chat */}
@@ -589,11 +595,21 @@ const Inbox = () => {
                 />
               </div>
               <div className="flex space-x-2 overflow-x-auto pb-2">
-                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">All</Button>
-                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">
+                <Button
+                  variant={filterType === 'all' ? 'default' : 'secondary'}
+                  className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
+                  onClick={() => setFilterType('all')}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filterType === 'unread' ? 'default' : 'secondary'}
+                  className={cn("rounded-full px-4 py-2 text-sm", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
+                  onClick={() => setFilterType('unread')}
+                >
                   Unread
                   {totalUnreadCount > 0 && (
-                    <span className="ml-2 bg-brand-green text-white rounded-full px-2">
+                    <span className="ml-2 bg-white text-brand-green rounded-full px-2">
                       {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                     </span>
                   )}
@@ -603,10 +619,12 @@ const Inbox = () => {
             <Separator />
             {isLoadingConversations ? (
               <div className="p-4 text-center text-gray-500">Loading conversations...</div>
-            ) : conversations.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">No conversations yet.</div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                {filterType === 'unread' ? 'No unread conversations.' : 'No conversations yet.'}
+              </div>
             ) : (
-              conversations.map((conv) => (
+              filteredConversations.map((conv) => (
                 <div
                   key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
                   className={`flex items-center p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
