@@ -30,6 +30,9 @@ serve(async (req) => {
     const payload = await req.json();
     const { message, whatsappAccountId, preferredLanguage } = payload; // Expect whatsappAccountId and preferredLanguage from the payload
 
+    console.log('Received payload for Gemini chat:', JSON.stringify(payload, null, 2)); // Log entire payload
+    console.log('Received whatsappAccountId:', whatsappAccountId);
+
     if (!message) {
       return new Response(JSON.stringify({ status: 'error', message: 'Missing message in payload.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -57,6 +60,7 @@ serve(async (req) => {
       } else if (accountData?.gemini_system_instruction) {
         systemInstruction = accountData.gemini_system_instruction;
         console.log('Using custom Gemini system instruction for account:', whatsappAccountId);
+        console.log('Fetched custom instruction:', systemInstruction); // Log fetched custom instruction
       } else {
         console.log('No custom Gemini system instruction found for account, using default.');
       }
@@ -69,12 +73,12 @@ serve(async (req) => {
       systemInstruction += " Respond strictly in Hindi.";
     } else if (preferredLanguage === 'kn') {
       systemInstruction += " Respond strictly in Kannada.";
-    } else if (preferredLanguage === 'te') { // New condition for Telugu
+    } else if (preferredLanguage === 'te') {
       systemInstruction += " Respond strictly in Telugu.";
     } else {
       systemInstruction += " Respond in the language the user asks in.";
     }
-    console.log('Final System Instruction:', systemInstruction);
+    console.log('Final System Instruction sent to Gemini:', systemInstruction); // Log the final instruction
 
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
