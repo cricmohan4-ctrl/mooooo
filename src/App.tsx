@@ -11,6 +11,7 @@ import FlowsPage from "./pages/FlowsPage";
 import FlowEditor from "./pages/FlowEditor";
 import Inbox from "./pages/Inbox";
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
+import DashboardLayout from "./layouts/DashboardLayout"; // Import the new layout
 
 const queryClient = new QueryClient();
 
@@ -47,7 +48,9 @@ const AppContent = () => (
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <DashboardLayout> {/* Wrap Dashboard with DashboardLayout */}
+                  <Dashboard />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -55,7 +58,9 @@ const AppContent = () => (
             path="/flows"
             element={
               <ProtectedRoute>
-                <FlowsPage />
+                <DashboardLayout> {/* Wrap FlowsPage with DashboardLayout */}
+                  <FlowsPage />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -63,7 +68,9 @@ const AppContent = () => (
             path="/flows/edit/:flowId"
             element={
               <ProtectedRoute>
-                <FlowEditor />
+                <DashboardLayout> {/* Wrap FlowEditor with DashboardLayout */}
+                  <FlowEditor />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />
@@ -71,7 +78,9 @@ const AppContent = () => (
             path="/inbox"
             element={
               <ProtectedRoute>
-                <Inbox />
+                <DashboardLayout> {/* Wrap Inbox with DashboardLayout */}
+                  <Inbox />
+                </DashboardLayout>
               </ProtectedRoute>
             }
           />

@@ -62,6 +62,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "brand-green": {
+          DEFAULT: "#28a745", // A vibrant green from the image
+          foreground: "#ffffff",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
