@@ -283,6 +283,7 @@ const Inbox = () => {
       return;
     }
 
+    console.log("Attempting to invoke 'send-whatsapp-message' Edge Function...");
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('send-whatsapp-message', {
         body: {
