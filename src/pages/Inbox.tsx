@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap } from 'lucide-react'; // Added Zap icon
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText } from 'lucide-react'; // Added FileAudio and MessageSquareText
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -121,7 +121,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
         .select("id, account_name, phone_number_id")
-        .eq("user_id", user.id);
+        .eq("user.id", user.id);
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
