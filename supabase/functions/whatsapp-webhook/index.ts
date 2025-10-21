@@ -93,9 +93,9 @@ serve(async (req) => {
         let mediaCaption: string | null = null;
 
         if (incomingMessage.type === 'text') {
-          incomingText = incomingMessage.text.body;
+          incomingText = incomingMessage.text?.body ?? ""; // Use optional chaining and nullish coalescing
         } else if (incomingMessage.type === 'interactive' && incomingMessage.interactive.type === 'button_reply') {
-          incomingText = incomingMessage.interactive.button_reply.payload;
+          incomingText = incomingMessage.interactive?.button_reply?.payload ?? ""; // Use optional chaining and nullish coalescing
         } else if (['image', 'audio', 'video', 'document'].includes(incomingMessage.type)) {
           const mediaId = incomingMessage[incomingMessage.type]?.id;
           if (mediaId) {
@@ -118,15 +118,18 @@ serve(async (req) => {
               if (mediaResponse.ok && mediaData.url) {
                 mediaUrl = mediaData.url;
                 mediaCaption = incomingMessage[incomingMessage.type]?.caption || null;
-                incomingText = `[${incomingMessage.type} message]`;
+                incomingText = `[${incomingMessage.type} message]${mediaCaption ? `: ${mediaCaption}` : ''}`; // Ensure incomingText is a string
               } else {
                 console.error('Error fetching media URL from Meta API:', mediaData);
+                incomingText = `[${incomingMessage.type} message]`; // Ensure incomingText is a string even on error
               }
             }
+          } else {
+            incomingText = `[${incomingMessage.type} message]`; // Ensure incomingText is a string if mediaId is missing
           }
         } else {
           console.log(`Unhandled message type: ${incomingMessage.type}`);
-          incomingText = `[${incomingMessage.type} message]`;
+          incomingText = `[${incomingMessage.type} message]`; // Ensure incomingText is a string
         }
 
         const fromPhoneNumber = incomingMessage.from;
@@ -284,16 +287,14 @@ serve(async (req) => {
           preferredLanguage = 'hi';
           await supabaseServiceRoleClient
             .from('whatsapp_conversations')
-            .update({ preferred_language: 'hi', updated_at: new Date().toISOString() })
-            .eq('id', currentConversation?.id || '00000000-0000-0000-0000-000000000000'); // Use dummy ID if no conversation yet
+            .upsert({ id: currentConversation?.id, user_id: userId, whatsapp_account_id: whatsappAccountId, contact_phone_number: fromPhoneNumber, preferred_language: 'hi', updated_at: new Date().toISOString() }, { onConflict: 'whatsapp_account_id,contact_phone_number' });
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "नमस्ते! अब मैं हिंदी में जवाब दूंगा।" });
           responseSent = true;
         } else if (lowerCaseIncomingText === 'kannada.') {
           preferredLanguage = 'kn';
           await supabaseServiceRoleClient
             .from('whatsapp_conversations')
-            .update({ preferred_language: 'kn', updated_at: new Date().toISOString() })
-            .eq('id', currentConversation?.id || '00000000-0000-0000-0000-000000000000'); // Use dummy ID if no conversation yet
+            .upsert({ id: currentConversation?.id, user_id: userId, whatsapp_account_id: whatsappAccountId, contact_phone_number: fromPhoneNumber, preferred_language: 'kn', updated_at: new Date().toISOString() }, { onConflict: 'whatsapp_account_id,contact_phone_number' });
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ." });
           responseSent = true;
         }
