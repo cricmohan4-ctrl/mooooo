@@ -833,7 +833,7 @@ const Inbox = () => {
                     </Avatar>
                     <div className="flex-1">
                       <p className="font-medium">{conv.contact_phone_number}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.last_message_body}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{conv.last_message_body}</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">
                         {conv.whatsapp_account_name}
                       </p>
