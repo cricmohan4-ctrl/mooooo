@@ -609,7 +609,7 @@ const Inbox = () => {
             <div className="flex items-center">
               <Avatar className="h-8 w-8 mr-3">
                 <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
-                <AvatarFallback>{selectedConversation.contact_phone_number.charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{selectedConversation.contact_phone_number}</AvatarFallback>
               </Avatar>
               <div>
                 <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
@@ -681,7 +681,7 @@ const Inbox = () => {
                 >
                   <Avatar className="h-10 w-10 mr-3">
                     <AvatarImage src={undefined} alt={conv.contact_phone_number} />
-                    <AvatarFallback>{conv.contact_phone_number.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <p className="font-medium">{conv.contact_phone_number}</p>
