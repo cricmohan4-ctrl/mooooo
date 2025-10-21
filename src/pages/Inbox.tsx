@@ -699,67 +699,72 @@ const Inbox = () => {
         {/* Message Area */}
         {selectedConversation && (
           <div className="flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900">
-            {/* Sticky Header for Selected Conversation */}
-            <div className="sticky top-0 z-10 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
-              <div className="flex items-center">
-                <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
+            {/* This div will be the main scrollable area for header + messages */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Sticky Header for Selected Conversation */}
+              <div className="sticky top-0 z-10 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
                 <div className="flex items-center">
-                  <Avatar className="h-8 w-8 mr-3">
-                    <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
-                    <AvatarFallback>{selectedConversation.contact_phone_number}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {selectedConversation.whatsapp_account_name}
-                    </p>
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                  <div className="flex items-center">
+                    <Avatar className="h-8 w-8 mr-3">
+                      <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
+                      <AvatarFallback>{selectedConversation.contact_phone_number}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {selectedConversation.whatsapp_account_name}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {isLoadingMessages ? (
-                <div className="text-center text-gray-500">Loading messages...</div>
-              ) : messages.length === 0 ? (
-                <div className="text-center text-gray-500">No messages in this conversation.</div>
-              ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex",
-                      msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
-                    )}
-                  >
+              {/* Scrollable messages content */}
+              <div className="p-4 space-y-4">
+                {isLoadingMessages ? (
+                  <div className="text-center text-gray-500">Loading messages...</div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center text-gray-500">No messages in this conversation.</div>
+                ) : (
+                  messages.map((msg) => (
                     <div
+                      key={msg.id}
                       className={cn(
-                        "max-w-[80%] p-2 rounded-xl flex flex-col relative", // Added relative for timestamp positioning
-                        msg.direction === 'outgoing'
-                          ? 'bg-brand-green text-white rounded-br-none'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
+                        "flex",
+                        msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
                       )}
                     >
-                      {/* Sender name/phone number - removed for WhatsApp-like bubbles */}
-                      {msg.message_type === 'text' ? (
-                        <p className="text-sm pr-10">{msg.message_body}</p> // Added padding for timestamp
-                      ) : (
-                        <>
-                          {renderMediaMessage(msg)}
-                          {msg.message_body && <p className="text-sm pr-10">{msg.message_body}</p>}
-                        </>
-                      )}
-                      <span className="absolute bottom-1 right-2 text-xs opacity-75">
-                        {format(new Date(msg.created_at), 'HH:mm')}
-                      </span>
+                      <div
+                        className={cn(
+                          "max-w-[80%] p-2 rounded-xl flex flex-col relative", // Added relative for timestamp positioning
+                          msg.direction === 'outgoing'
+                            ? 'bg-brand-green text-white rounded-br-none'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
+                        )}
+                      >
+                        {/* Sender name/phone number - removed for WhatsApp-like bubbles */}
+                        {msg.message_type === 'text' ? (
+                          <p className="text-sm pr-10">{msg.message_body}</p> // Added padding for timestamp
+                        ) : (
+                          <>
+                            {renderMediaMessage(msg)}
+                            {msg.message_body && <p className="text-sm pr-10">{msg.message_body}</p>}
+                          </>
+                        )}
+                        <span className="absolute bottom-1 right-2 text-xs opacity-75">
+                          {format(new Date(msg.created_at), 'HH:mm')}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} /> {/* Scroll target */}
+                  ))
+                )}
+                <div ref={messagesEndRef} /> {/* Scroll target */}
+              </div>
             </div>
+            {/* Input area (fixed at bottom) */}
             <div className="p-2 flex items-end bg-gray-50 dark:bg-gray-900 flex-shrink-0">
               <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
                 <Input
