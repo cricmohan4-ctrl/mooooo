@@ -273,6 +273,7 @@ serve(async (req) => {
 
     let responseSent = false;
 
+    // Priority 1: Check for active flow
     if (currentConversation && currentConversation.current_flow_id && currentConversation.current_node_id) {
       console.log(`Active flow detected: ${currentConversation.current_flow_id}, current node: ${currentConversation.current_node_id}`);
       const { data: flowData, error: flowError } = await supabaseServiceRoleClient
@@ -328,6 +329,9 @@ serve(async (req) => {
                     action: { buttons: interactiveButtons },
                   });
                   responseSent = true;
+                } else if (nextNode.type === 'incomingMessageNode') {
+                  await sendWhatsappMessage(fromPhoneNumber, 'text', { body: nextNode.data.prompt });
+                  responseSent = true;
                 }
                 await supabaseServiceRoleClient
                   .from('whatsapp_conversations')
@@ -350,10 +354,11 @@ serve(async (req) => {
                 .eq('id', currentConversation.id);
             }
           } else {
-            console.log(`Incoming message type "${messageType}" did NOT match expected input type "${expectedInputType}" for node ${currentNode.id}. Re-prompting.`);
-            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: promptMessage });
-            responseSent = true;
-            // Do NOT update current_node_id, stay on the same node to re-prompt
+            console.log(`Current node ${currentNode?.id} is not an incomingMessageNode or not found. Falling back to rules.`);
+            await supabaseServiceRoleClient
+              .from('whatsapp_conversations')
+              .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
+              .eq('id', currentConversation.id);
           }
         } else {
           console.log(`Current node ${currentNode?.id} is not an incomingMessageNode or not found. Falling back to rules.`);
@@ -365,10 +370,11 @@ serve(async (req) => {
       }
     }
 
+    // Priority 2: Rule Matching Logic
     if (!responseSent) {
       const { data: rules, error: rulesError } = await supabaseServiceRoleClient
         .from('chatbot_rules')
-        .select('trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response') // Select use_ai_response
+        .select('trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response')
         .eq('whatsapp_account_id', whatsappAccountId);
 
       if (rulesError) {
@@ -378,19 +384,21 @@ serve(async (req) => {
       let matchedRule = null;
       const lowerCaseIncomingText = incomingText.toLowerCase();
 
-      // Prioritize WELCOME_MESSAGE if it's the first message in a new conversation
-      if (!currentConversation || (!currentConversation.last_message_at && incomingText)) {
+      // Check for WELCOME_MESSAGE rule ONLY if it's a truly new conversation
+      const isTrulyNewConversation = !currentConversation; // If currentConversation is null, it's a new contact
+      if (isTrulyNewConversation) {
         const welcomeRule = (rules || []).find(rule => rule.trigger_type === 'WELCOME_MESSAGE');
         if (welcomeRule) {
           matchedRule = welcomeRule;
-          console.log('Matched WELCOME_MESSAGE rule for new conversation.');
+          console.log('Matched WELCOME_MESSAGE rule for a truly new conversation.');
         }
       }
 
-      // If no welcome rule matched or it's not a new conversation, check other rules
+      // If no welcome rule matched for a new conversation, or if it's an existing conversation,
+      // then try to match other specific rules.
       if (!matchedRule) {
         for (const rule of rules || []) {
-          if (rule.trigger_type === 'WELCOME_MESSAGE') continue; // Skip welcome message rules here
+          if (rule.trigger_type === 'WELCOME_MESSAGE') continue; // Skip welcome message rules here, they were handled above
 
           const triggerValue = rule.trigger_value.toLowerCase();
           const triggerType = rule.trigger_type;
@@ -406,10 +414,10 @@ serve(async (req) => {
             case 'STARTS_WITH':
               match = lowerCaseIncomingText.startsWith(triggerValue);
               break;
-            case 'AI_RESPONSE': // AI_RESPONSE rules can act as a fallback or specific trigger
-              match = lowerCaseIncomingText.includes(triggerValue); // Can be triggered by a keyword
-              if (!triggerValue) { // If trigger_value is empty, it's a general AI fallback
-                match = true;
+            case 'AI_RESPONSE':
+              // If AI_RESPONSE has a trigger value, it's a specific AI trigger
+              if (triggerValue) {
+                match = lowerCaseIncomingText.includes(triggerValue);
               }
               break;
             default:
@@ -423,6 +431,16 @@ serve(async (req) => {
         }
       }
 
+      // If still no specific rule matched, and there's an AI_RESPONSE rule with an empty trigger_value, use it as a general AI fallback
+      if (!matchedRule) {
+        const generalAIFallbackRule = (rules || []).find(rule => rule.trigger_type === 'AI_RESPONSE' && !rule.trigger_value);
+        if (generalAIFallbackRule) {
+          matchedRule = generalAIFallbackRule;
+          console.log('Matched general AI_RESPONSE fallback rule.');
+        }
+      }
+
+      // Process the matched rule
       if (matchedRule) {
         if (matchedRule.use_ai_response) {
           console.log('Chatbot rule matched for AI Response. Invoking Gemini chat function.');
@@ -548,11 +566,6 @@ serve(async (req) => {
     if (!responseSent) {
       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
     }
-
-    return new Response(JSON.stringify({ status: 'success', message: 'Webhook processed' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
 
   } catch (error: any) {
     console.error('Error processing WhatsApp webhook:', error.message);
