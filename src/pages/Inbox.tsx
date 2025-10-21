@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -16,11 +16,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label';
 import { Textarea } from "@/components/ui/textarea";
-import AddNewContactDialog from '@/components/AddNewContactDialog'; // Import the new component
-import { cn } from '@/lib/utils'; // Import cn for conditional classNames
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Import Avatar components
+import AddNewContactDialog from '@/components/AddNewContactDialog';
+import ManageLabelsDialog from '@/components/ManageLabelsDialog'; // Import new component
+import ApplyLabelsPopover from '@/components/ApplyLabelsPopover'; // Import new component
+import LabelBadge from '@/components/LabelBadge'; // Import new component
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface WhatsappAccount {
   id: string;
@@ -28,13 +31,21 @@ interface WhatsappAccount {
   phone_number_id: string;
 }
 
+interface LabelItem {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface Conversation {
+  id: string; // Added conversation ID
   contact_phone_number: string;
   last_message_body: string;
   last_message_time: string;
   whatsapp_account_id: string;
   whatsapp_account_name: string;
-  unread_count: number; // Added unread_count
+  unread_count: number;
+  labels: LabelItem[]; // Added labels
 }
 
 interface Message {
@@ -44,10 +55,10 @@ interface Message {
   message_body: string;
   direction: 'incoming' | 'outgoing';
   created_at: string;
-  message_type: string; // e.g., 'text', 'image', 'audio', 'document'
+  message_type: string;
   media_url?: string | null;
   media_caption?: string | null;
-  is_read?: boolean; // Added is_read
+  is_read?: boolean;
 }
 
 const Inbox = () => {
@@ -60,8 +71,8 @@ const Inbox = () => {
   const [newMessage, setNewMessage] = useState("");
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [totalUnreadCount, setTotalUnreadCount] = useState(0); // New state for total unread
-  const [filterType, setFilterType] = useState<'all' | 'unread'>('all'); // New state for filter
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const [filterType, setFilterType] = useState<'all' | 'unread'>('all');
 
   // Media states
   const [isRecording, setIsRecording] = useState(false);
@@ -117,23 +128,44 @@ const Inbox = () => {
     }
     setIsLoadingConversations(true);
     try {
-      const { data, error } = await supabase
+      const { data: convData, error: convError } = await supabase
         .rpc('get_whatsapp_conversations_with_unread_count', { p_user_id: user.id });
 
-      if (error) throw error;
+      if (convError) throw convError;
 
-      const formattedConversations: Conversation[] = data.map((conv: any) => ({
+      const conversationIds = convData.map((conv: any) => conv.id);
+
+      const { data: convLabelsData, error: convLabelsError } = await supabase
+        .from('whatsapp_conversation_labels')
+        .select('conversation_id, label_id, whatsapp_labels(id, name, color)')
+        .in('conversation_id', conversationIds);
+
+      if (convLabelsError) throw convLabelsError;
+
+      const labelsByConversationId = convLabelsData.reduce((acc, cl) => {
+        const label = cl.whatsapp_labels as LabelItem;
+        if (label) {
+          if (!acc[cl.conversation_id]) {
+            acc[cl.conversation_id] = [];
+          }
+          acc[cl.conversation_id].push(label);
+        }
+        return acc;
+      }, {} as Record<string, LabelItem[]>);
+
+      const formattedConversations: Conversation[] = convData.map((conv: any) => ({
+        id: conv.id,
         contact_phone_number: conv.contact_phone_number,
         last_message_body: conv.last_message_body,
         last_message_time: conv.last_message_time,
         whatsapp_account_id: conv.whatsapp_account_id,
         whatsapp_account_name: conv.whatsapp_account_name,
         unread_count: conv.unread_count,
+        labels: labelsByConversationId[conv.id] || [],
       }));
       
       setConversations(formattedConversations);
 
-      // Calculate total unread count
       const total = formattedConversations.reduce((sum, conv) => sum + conv.unread_count, 0);
       setTotalUnreadCount(total);
 
@@ -180,7 +212,7 @@ const Inbox = () => {
         .eq('whatsapp_account_id', conversation.whatsapp_account_id)
         .eq('from_phone_number', conversation.contact_phone_number)
         .eq('direction', 'incoming')
-        .eq('is_read', false); // Only update unread messages
+        .eq('is_read', false);
 
       if (error) {
         console.error('Error marking messages as read in DB:', error.message);
@@ -211,19 +243,19 @@ const Inbox = () => {
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
-      markMessagesAsRead(selectedConversation); // Mark messages as read when conversation is opened
-      fetchConversations(); // Refresh conversations to update unread counts in sidebar
+      markMessagesAsRead(selectedConversation);
+      fetchConversations();
     } else {
       setMessages([]);
     }
   }, [selectedConversation, fetchMessages, markMessagesAsRead, fetchConversations]);
 
-  // Realtime subscription for messages
+  // Realtime subscription for messages and labels
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel(`messages_for_user_${user.id}`) // Subscribe to all messages for the user
+    const messageChannel = supabase
+      .channel(`messages_for_user_${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -241,64 +273,54 @@ const Inbox = () => {
             targetWhatsappAccountId === selectedConversation.whatsapp_account_id &&
             targetContact === selectedConversation.contact_phone_number;
 
-          // 1. Update messages in the active chat window
           if (isMessageForSelectedConversation) {
             setMessages((prevMessages) => [...prevMessages, newMessage]);
-            // If it's an incoming message for the active chat, mark it as read in DB
             if (newMessage.direction === 'incoming' && !newMessage.is_read) {
-              markMessagesAsRead(selectedConversation); // This will only update DB, not re-fetch conversations
+              markMessagesAsRead(selectedConversation);
             }
           }
-
-          // 2. Update conversations list (sidebar)
-          setConversations(prevConversations => {
-            let updatedConversations = prevConversations.filter(conv => 
-              !(conv.whatsapp_account_id === targetWhatsappAccountId && conv.contact_phone_number === targetContact)
-            );
-
-            const existingConversation = prevConversations.find(conv => 
-              conv.whatsapp_account_id === targetWhatsappAccountId && conv.contact_phone_number === targetContact
-            );
-
-            let newUnreadCount = existingConversation ? existingConversation.unread_count : 0;
-            
-            if (newMessage.direction === 'incoming') {
-              if (isMessageForSelectedConversation) {
-                // If it's an incoming message for the active chat, its unread count becomes 0
-                newUnreadCount = 0; 
-              } else {
-                // If it's an incoming message for a non-active chat, increment unread count
-                newUnreadCount += 1;
-              }
-            }
-
-            const whatsappAccountName = whatsappAccounts.find(acc => acc.id === targetWhatsappAccountId)?.account_name || "Unknown Account";
-
-            const updatedOrNewConversation: Conversation = {
-              contact_phone_number: targetContact,
-              last_message_body: newMessage.message_body,
-              last_message_time: newMessage.created_at,
-              whatsapp_account_id: targetWhatsappAccountId,
-              whatsapp_account_name: whatsappAccountName,
-              unread_count: newUnreadCount,
-            };
-
-            // Add the updated/new conversation to the top
-            updatedConversations.unshift(updatedOrNewConversation);
-
-            // Recalculate total unread count
-            setTotalUnreadCount(updatedConversations.reduce((sum, conv) => sum + conv.unread_count, 0));
-
-            return updatedConversations;
-          });
+          fetchConversations(); // Re-fetch conversations to update unread counts and last message
         }
       )
       .subscribe();
 
+    const labelChannel = supabase
+      .channel(`conversation_labels_for_user_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'whatsapp_conversation_labels',
+          filter: `conversation_id.in.(${conversations.map(c => c.id).join(',')})`, // Only for current conversations
+        },
+        (payload) => {
+          // A label was added/removed from a conversation, or a label itself was updated
+          // Re-fetch conversations to update labels displayed
+          fetchConversations();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'whatsapp_labels',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // A label definition was changed (name/color), re-fetch conversations to update display
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(labelChannel);
     };
-  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts]);
+  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, conversations]); // Added conversations to dependency array for labelChannel filter
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
@@ -310,8 +332,8 @@ const Inbox = () => {
   };
 
   const handleNewChatCreated = (conversation: Conversation) => {
-    fetchConversations(); // Refresh the list to include the new/found conversation
-    setSelectedConversation(conversation); // Directly select the conversation
+    fetchConversations();
+    setSelectedConversation(conversation);
   };
 
   const uploadMediaToSupabase = async (file: Blob, fileName: string, fileType: string) => {
@@ -365,7 +387,6 @@ const Inbox = () => {
       return;
     }
 
-    console.log("Attempting to invoke 'send-whatsapp-message' Edge Function...");
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('send-whatsapp-message', {
         body: {
@@ -380,13 +401,11 @@ const Inbox = () => {
       });
 
       if (invokeError) {
-        // This error is from the invoke call itself (e.g., network error, function not found)
         console.error("Supabase Function Invoke Error:", invokeError.message);
         showError(`Failed to send message: ${invokeError.message}`);
         return;
       }
 
-      // Check for application-level errors returned by the Edge Function
       if (data.status === 'error') {
         console.error("Edge Function returned error status:", data.message, data.details);
         showError(`Failed to send message: ${data.message} ${data.details ? `(${JSON.stringify(data.details)})` : ''}`);
@@ -404,7 +423,6 @@ const Inbox = () => {
       setSelectedFile(null);
       setFileCaption("");
       setIsAttachmentDialogOpen(false);
-      // Messages and conversations will be updated via realtime subscription
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
@@ -420,17 +438,17 @@ const Inbox = () => {
         setAudioChunks((prev) => [...prev, e.data]);
       };
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' }); // WhatsApp prefers OGG
+        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' });
         setRecordedAudioBlob(audioBlob);
         setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         setAudioChunks([]);
-        stream.getTracks().forEach(track => track.stop()); // Stop microphone access
+        stream.getTracks().forEach(track => track.stop());
       };
       recorder.start();
       setIsRecording(true);
       setMediaRecorder(recorder);
-      setAudioChunks([]); // Clear previous chunks
-      setRecordedAudioBlob(null); // Clear previous recording
+      setAudioChunks([]);
+      setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setAudioCaption("");
       showSuccess("Recording started...");
@@ -529,8 +547,7 @@ const Inbox = () => {
       const fileName = `document-${Date.now()}.${fileExtension}`;
       const mediaUrl = await uploadMediaToSupabase(selectedFile, fileName, selectedFile.type);
       if (mediaUrl) {
-        // Determine mediaType based on file type for WhatsApp API
-        let mediaType = 'document'; // Default
+        let mediaType = 'document';
         if (selectedFile.type.startsWith('image/')) mediaType = 'image';
         if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
         if (selectedFile.type.startsWith('video/')) mediaType = 'video';
@@ -609,6 +626,9 @@ const Inbox = () => {
             <h1 className="text-2xl font-bold ml-4">WhatsApp Inbox</h1>
           )}
         </div>
+        <div className="flex space-x-2">
+          <ManageLabelsDialog onLabelsUpdated={fetchConversations} />
+        </div>
       </div>
 
       {/* Main Content Area (Conversations List or Message Area) */}
@@ -675,6 +695,13 @@ const Inbox = () => {
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       {conv.whatsapp_account_name}
                     </p>
+                    {conv.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {conv.labels.map(label => (
+                          <LabelBadge key={label.id} name={label.name} color={label.color} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
                     <span>{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
@@ -699,72 +726,73 @@ const Inbox = () => {
         {/* Message Area */}
         {selectedConversation && (
           <div className="flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900">
-            {/* This div will be the main scrollable area for header + messages */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Sticky Header for Selected Conversation */}
-              <div className="sticky top-0 z-10 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
+            {/* Sticky Header for Selected Conversation */}
+            <div className="sticky top-0 z-10 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
+              <div className="flex items-center">
+                <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
                 <div className="flex items-center">
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
-                    <ArrowLeft className="h-5 w-5" />
-                  </Button>
-                  <div className="flex items-center">
-                    <Avatar className="h-8 w-8 mr-3">
-                      <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
-                      <AvatarFallback>{selectedConversation.contact_phone_number}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {selectedConversation.whatsapp_account_name}
-                      </p>
-                    </div>
+                  <Avatar className="h-8 w-8 mr-3">
+                    <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
+                    <AvatarFallback>{selectedConversation.contact_phone_number}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedConversation.whatsapp_account_name}
+                    </p>
                   </div>
                 </div>
               </div>
-
-              {/* Scrollable messages content */}
-              <div className="p-4 space-y-4">
-                {isLoadingMessages ? (
-                  <div className="text-center text-gray-500">Loading messages...</div>
-                ) : messages.length === 0 ? (
-                  <div className="text-center text-gray-500">No messages in this conversation.</div>
-                ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "flex",
-                        msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[80%] p-2 rounded-xl flex flex-col relative", // Added relative for timestamp positioning
-                          msg.direction === 'outgoing'
-                            ? 'bg-brand-green text-white rounded-br-none'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
-                        )}
-                      >
-                        {/* Sender name/phone number - removed for WhatsApp-like bubbles */}
-                        {msg.message_type === 'text' ? (
-                          <p className="text-sm pr-10">{msg.message_body}</p> // Added padding for timestamp
-                        ) : (
-                          <>
-                            {renderMediaMessage(msg)}
-                            {msg.message_body && <p className="text-sm pr-10">{msg.message_body}</p>}
-                          </>
-                        )}
-                        <span className="absolute bottom-1 right-2 text-xs opacity-75">
-                          {format(new Date(msg.created_at), 'HH:mm')}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} /> {/* Scroll target */}
+              <div className="flex space-x-2">
+                <ApplyLabelsPopover
+                  conversationId={selectedConversation.id}
+                  currentLabels={selectedConversation.labels}
+                  onLabelsApplied={fetchConversations} // Refresh conversations to update labels
+                />
               </div>
             </div>
-            {/* Input area (fixed at bottom) */}
+
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {isLoadingMessages ? (
+                <div className="text-center text-gray-500">Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-gray-500">No messages in this conversation.</div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex",
+                      msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-[80%] p-2 rounded-xl flex flex-col relative",
+                        msg.direction === 'outgoing'
+                          ? 'bg-brand-green text-white rounded-br-none'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
+                      )}
+                    >
+                      {msg.message_type === 'text' ? (
+                        <p className="text-sm pr-10">{msg.message_body}</p>
+                      ) : (
+                        <>
+                          {renderMediaMessage(msg)}
+                          {msg.message_body && <p className="text-sm pr-10">{msg.message_body}</p>}
+                        </>
+                      )}
+                      <span className="absolute bottom-1 right-2 text-xs opacity-75">
+                        {format(new Date(msg.created_at), 'HH:mm')}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
             <div className="p-2 flex items-end bg-gray-50 dark:bg-gray-900 flex-shrink-0">
               <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
                 <Input
@@ -796,7 +824,6 @@ const Inbox = () => {
                 </Popover>
               </div>
               
-              {/* Mic/Send Button */}
               {newMessage.trim() ? (
                 <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
                   <Send className="h-5 w-5 text-white" />
