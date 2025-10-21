@@ -34,6 +34,7 @@ interface WhatsappAccount {
 interface AddNewContactDialogProps {
   whatsappAccounts: WhatsappAccount[];
   onNewChatCreated: (conversation: {
+    id: string; // Added id to the expected conversation object
     contact_phone_number: string;
     last_message_body: string;
     last_message_time: string;
@@ -86,6 +87,7 @@ const AddNewContactDialog: React.FC<AddNewContactDialogProps> = ({ whatsappAccou
       if (existingConversation) {
         showSuccess("Conversation already exists. Opening chat.");
         conversationToOpen = {
+          id: existingConversation.id, // Pass the existing ID
           contact_phone_number: existingConversation.contact_phone_number,
           last_message_body: existingConversation.last_message_body || "",
           last_message_time: existingConversation.last_message_at || new Date().toISOString(),
@@ -112,6 +114,7 @@ const AddNewContactDialog: React.FC<AddNewContactDialogProps> = ({ whatsappAccou
 
         showSuccess("New chat created successfully!");
         conversationToOpen = {
+          id: data.id, // Pass the new ID
           contact_phone_number: data.contact_phone_number,
           last_message_body: data.last_message_body || "",
           last_message_time: data.last_message_at || new Date().toISOString(),

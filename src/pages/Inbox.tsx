@@ -108,7 +108,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
         .select("id, account_name, phone_number_id")
-        .eq("user_id", user.id);
+        .eq("user.id", user.id);
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
@@ -133,28 +133,32 @@ const Inbox = () => {
 
       if (convError) throw convError;
 
-      const conversationIds = convData.map((conv: any) => conv.id);
+      // Ensure convData is an array and each item has an 'id'
+      const conversationIds = convData.map((conv: any) => conv.id).filter(Boolean); // Filter out undefined/null IDs
 
-      const { data: convLabelsData, error: convLabelsError } = await supabase
-        .from('whatsapp_conversation_labels')
-        .select('conversation_id, label_id, whatsapp_labels(id, name, color)')
-        .in('conversation_id', conversationIds);
+      let labelsByConversationId: Record<string, LabelItem[]> = {};
+      if (conversationIds.length > 0) {
+        const { data: convLabelsData, error: convLabelsError } = await supabase
+          .from('whatsapp_conversation_labels')
+          .select('conversation_id, label_id, whatsapp_labels(id, name, color)')
+          .in('conversation_id', conversationIds);
 
-      if (convLabelsError) throw convLabelsError;
+        if (convLabelsError) throw convLabelsError;
 
-      const labelsByConversationId = convLabelsData.reduce((acc, cl) => {
-        const label = cl.whatsapp_labels as LabelItem;
-        if (label) {
-          if (!acc[cl.conversation_id]) {
-            acc[cl.conversation_id] = [];
+        labelsByConversationId = convLabelsData.reduce((acc, cl) => {
+          const label = cl.whatsapp_labels as LabelItem;
+          if (label) {
+            if (!acc[cl.conversation_id]) {
+              acc[cl.conversation_id] = [];
+            }
+            acc[cl.conversation_id].push(label);
           }
-          acc[cl.conversation_id].push(label);
-        }
-        return acc;
-      }, {} as Record<string, LabelItem[]>);
+          return acc;
+        }, {} as Record<string, LabelItem[]>);
+      }
 
       const formattedConversations: Conversation[] = convData.map((conv: any) => ({
-        id: conv.id,
+        id: conv.id, // Now 'id' is guaranteed to be present from the RPC function
         contact_phone_number: conv.contact_phone_number,
         last_message_body: conv.last_message_body,
         last_message_time: conv.last_message_time,
@@ -331,9 +335,21 @@ const Inbox = () => {
     setSelectedConversation(conversation);
   };
 
-  const handleNewChatCreated = (conversation: Conversation) => {
-    fetchConversations();
-    setSelectedConversation(conversation);
+  const handleNewChatCreated = (conversation: {
+    id: string; // Ensure ID is passed
+    contact_phone_number: string;
+    last_message_body: string;
+    last_message_time: string;
+    whatsapp_account_id: string;
+    whatsapp_account_name: string;
+  }) => {
+    // When a new chat is created, it might not have labels yet, so we need to fetch them.
+    // For simplicity, we'll re-fetch all conversations.
+    fetchConversations(); 
+    // Select the newly created/found conversation.
+    // We need to ensure the `conversation` object passed here matches the `Conversation` interface,
+    // especially regarding the `labels` array.
+    setSelectedConversation({ ...conversation, unread_count: 0, labels: [] });
   };
 
   const uploadMediaToSupabase = async (file: Blob, fileName: string, fileType: string) => {
