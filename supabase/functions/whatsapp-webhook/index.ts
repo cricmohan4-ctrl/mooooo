@@ -282,7 +282,9 @@ serve(async (req) => {
         let responseSent = false;
 
         // Check for language change keywords
-        const lowerCaseIncomingText = incomingText.toLowerCase();
+        const lowerCaseIncomingText = incomingText.trim().toLowerCase(); // Added .trim()
+        console.log(`Normalized incoming text for language detection: "${lowerCaseIncomingText}"`);
+
         if (lowerCaseIncomingText === 'hindi.' || lowerCaseIncomingText === 'kannada.' || lowerCaseIncomingText === 'telugu.') {
           let newPreferredLanguage = 'en';
           let confirmationMessage = "Hello! I will now respond in English."; // Default
@@ -297,6 +299,8 @@ serve(async (req) => {
             newPreferredLanguage = 'te';
             confirmationMessage = "నమస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ఇస్తాను.";
           }
+
+          console.log(`Language change detected. New preferred language: ${newPreferredLanguage}, Confirmation message: "${confirmationMessage}"`);
 
           // Update or insert conversation with new preferred language
           const { error: upsertLangError } = await supabaseServiceRoleClient
@@ -318,9 +322,11 @@ serve(async (req) => {
             // Fallback to English confirmation if DB update fails
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Sorry, I couldn't update your language preference. Please try again." });
           } else {
+            console.log('Conversation language preference updated successfully.');
             preferredLanguage = newPreferredLanguage; // Update local variable for subsequent AI calls
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: confirmationMessage });
             responseSent = true;
+            console.log('Language change confirmation sent. ResponseSent set to true.');
           }
         }
 
@@ -614,6 +620,7 @@ serve(async (req) => {
 
         // If still no response (e.g., no language change, no rule or flow was matched), send a generic fallback
         if (!responseSent) {
+          console.log('No specific response sent, sending generic fallback.');
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
         }
 
