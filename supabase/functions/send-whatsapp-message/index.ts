@@ -135,6 +135,7 @@ serve(async (req) => {
         direction: 'outgoing',
         media_url: mediaUrl || null,
         media_caption: mediaCaption || null,
+        is_read: true, // Explicitly set to true for outgoing messages
       });
 
     if (insertOutgoingError) {

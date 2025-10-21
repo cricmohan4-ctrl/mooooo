@@ -166,6 +166,7 @@ serve(async (req) => {
             direction: 'incoming',
             media_url: mediaUrl,
             media_caption: mediaCaption,
+            is_read: false, // Explicitly set to false for incoming messages
           });
 
         if (insertIncomingError) {
@@ -245,6 +246,7 @@ serve(async (req) => {
               media_url: content.mediaUrl || null,
               media_caption: content.caption || null,
               direction: 'outgoing',
+              is_read: true, // Explicitly set to true for outgoing messages
             });
 
           if (insertOutgoingError) {
@@ -304,7 +306,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
+            confirmationMessage = "నమస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
