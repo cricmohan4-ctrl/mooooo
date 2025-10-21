@@ -28,13 +28,14 @@ serve(async (req) => {
     console.log('GOOGLE_GEMINI_API_KEY is present.');
 
     const payload = await req.json();
-    const { message, whatsappAccountId, preferredLanguage } = payload; // Expect whatsappAccountId and preferredLanguage from the payload
+    const { message, whatsappAccountId, preferredLanguage, audioUrl } = payload; // Added audioUrl
 
-    console.log('Received payload for Gemini chat:', JSON.stringify(payload, null, 2)); // Log entire payload
+    console.log('Received payload for Gemini chat:', JSON.stringify(payload, null, 2));
     console.log('Received whatsappAccountId:', whatsappAccountId);
+    console.log('Received audioUrl:', audioUrl); // Log audioUrl
 
-    if (!message) {
-      return new Response(JSON.stringify({ status: 'error', message: 'Missing message in payload.' }), {
+    if (!message && !audioUrl) { // Message or audioUrl is required
+      return new Response(JSON.stringify({ status: 'error', message: 'Missing message or audioUrl in payload.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
@@ -87,11 +88,43 @@ serve(async (req) => {
       systemInstruction: systemInstruction,
     });
 
-    console.log('Sending message to Google Gemini:', message);
+    const parts: any[] = [];
+    if (message) {
+      parts.push({ text: message });
+    }
+
+    if (audioUrl) {
+      console.log('Fetching audio from URL:', audioUrl);
+      const audioResponse = await fetch(audioUrl);
+      if (!audioResponse.ok) {
+        console.error(`Failed to fetch audio from ${audioUrl}: ${audioResponse.statusText}`);
+        throw new Error(`Failed to fetch audio from ${audioUrl}`);
+      }
+      const audioBlob = await audioResponse.blob();
+      const audioBuffer = await audioBlob.arrayBuffer();
+      
+      // Convert ArrayBuffer to Base64 string for inlineData
+      const uint8Array = new Uint8Array(audioBuffer);
+      let binaryString = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binaryString += String.fromCharCode(uint8Array[i]);
+      }
+      const base64Audio = btoa(binaryString);
+
+      parts.push({
+        inlineData: {
+          data: base64Audio,
+          mimeType: audioBlob.type,
+        },
+      });
+      console.log('Audio successfully fetched and base64 encoded. MIME Type:', audioBlob.type);
+    }
+
+    console.log('Sending parts to Google Gemini:', JSON.stringify(parts, null, 2));
 
     let chatCompletion;
     try {
-      const result = await model.generateContent(message);
+      const result = await model.generateContent({ contents: [{ role: "user", parts: parts }] });
       chatCompletion = result.response;
       console.log('Google Gemini API call successful. Response:', JSON.stringify(chatCompletion, null, 2));
     } catch (geminiApiError: any) {

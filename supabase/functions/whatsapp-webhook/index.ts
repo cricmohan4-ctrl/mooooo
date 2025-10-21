@@ -304,7 +304,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నమస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ఇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
@@ -498,10 +498,19 @@ serve(async (req) => {
             console.log('Processing matched rule:', JSON.stringify(matchedRule));
             if (matchedRule.use_ai_response) {
               console.log('Chatbot rule matched for AI Response. Invoking Gemini chat function.');
+              let geminiPayload: any = {
+                message: incomingText,
+                whatsappAccountId: whatsappAccountId,
+                preferredLanguage: preferredLanguage
+              };
+
+              if (messageType === 'audio' && mediaUrl) {
+                geminiPayload.audioUrl = mediaUrl;
+              }
+
               try {
-                // Use supabaseServiceRoleClient for invoking functions from webhook
                 const geminiResponse = await supabaseServiceRoleClient.functions.invoke('gemini-chat', {
-                  body: { message: incomingText, whatsappAccountId: whatsappAccountId, preferredLanguage: preferredLanguage },
+                  body: geminiPayload,
                 });
 
                 if (geminiResponse.error) {
@@ -623,9 +632,19 @@ serve(async (req) => {
         // Final Fallback: If no response has been sent by any rule or flow, use AI
         if (!responseSent) {
           console.log('No specific rule or flow matched. Invoking Gemini chat function as a general fallback.');
+          let geminiPayload: any = {
+            message: incomingText,
+            whatsappAccountId: whatsappAccountId,
+            preferredLanguage: preferredLanguage
+          };
+
+          if (messageType === 'audio' && mediaUrl) {
+            geminiPayload.audioUrl = mediaUrl;
+          }
+
           try {
             const geminiResponse = await supabaseServiceRoleClient.functions.invoke('gemini-chat', {
-              body: { message: incomingText, whatsappAccountId: whatsappAccountId, preferredLanguage: preferredLanguage },
+              body: geminiPayload,
             });
 
             if (geminiResponse.error) {
