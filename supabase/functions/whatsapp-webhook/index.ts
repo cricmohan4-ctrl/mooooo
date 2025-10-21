@@ -282,20 +282,20 @@ serve(async (req) => {
         let responseSent = false;
 
         // Check for language change keywords
-        const lowerCaseIncomingText = incomingText.trim().toLowerCase(); // Added .trim()
-        console.log(`Normalized incoming text for language detection: "${lowerCaseIncomingText}"`);
+        const lowerCaseIncomingText = incomingText.trim().toLowerCase();
+        console.log(`Normalized incoming text for language detection: "${lowerCaseIncomingText}"`); // Added more specific logging
 
-        if (lowerCaseIncomingText === 'hindi.' || lowerCaseIncomingText === 'kannada.' || lowerCaseIncomingText === 'telugu.') {
+        if (lowerCaseIncomingText === 'hindi' || lowerCaseIncomingText === 'kannada' || lowerCaseIncomingText === 'telugu') { // Removed periods from triggers
           let newPreferredLanguage = 'en';
           let confirmationMessage = "Hello! I will now respond in English."; // Default
 
-          if (lowerCaseIncomingText === 'hindi.') {
+          if (lowerCaseIncomingText === 'hindi') {
             newPreferredLanguage = 'hi';
             confirmationMessage = "नमस्ते! अब मैं हिंदी में जवाब दूंगा।";
-          } else if (lowerCaseIncomingText === 'kannada.') {
+          } else if (lowerCaseIncomingText === 'kannada') {
             newPreferredLanguage = 'kn';
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
-          } else if (lowerCaseIncomingText === 'telugu.') {
+          } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
             confirmationMessage = "నమస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ఇస్తాను.";
           }
