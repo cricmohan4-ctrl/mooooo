@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Inbox,
   Plug,
-  Bot, // Keep Bot icon for Chatbot Rules
+  Bot,
   Users,
   Radio,
   MessageSquare,
@@ -32,7 +32,7 @@ const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Shared Inbox', href: '/inbox', icon: Inbox },
   { name: 'Connect Account', href: '/connect-account', icon: Plug },
-  { name: 'Chatbot Rules', href: '/flows', icon: Bot }, // Added Chatbot Rules
+  { name: 'Chatbot Rules', href: '/chatbot-rules', icon: Bot }, // Updated href to new page
 ];
 
 const controlPanelItems = [
