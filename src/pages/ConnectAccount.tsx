@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Whatsapp, Plug, CheckCircle } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Plug, CheckCircle } from 'lucide-react'; // Changed Whatsapp to MessageSquare
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showSuccess, showError } from '@/utils/toast';
@@ -87,7 +87,7 @@ const ConnectAccount = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <Button className="w-full bg-brand-green hover:bg-brand-green/90 text-white" onClick={handleOneClickConnect}>
-              <Whatsapp className="h-5 w-5 mr-2" /> Connect WhatsApp
+              <MessageSquare className="h-5 w-5 mr-2" /> Connect WhatsApp
             </Button>
             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-2">
               <li className="flex items-start">
