@@ -591,7 +591,7 @@ const Inbox = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Dynamic Header for Inbox/Chat */}
+      {/* Main Header for Inbox/Chat */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
         <div className="flex items-center">
           {selectedConversation ? (
@@ -605,24 +605,10 @@ const Inbox = () => {
               </Link>
             </Button>
           )}
-          {selectedConversation ? (
-            <div className="flex items-center">
-              <Avatar className="h-8 w-8 mr-3">
-                <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
-                <AvatarFallback>{selectedConversation.contact_phone_number}</AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {selectedConversation.whatsapp_account_name}
-                </p>
-              </div>
-            </div>
-          ) : (
+          {!selectedConversation && (
             <h1 className="text-2xl font-bold ml-4">WhatsApp Inbox</h1>
           )}
         </div>
-        {/* Removed MoreVertical button as per WhatsApp UI */}
       </div>
 
       {/* Main Content Area (Conversations List or Message Area) */}
@@ -713,6 +699,27 @@ const Inbox = () => {
         {/* Message Area */}
         {selectedConversation && (
           <div className="flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900">
+            {/* Sticky Header for Selected Conversation */}
+            <div className="sticky top-0 z-10 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
+              <div className="flex items-center">
+                <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="flex items-center">
+                  <Avatar className="h-8 w-8 mr-3">
+                    <AvatarImage src={undefined} alt={selectedConversation.contact_phone_number} />
+                    <AvatarFallback>{selectedConversation.contact_phone_number}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedConversation.whatsapp_account_name}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
               {isLoadingMessages ? (
                 <div className="text-center text-gray-500">Loading messages...</div>
