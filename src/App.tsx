@@ -1,3 +1,4 @@
+import React from "react"; // Added explicit React import
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,7 +13,7 @@ import FlowEditor from "./pages/FlowEditor";
 import Inbox from "./pages/Inbox";
 import ConnectAccount from "./pages/ConnectAccount";
 import ChatbotRulesPage from "./pages/ChatbotRulesPage";
-import UserManagementPage from "./pages/UserManagementPage"; // Import the new page
+import UserManagementPage from "./pages/UserManagementPage";
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 import DashboardLayout from "./layouts/DashboardLayout";
 
@@ -108,7 +109,7 @@ const AppContent = () => (
             }
           />
           <Route
-            path="/user-management" {/* New route for UserManagementPage */}
+            path="/user-management"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
