@@ -291,20 +291,23 @@ serve(async (req) => {
         const lowerCaseIncomingText = incomingText.trim().toLowerCase();
         console.log(`Normalized incoming text for language detection: "${lowerCaseIncomingText}"`);
 
-        // Updated to match keywords including the period
-        if (lowerCaseIncomingText === 'hindi.' || lowerCaseIncomingText === 'kannada.' || lowerCaseIncomingText === 'telugu.') {
+        // Updated to match keywords without a period and include English
+        if (lowerCaseIncomingText === 'hindi' || lowerCaseIncomingText === 'kannada' || lowerCaseIncomingText === 'telugu' || lowerCaseIncomingText === 'english') {
           let newPreferredLanguage = 'en';
           let confirmationMessage = "Hello! I will now respond in English."; // Default
 
-          if (lowerCaseIncomingText === 'hindi.') {
+          if (lowerCaseIncomingText === 'hindi') {
             newPreferredLanguage = 'hi';
             confirmationMessage = "नमस्ते! अब मैं हिंदी में जवाब दूंगा।";
-          } else if (lowerCaseIncomingText === 'kannada.') {
+          } else if (lowerCaseIncomingText === 'kannada') {
             newPreferredLanguage = 'kn';
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
-          } else if (lowerCaseIncomingText === 'telugu.') {
+          } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానಂ ಇస్తాను.";
+            confirmationMessage = "నమస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ఇస్తాను.";
+          } else if (lowerCaseIncomingText === 'english') {
+            newPreferredLanguage = 'en';
+            confirmationMessage = "Hello! I will now respond in English.";
           }
 
           console.log(`Language change detected. New preferred language: ${newPreferredLanguage}, Confirmation message: "${confirmationMessage}"`);
@@ -424,17 +427,12 @@ serve(async (req) => {
                     .eq('id', currentConversation.id);
                 }
               } else {
-                console.log(`Incoming message type "${messageType}" did NOT match expected input type "${expectedInputType}" for node ${currentNode.id}. Re-prompting.`);
-                await sendWhatsappMessage(fromPhoneNumber, 'text', { body: promptMessage });
-                responseSent = true;
-                // Do NOT update current_node_id, stay on the same node to re-prompt
+                console.log(`Current node ${currentNode?.id} is not an incomingMessageNode or not found. Falling back to rules.`);
+                await supabaseServiceRoleClient
+                  .from('whatsapp_conversations')
+                  .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
+                  .eq('id', currentConversation.id);
               }
-            } else {
-              console.log(`Current node ${currentNode?.id} is not an incomingMessageNode or not found. Falling back to rules.`);
-              await supabaseServiceRoleClient
-                .from('whatsapp_conversations')
-                .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
-                .eq('id', currentConversation.id);
             }
           }
         }
