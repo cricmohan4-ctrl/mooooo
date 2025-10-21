@@ -51,16 +51,8 @@ serve(async (req) => {
     // Start an asynchronous task for processing the webhook payload
     (async () => {
       try {
-        const supabaseClient = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-          {
-            global: {
-              headers: { Authorization: clonedReq.headers.get('Authorization')! },
-            },
-          }
-        );
-
+        // Use service role client for all database operations within the webhook
+        // as it's a backend process and not directly tied to an authenticated user session.
         const supabaseServiceRoleClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -151,7 +143,8 @@ serve(async (req) => {
         const whatsappAccessToken = accountData.access_token;
         const whatsappAccountId = accountData.id;
 
-        const { error: insertIncomingError } = await supabaseClient
+        // Use supabaseServiceRoleClient for inserting incoming messages
+        const { error: insertIncomingError } = await supabaseServiceRoleClient
           .from('whatsapp_messages')
           .insert({
             user_id: userId,
@@ -298,7 +291,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu.') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ఇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానಂ ಇస్తాను.";
           }
 
           console.log(`Language change detected. New preferred language: ${newPreferredLanguage}, Confirmation message: "${confirmationMessage}"`);
@@ -373,7 +366,7 @@ serve(async (req) => {
                   const nextNode = nodes.find((n: any) => n.id === outgoingEdge.target);
                   if (nextNode) {
                     console.log('Transitioning to next node:', nextNode.id, nextNode.type);
-                    if (nextNode.type === 'messageNode') { // Removed || nextNode.type === 'welcomeMessageNode'
+                    if (nextNode.type === 'messageNode') { 
                       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: nextNode.data.message });
                       responseSent = true;
                     } else if (nextNode.type === 'buttonMessageNode') {
@@ -485,26 +478,27 @@ serve(async (req) => {
             if (matchedRule.use_ai_response) {
               console.log('Chatbot rule matched for AI Response. Invoking Gemini chat function.');
               try {
-                const geminiResponse = await supabaseClient.functions.invoke('gemini-chat', {
+                // Use supabaseServiceRoleClient for invoking functions from webhook
+                const geminiResponse = await supabaseServiceRoleClient.functions.invoke('gemini-chat', {
                   body: { message: incomingText, whatsappAccountId: whatsappAccountId, preferredLanguage: preferredLanguage },
                 });
 
                 if (geminiResponse.error) {
                   console.error('Error invoking Gemini chat function:', geminiResponse.error.message);
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment." });
-                  responseSent = true; // Set responseSent to true here
+                  responseSent = true; 
                 } else if (geminiResponse.data.status === 'success') {
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
                   responseSent = true;
                 } else {
                   console.error('Gemini chat function returned an error status:', geminiResponse.data.message);
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
-                  responseSent = true; // Set responseSent to true here
+                  responseSent = true; 
                 }
               } catch (aiInvokeError: any) {
                 console.error('Unexpected error during Gemini invocation:', aiInvokeError.message);
                 await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
-                responseSent = true; // Set responseSent to true here
+                responseSent = true; 
               }
             } else if (matchedRule.flow_id) {
               console.log(`Chatbot rule matched to start flow: ${matchedRule.flow_id}`);
@@ -537,7 +531,7 @@ serve(async (req) => {
                 }
 
                 if (firstNodeToSend) {
-                  if (firstNodeToSend.type === 'messageNode') { // Removed || firstNodeToSend.type === 'welcomeMessageNode'
+                  if (firstNodeToSend.type === 'messageNode') { 
                     await sendWhatsappMessage(fromPhoneNumber, 'text', { body: firstNodeToSend.data.message });
                   } else if (firstNodeToSend.type === 'buttonMessageNode') {
                     const interactiveButtons = (firstNodeToSend.data.buttons || []).map((btn: any) => ({
@@ -608,7 +602,7 @@ serve(async (req) => {
         // If still no response (e.g., no language change, no rule or flow was matched), send a generic fallback
         if (!responseSent) {
           console.log('No specific response sent, sending generic fallback.');
-          // Removed the explicit welcome message. If no rule matches, no response will be sent.
+          // If no rule matches, no response will be sent.
           // If you want a different fallback, you can add it here.
         }
 
