@@ -121,7 +121,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
         .select("id, account_name, phone_number_id")
-        .eq("user_id", user.id); // Corrected from "user.id" to "user_id"
+        .eq("user_id", user.id);
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
@@ -703,9 +703,7 @@ const Inbox = () => {
               </Link>
             </Button>
           )}
-          {!selectedConversation && (
-            <h1 className="text-2xl font-bold ml-4">WhatsApp Inbox</h1>
-          )}
+          {/* Removed the h1 element for "WhatsApp Inbox" */}
         </div>
         <div className="flex space-x-2">
           <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} />
