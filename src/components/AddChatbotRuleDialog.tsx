@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"; // Import Tooltip components
 
 interface AddWhatsappAccountDialogProps {
   onRuleAdded: () => void;
@@ -55,12 +56,15 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
   const [isLoading, setIsLoading] = useState(false);
 
   const isAIResponseSelected = triggerType === "AI_RESPONSE";
+  const hasWhatsappAccounts = whatsappAccounts.length > 0;
 
   useEffect(() => {
-    if (whatsappAccounts.length > 0 && !selectedWhatsappAccountId) {
+    if (hasWhatsappAccounts && !selectedWhatsappAccountId) {
       setSelectedWhatsappAccountId(whatsappAccounts[0].id);
+    } else if (!hasWhatsappAccounts) {
+      setSelectedWhatsappAccountId(""); // Clear selection if no accounts
     }
-  }, [whatsappAccounts, selectedWhatsappAccountId]);
+  }, [whatsappAccounts, selectedWhatsappAccountId, hasWhatsappAccounts]);
 
   useEffect(() => {
     const fetchChatbotFlows = async () => {
@@ -103,6 +107,10 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
     e.preventDefault();
     if (!user) {
       showError("You must be logged in to add a chatbot rule.");
+      return;
+    }
+    if (!hasWhatsappAccounts) {
+      showError("Please add a WhatsApp account first.");
       return;
     }
     if (!selectedWhatsappAccountId || (!isAIResponseSelected && !triggerValue.trim())) {
@@ -161,8 +169,28 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
     }
   };
 
+  const triggerButton = (
+    <Button variant="outline" size="icon" disabled={!hasWhatsappAccounts} title={!hasWhatsappAccounts ? "Add a WhatsApp account first to create rules" : "Add New Chatbot Rule"}>
+      <PlusCircle className="h-4 w-4" />
+    </Button>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      {hasWhatsappAccounts ? (
+        <DialogTrigger asChild>
+          {triggerButton}
+        </DialogTrigger>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {triggerButton}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Add a WhatsApp account first to create rules</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Chatbot Rule</DialogTitle>
@@ -180,9 +208,10 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                 onValueChange={setSelectedWhatsappAccountId}
                 value={selectedWhatsappAccountId}
                 required
+                disabled={!hasWhatsappAccounts}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select an account" />
+                  <SelectValue placeholder={hasWhatsappAccounts ? "Select an account" : "No accounts available"} />
                 </SelectTrigger>
                 <SelectContent>
                   {whatsappAccounts.map((account) => (
@@ -323,7 +352,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
             )}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !hasWhatsappAccounts}>
               {isLoading ? "Adding..." : "Add Rule"}
             </Button>
           </DialogFooter>

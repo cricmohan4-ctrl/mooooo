@@ -74,6 +74,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const isAIResponseSelected = triggerType === "AI_RESPONSE";
+  const hasWhatsappAccounts = whatsappAccounts.length > 0; // Although for editing, an account must exist
 
   // Update state when the rule prop changes (e.g., if a different rule is selected for editing)
   useEffect(() => {
@@ -162,7 +163,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
           use_ai_response: isAIResponseSelected,
         })
         .eq("id", rule.id)
-        .eq("user_id", user.id);
+        .eq("user.id", user.id);
 
       if (error) {
         throw error;
@@ -198,9 +199,10 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                 onValueChange={setSelectedWhatsappAccountId}
                 value={selectedWhatsappAccountId}
                 required
+                disabled={!hasWhatsappAccounts} // Disable if no accounts, though unlikely for editing existing rule
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select an account" />
+                  <SelectValue placeholder={hasWhatsappAccounts ? "Select an account" : "No accounts available"} />
                 </SelectTrigger>
                 <SelectContent>
                   {whatsappAccounts.map((account) => (
