@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap } from 'lucide-react'; // Added Zap icon
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -73,8 +73,9 @@ const Inbox = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [filterType, setFilterType] = useState<'all' | 'unread'>('all');
-  const [allLabels, setAllLabels] = useState<LabelItem[]>([]); // New state for all labels
-  const [selectedLabelFilterId, setSelectedLabelFilterId] = useState<string | null>(null); // New state for selected label filter
+  const [allLabels, setAllLabels] = useState<LabelItem[]>([]);
+  const [selectedLabelFilterId, setSelectedLabelFilterId] = useState<string | null>(null);
+  const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false); // New state for quick replies popover
 
   // Media states
   const [isRecording, setIsRecording] = useState(false);
@@ -96,6 +97,14 @@ const Inbox = () => {
   const [fileCaption, setFileCaption] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const quickReplies = [
+    { id: 'qr1', text: 'Hi, how can I help you today?' },
+    { id: 'qr2', text: 'Thanks for reaching out! What can I do for you?' },
+    { id: 'qr3', text: 'Our business hours are 9 AM to 5 PM, Monday to Friday.' },
+    { id: 'qr4', text: 'Please provide your order number for assistance.' },
+    { id: 'qr5', text: 'I will connect you with a human agent shortly.' },
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -887,6 +896,36 @@ const Inbox = () => {
                     <Button variant="ghost" className="justify-start" onClick={() => setIsAttachmentDialogOpen(true)}>
                       <Paperclip className="h-4 w-4 mr-2" /> Document
                     </Button>
+                  </PopoverContent>
+                </Popover>
+
+                {/* NEW: Quick Replies Popover */}
+                <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
+                      <Zap className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2">
+                    <div className="mb-2">
+                      <h4 className="font-semibold text-sm">Quick Replies</h4>
+                      <p className="text-xs text-gray-500">Select a predefined message.</p>
+                    </div>
+                    <div className="space-y-1">
+                      {quickReplies.map((reply) => (
+                        <Button
+                          key={reply.id}
+                          variant="ghost"
+                          className="w-full justify-start text-sm h-auto py-1.5"
+                          onClick={() => {
+                            setNewMessage(reply.text);
+                            setIsQuickRepliesPopoverOpen(false); // Close popover after selection
+                          }}
+                        >
+                          {reply.text}
+                        </Button>
+                      ))}
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>
