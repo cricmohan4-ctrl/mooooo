@@ -596,14 +596,14 @@ serve(async (req) => {
               }
 
               if (matchedRule.buttons && matchedRule.buttons.length > 0) {
+                const interactiveBodyText = matchedRule.response_message.length > 0
+                  ? matchedRule.response_message[matchedRule.response_message.length - 1]
+                  : "Please choose an option:";
+
                 const interactiveButtons = matchedRule.buttons.map(btn => ({
                   type: "reply",
                   reply: { id: btn.payload, title: btn.text },
                 }));
-
-                const interactiveBodyText = matchedRule.response_message.length > 0
-                  ? matchedRule.response_message[matchedRule.response_message.length - 1]
-                  : "Please choose an option:";
 
                 await sendWhatsappMessage(fromPhoneNumber, 'interactive', {
                   type: 'button',
@@ -622,11 +622,29 @@ serve(async (req) => {
           }
         }
 
-        // If still no response (e.g., no language change, no rule or flow was matched), send a generic fallback
+        // Final Fallback: If no response has been sent by any rule or flow, use AI
         if (!responseSent) {
-          console.log('No specific response sent, sending generic fallback.');
-          // If no rule matches, no response will be sent.
-          // If you want a different fallback, you can add it here.
+          console.log('No specific rule or flow matched. Invoking Gemini chat function as a general fallback.');
+          try {
+            const geminiResponse = await supabaseServiceRoleClient.functions.invoke('gemini-chat', {
+              body: { message: incomingText, whatsappAccountId: whatsappAccountId, preferredLanguage: preferredLanguage },
+            });
+
+            if (geminiResponse.error) {
+              console.error('Error invoking Gemini chat function for fallback:', geminiResponse.error.message);
+              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment. Please try again later." });
+            } else if (geminiResponse.data.status === 'success') {
+              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
+            } else {
+              console.error('Gemini chat function returned an error status for fallback:', geminiResponse.data.message);
+              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response for that." });
+            }
+            responseSent = true;
+          } catch (aiFallbackError: any) {
+            console.error('Unexpected error during Gemini fallback invocation:', aiFallbackError.message);
+            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
+            responseSent = true;
+          }
         }
 
       } catch (error: any) {
