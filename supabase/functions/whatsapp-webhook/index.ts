@@ -260,7 +260,7 @@ serve(async (req) => {
           }
         };
 
-        // --- Flow Logic ---
+        // --- Conversation and Language Logic ---
         let currentConversation = null;
         const { data: conversationData, error: convError } = await supabaseServiceRoleClient
           .from('whatsapp_conversations')
@@ -275,10 +275,31 @@ serve(async (req) => {
           currentConversation = conversationData;
         }
 
+        let preferredLanguage = currentConversation?.preferred_language || 'en';
         let responseSent = false;
 
+        // Check for language change keywords
+        const lowerCaseIncomingText = incomingText.toLowerCase();
+        if (lowerCaseIncomingText === 'hindi.') {
+          preferredLanguage = 'hi';
+          await supabaseServiceRoleClient
+            .from('whatsapp_conversations')
+            .update({ preferred_language: 'hi', updated_at: new Date().toISOString() })
+            .eq('id', currentConversation?.id || '00000000-0000-0000-0000-000000000000'); // Use dummy ID if no conversation yet
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "नमस्ते! अब मैं हिंदी में जवाब दूंगा।" });
+          responseSent = true;
+        } else if (lowerCaseIncomingText === 'kannada.') {
+          preferredLanguage = 'kn';
+          await supabaseServiceRoleClient
+            .from('whatsapp_conversations')
+            .update({ preferred_language: 'kn', updated_at: new Date().toISOString() })
+            .eq('id', currentConversation?.id || '00000000-0000-0000-0000-000000000000'); // Use dummy ID if no conversation yet
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ." });
+          responseSent = true;
+        }
+
         // Priority 1: Check for active flow
-        if (currentConversation && currentConversation.current_flow_id && currentConversation.current_node_id) {
+        if (!responseSent && currentConversation && currentConversation.current_flow_id && currentConversation.current_node_id) {
           console.log(`Active flow detected: ${currentConversation.current_flow_id}, current node: ${currentConversation.current_node_id}`);
           const { data: flowData, error: flowError } = await supabaseServiceRoleClient
             .from('chatbot_flows')
@@ -385,7 +406,7 @@ serve(async (req) => {
           }
 
           let matchedRule = null;
-          const lowerCaseIncomingText = incomingText.toLowerCase();
+          // const lowerCaseIncomingText = incomingText.toLowerCase(); // Already defined above
 
           // Check for WELCOME_MESSAGE rule ONLY if it's a truly new conversation
           const isTrulyNewConversation = !currentConversation; // If currentConversation is null, it's a new contact
@@ -449,7 +470,7 @@ serve(async (req) => {
               console.log('Chatbot rule matched for AI Response. Invoking Gemini chat function.');
               try {
                 const geminiResponse = await supabaseClient.functions.invoke('gemini-chat', {
-                  body: { message: incomingText, whatsappAccountId: whatsappAccountId },
+                  body: { message: incomingText, whatsappAccountId: whatsappAccountId, preferredLanguage: preferredLanguage },
                 });
 
                 if (geminiResponse.error) {

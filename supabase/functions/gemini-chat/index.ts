@@ -28,7 +28,7 @@ serve(async (req) => {
     console.log('GOOGLE_GEMINI_API_KEY is present.');
 
     const payload = await req.json();
-    const { message, whatsappAccountId } = payload; // Expect whatsappAccountId from the payload
+    const { message, whatsappAccountId, preferredLanguage } = payload; // Expect whatsappAccountId and preferredLanguage from the payload
 
     if (!message) {
       return new Response(JSON.stringify({ status: 'error', message: 'Missing message in payload.' }), {
@@ -63,6 +63,17 @@ serve(async (req) => {
     } else {
       console.log('No whatsappAccountId provided, using default Gemini system instruction.');
     }
+
+    // Append language instruction based on preferredLanguage
+    if (preferredLanguage === 'hi') {
+      systemInstruction += " Respond strictly in Hindi.";
+    } else if (preferredLanguage === 'kn') {
+      systemInstruction += " Respond strictly in Kannada.";
+    } else {
+      systemInstruction += " Respond in the language the user asks in.";
+    }
+    console.log('Final System Instruction:', systemInstruction);
+
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({
