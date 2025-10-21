@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText } from 'lucide-react'; // Added FileAudio and MessageSquareText
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X } from 'lucide-react'; // Added FileAudio, MessageSquareText, X
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -22,9 +22,11 @@ import AddNewContactDialog from '@/components/AddNewContactDialog';
 import ManageLabelsDialog from '@/components/ManageLabelsDialog';
 import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
 import LabelBadge from '@/components/LabelBadge';
-import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog'; // Import new component
+import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog';
+import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover'; // Import new component
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 
 interface WhatsappAccount {
   id: string;
@@ -85,7 +87,9 @@ const Inbox = () => {
   const [allLabels, setAllLabels] = useState<LabelItem[]>([]);
   const [selectedLabelFilterId, setSelectedLabelFilterId] = useState<string | null>(null);
   const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false);
-  const [dynamicQuickReplies, setDynamicQuickReplies] = useState<QuickReplyItem[]>([]); // New state for dynamic quick replies
+  const [dynamicQuickReplies, setDynamicQuickReplies] = useState<QuickReplyItem[]>([]);
+
+  const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]); // New state for multi-select
 
   // Media states
   const [isRecording, setIsRecording] = useState(false);
@@ -278,7 +282,7 @@ const Inbox = () => {
     if (user) {
       fetchWhatsappAccounts();
       fetchAllLabels();
-      fetchDynamicQuickReplies(); // Fetch dynamic quick replies
+      fetchDynamicQuickReplies();
     } else {
       setIsLoadingConversations(false);
     }
@@ -399,6 +403,7 @@ const Inbox = () => {
 
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
+    setSelectedConversationIds([]); // Clear multi-selection when opening a chat
   };
 
   const handleNewChatCreated = (conversation: {
@@ -687,17 +692,27 @@ const Inbox = () => {
 
   const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter by Label";
 
+  const handleToggleConversationSelection = (conversationId: string) => {
+    setSelectedConversationIds(prev =>
+      prev.includes(conversationId)
+        ? prev.filter(id => id !== conversationId)
+        : [...prev, conversationId]
+    );
+  };
+
+  const handleClearSelection = () => {
+    setSelectedConversationIds([]);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Main Header for Inbox/Chat - REMOVED */}
-
       {/* Main Content Area (Conversations List or Message Area) */}
       <div className="flex-1 flex overflow-hidden">
         {/* Conversations List */}
         {!selectedConversation && (
           <div className="relative w-full bg-white dark:bg-gray-800 overflow-y-auto">
             <div className="p-4">
-              <div className="flex items-center justify-between mb-4"> {/* New container for back button and dialogs */}
+              <div className="flex items-center justify-between mb-4">
                 <Button variant="ghost" size="icon" asChild>
                   <Link to="/dashboard">
                     <ArrowLeft className="h-5 w-5" />
@@ -706,6 +721,10 @@ const Inbox = () => {
                 <div className="flex space-x-2">
                   <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} />
                   <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
+                  <AddNewContactDialog
+                    whatsappAccounts={whatsappAccounts}
+                    onNewChatCreated={handleNewChatCreated}
+                  />
                 </div>
               </div>
               <div className="relative mb-4">
@@ -786,25 +805,31 @@ const Inbox = () => {
                       ? 'bg-blue-50 dark:bg-blue-900'
                       : ''
                   }`}
-                  onClick={() => handleConversationSelect(conv)}
                 >
-                  <Avatar className="h-10 w-10 mr-3">
-                    <AvatarImage src={undefined} alt={conv.contact_phone_number} />
-                    <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">{conv.contact_phone_number}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.last_message_body}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                      {conv.whatsapp_account_name}
-                    </p>
-                    {conv.labels.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {conv.labels.map(label => (
-                          <LabelBadge key={label.id} name={label.name} color={label.color} />
-                        ))}
-                      </div>
-                    )}
+                  <Checkbox
+                    checked={selectedConversationIds.includes(conv.id)}
+                    onCheckedChange={() => handleToggleConversationSelection(conv.id)}
+                    className="mr-3"
+                  />
+                  <div className="flex-1 flex items-center" onClick={() => handleConversationSelect(conv)}>
+                    <Avatar className="h-10 w-10 mr-3">
+                      <AvatarImage src={undefined} alt={conv.contact_phone_number} />
+                      <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-medium">{conv.contact_phone_number}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.last_message_body}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {conv.whatsapp_account_name}
+                      </p>
+                      {conv.labels.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {conv.labels.map(label => (
+                            <LabelBadge key={label.id} name={label.name} color={label.color} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
                     <span>{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
@@ -817,12 +842,25 @@ const Inbox = () => {
                 </div>
               ))
             )}
-            <div className="absolute bottom-4 right-4">
-              <AddNewContactDialog
-                whatsappAccounts={whatsappAccounts}
-                onNewChatCreated={handleNewChatCreated}
-              />
-            </div>
+            {selectedConversationIds.length > 0 && (
+              <div className="sticky bottom-0 left-0 right-0 bg-white dark:bg-gray-800 p-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between shadow-lg">
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {selectedConversationIds.length} conversation(s) selected
+                </span>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" onClick={handleClearSelection}>
+                    <X className="h-4 w-4 mr-2" /> Clear
+                  </Button>
+                  <BulkApplyLabelsPopover
+                    conversationIds={selectedConversationIds}
+                    onLabelsApplied={() => {
+                      fetchConversations(); // Refresh conversations to update labels
+                      handleClearSelection(); // Clear selection after applying labels
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -852,7 +890,7 @@ const Inbox = () => {
                 <ApplyLabelsPopover
                   conversationId={selectedConversation.id}
                   currentLabels={selectedConversation.labels}
-                  onLabelsApplied={fetchConversations} // Refresh conversations to update labels
+                  onLabelsApplied={fetchConversations}
                 />
               </div>
             </div>
