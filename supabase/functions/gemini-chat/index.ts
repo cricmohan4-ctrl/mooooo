@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.15.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,14 +27,8 @@ serve(async (req) => {
     }
     console.log('GOOGLE_GEMINI_API_KEY is present.');
 
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
-      systemInstruction: "You are a customer service assistant for a business selling plastic mobile covers with customer photos. You must answer in the language the user asks in. The price for Cash on Delivery (COD) is 220. The price for prepaid orders is 150. All orders are delivered within 7 days."
-    });
-
     const payload = await req.json();
-    const { message } = payload;
+    const { message, whatsappAccountId } = payload; // Expect whatsappAccountId from the payload
 
     if (!message) {
       return new Response(JSON.stringify({ status: 'error', message: 'Missing message in payload.' }), {
@@ -41,6 +36,39 @@ serve(async (req) => {
         status: 200,
       });
     }
+
+    // Initialize Supabase client with service role key to fetch account details
+    const supabaseServiceRoleClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    let systemInstruction = "You are a helpful customer service assistant for a business selling plastic mobile covers with customer photos. You must answer in the language the user asks in. The price for Cash on Delivery (COD) is 220. The price for prepaid orders is 150. All orders are delivered within 7 days."; // Default instruction
+
+    if (whatsappAccountId) {
+      const { data: accountData, error: accountError } = await supabaseServiceRoleClient
+        .from('whatsapp_accounts')
+        .select('gemini_system_instruction')
+        .eq('id', whatsappAccountId)
+        .single();
+
+      if (accountError) {
+        console.error('Error fetching Gemini system instruction for account:', accountError.message);
+      } else if (accountData?.gemini_system_instruction) {
+        systemInstruction = accountData.gemini_system_instruction;
+        console.log('Using custom Gemini system instruction for account:', whatsappAccountId);
+      } else {
+        console.log('No custom Gemini system instruction found for account, using default.');
+      }
+    } else {
+      console.log('No whatsappAccountId provided, using default Gemini system instruction.');
+    }
+
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      systemInstruction: systemInstruction,
+    });
 
     console.log('Sending message to Google Gemini:', message);
 

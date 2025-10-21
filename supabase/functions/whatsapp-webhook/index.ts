@@ -499,7 +499,7 @@ serve(async (req) => {
       console.log('No rule or flow matched. Attempting to get AI response from Google Gemini.');
       try {
         const geminiResponse = await supabaseClient.functions.invoke('gemini-chat', {
-          body: { message: incomingText },
+          body: { message: incomingText, whatsappAccountId: whatsappAccountId }, // Pass whatsappAccountId
         });
 
         if (geminiResponse.error) {

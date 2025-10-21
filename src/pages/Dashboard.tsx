@@ -1,11 +1,12 @@
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon, Edit } from "lucide-react";
+import { PlusCircle, MessageCircle, Trash2, Bot, MousePointerClick, Workflow, Inbox as InboxIcon, Edit, Brain } from "lucide-react";
 import AddWhatsappAccountDialog from "@/components/AddWhatsappAccountDialog";
 import EditWhatsappAccountDialog from "@/components/EditWhatsappAccountDialog";
 import AddChatbotRuleDialog from "@/components/AddChatbotRuleDialog";
 import EditChatbotRuleDialog from "@/components/EditChatbotRuleDialog";
+import GeminiConfigDialog from "@/components/GeminiConfigDialog"; // Import the new component
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
@@ -28,6 +29,7 @@ interface WhatsappAccount {
   account_name: string;
   phone_number_id: string;
   access_token: string;
+  gemini_system_instruction: string | null; // Include the new field
 }
 
 interface ButtonConfig {
@@ -57,6 +59,8 @@ const Dashboard = () => {
   const [selectedRuleToEdit, setSelectedRuleToEdit] = useState<ChatbotRule | null>(null);
   const [isEditAccountDialogOpen, setIsEditAccountDialogOpen] = useState(false);
   const [selectedAccountToEdit, setSelectedAccountToEdit] = useState<WhatsappAccount | null>(null);
+  const [isGeminiConfigDialogOpen, setIsGeminiConfigDialogOpen] = useState(false); // New state for Gemini config dialog
+  const [selectedAccountForGeminiConfig, setSelectedAccountForGeminiConfig] = useState<WhatsappAccount | null>(null); // New state for selected account for Gemini config
 
   const fetchWhatsappAccounts = async () => {
     if (!user) return;
@@ -64,7 +68,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, account_name, phone_number_id, access_token")
+        .select("id, account_name, phone_number_id, access_token, gemini_system_instruction") // Select the new field
         .eq("user_id", user.id);
 
       if (error) {
@@ -154,6 +158,11 @@ const Dashboard = () => {
     setIsEditAccountDialogOpen(true);
   };
 
+  const handleConfigureGeminiClick = (account: WhatsappAccount) => {
+    setSelectedAccountForGeminiConfig(account);
+    setIsGeminiConfigDialogOpen(true);
+  };
+
   useEffect(() => {
     if (user) {
       fetchWhatsappAccounts();
@@ -206,6 +215,9 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="flex space-x-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleConfigureGeminiClick(account)} title="Configure AI">
+                          <Brain className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleEditAccountClick(account)} title="Edit Account">
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -354,6 +366,15 @@ const Dashboard = () => {
           onAccountUpdated={fetchWhatsappAccounts}
           isOpen={isEditAccountDialogOpen}
           onOpenChange={setIsEditAccountDialogOpen}
+        />
+      )}
+
+      {selectedAccountForGeminiConfig && (
+        <GeminiConfigDialog
+          account={selectedAccountForGeminiConfig}
+          onConfigUpdated={fetchWhatsappAccounts}
+          isOpen={isGeminiConfigDialogOpen}
+          onOpenChange={setIsGeminiConfigDialogOpen}
         />
       )}
     </div>
