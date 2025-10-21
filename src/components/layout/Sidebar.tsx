@@ -8,7 +8,7 @@ import {
   Plug,
   Bot,
   Users,
-  Radio, // Changed Broadcast to Radio
+  Radio,
   MessageSquare,
   Workflow,
   ShoppingCart,
@@ -31,10 +31,10 @@ interface SidebarProps {
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Shared Inbox', href: '/inbox', icon: Inbox },
-  { name: 'Connect Account', href: '/connect-account', icon: Plug },
+  { name: 'Connect Account', href: '/connect-account', icon: Plug }, // Updated href
   { name: 'Bot Manager', href: '/bot-manager', icon: Bot },
   { name: 'Subscriber Manager', href: '/subscriber-manager', icon: Users },
-  { name: 'Broadcasting', href: '/broadcasting', icon: Radio }, // Changed Broadcast to Radio
+  { name: 'Broadcasting', href: '/broadcasting', icon: Radio },
   { name: 'Live Chat', href: '/live-chat', icon: MessageSquare },
   { name: 'Webhook Workflow', href: '/webhook-workflow', icon: Workflow },
   { name: 'eCommerce Catalog', href: '/ecommerce-catalog', icon: ShoppingCart },

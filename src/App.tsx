@@ -10,8 +10,9 @@ import Login from "./pages/Login";
 import FlowsPage from "./pages/FlowsPage";
 import FlowEditor from "./pages/FlowEditor";
 import Inbox from "./pages/Inbox";
+import ConnectAccount from "./pages/ConnectAccount"; // Import the new page
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
-import DashboardLayout from "./layouts/DashboardLayout"; // Import the new layout
+import DashboardLayout from "./layouts/DashboardLayout";
 
 const queryClient = new QueryClient();
 
@@ -48,7 +49,7 @@ const AppContent = () => (
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardLayout> {/* Wrap Dashboard with DashboardLayout */}
+                <DashboardLayout>
                   <Dashboard />
                 </DashboardLayout>
               </ProtectedRoute>
@@ -58,7 +59,7 @@ const AppContent = () => (
             path="/flows"
             element={
               <ProtectedRoute>
-                <DashboardLayout> {/* Wrap FlowsPage with DashboardLayout */}
+                <DashboardLayout>
                   <FlowsPage />
                 </DashboardLayout>
               </ProtectedRoute>
@@ -68,7 +69,7 @@ const AppContent = () => (
             path="/flows/edit/:flowId"
             element={
               <ProtectedRoute>
-                <DashboardLayout> {/* Wrap FlowEditor with DashboardLayout */}
+                <DashboardLayout>
                   <FlowEditor />
                 </DashboardLayout>
               </ProtectedRoute>
@@ -78,8 +79,18 @@ const AppContent = () => (
             path="/inbox"
             element={
               <ProtectedRoute>
-                <DashboardLayout> {/* Wrap Inbox with DashboardLayout */}
+                <DashboardLayout>
                   <Inbox />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/connect-account" // New route for ConnectAccount page
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ConnectAccount />
                 </DashboardLayout>
               </ProtectedRoute>
             }
