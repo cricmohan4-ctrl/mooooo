@@ -70,13 +70,13 @@ serve(async (req) => {
 
     // Append language instruction based on preferredLanguage
     if (preferredLanguage === 'hi') {
-      systemInstruction += " Respond strictly in Hindi.";
+      systemInstruction += " Please respond in Hindi.";
     } else if (preferredLanguage === 'kn') {
-      systemInstruction += " Respond strictly in Kannada.";
+      systemInstruction += " Please respond in Kannada.";
     } else if (preferredLanguage === 'te') {
-      systemInstruction += " Respond strictly in Telugu.";
+      systemInstruction += " Please respond in Telugu.";
     } else {
-      systemInstruction += " Respond in the language the user asks in.";
+      systemInstruction += " Please respond in the language the user asks in.";
     }
     console.log('Final System Instruction sent to Gemini:', systemInstruction); // Log the final instruction
 
