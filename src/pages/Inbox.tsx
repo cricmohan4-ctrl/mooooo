@@ -786,6 +786,20 @@ const Inbox = () => {
                     </div>
                   </PopoverContent>
                 </Popover>
+                {selectedConversationIds.length > 0 && (
+                  <>
+                    <BulkApplyLabelsPopover
+                      conversationIds={selectedConversationIds}
+                      onLabelsApplied={() => {
+                        fetchConversations(); // Refresh conversations to update labels
+                        handleClearSelection(); // Clear selection after applying labels
+                      }}
+                    />
+                    <Button variant="outline" size="sm" onClick={handleClearSelection}>
+                      <X className="h-4 w-4 mr-2" /> Clear ({selectedConversationIds.length})
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
             <Separator />
@@ -841,25 +855,6 @@ const Inbox = () => {
                   </div>
                 </div>
               ))
-            )}
-            {selectedConversationIds.length > 0 && (
-              <div className="sticky bottom-0 left-0 right-0 bg-white dark:bg-gray-800 p-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between shadow-lg">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {selectedConversationIds.length} conversation(s) selected
-                </span>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" onClick={handleClearSelection}>
-                    <X className="h-4 w-4 mr-2" /> Clear
-                  </Button>
-                  <BulkApplyLabelsPopover
-                    conversationIds={selectedConversationIds}
-                    onLabelsApplied={() => {
-                      fetchConversations(); // Refresh conversations to update labels
-                      handleClearSelection(); // Clear selection after applying labels
-                    }}
-                  />
-                </div>
-              </div>
             )}
           </div>
         )}
