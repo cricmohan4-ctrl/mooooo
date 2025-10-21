@@ -297,6 +297,13 @@ serve(async (req) => {
             .upsert({ id: currentConversation?.id, user_id: userId, whatsapp_account_id: whatsappAccountId, contact_phone_number: fromPhoneNumber, preferred_language: 'kn', updated_at: new Date().toISOString() }, { onConflict: 'whatsapp_account_id,contact_phone_number' });
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ." });
           responseSent = true;
+        } else if (lowerCaseIncomingText === 'telugu.') { // New condition for Telugu
+          preferredLanguage = 'te';
+          await supabaseServiceRoleClient
+            .from('whatsapp_conversations')
+            .upsert({ id: currentConversation?.id, user_id: userId, whatsapp_account_id: whatsappAccountId, contact_phone_number: fromPhoneNumber, preferred_language: 'te', updated_at: new Date().toISOString() }, { onConflict: 'whatsapp_account_id,contact_phone_number' });
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "నమస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ఇస్తాను." });
+          responseSent = true;
         }
 
         // Priority 1: Check for active flow

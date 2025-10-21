@@ -69,6 +69,8 @@ serve(async (req) => {
       systemInstruction += " Respond strictly in Hindi.";
     } else if (preferredLanguage === 'kn') {
       systemInstruction += " Respond strictly in Kannada.";
+    } else if (preferredLanguage === 'te') { // New condition for Telugu
+      systemInstruction += " Respond strictly in Telugu.";
     } else {
       systemInstruction += " Respond in the language the user asks in.";
     }
