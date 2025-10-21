@@ -22,6 +22,7 @@ import AddNewContactDialog from '@/components/AddNewContactDialog';
 import ManageLabelsDialog from '@/components/ManageLabelsDialog';
 import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
 import LabelBadge from '@/components/LabelBadge';
+import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog'; // Import new component
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -35,6 +36,14 @@ interface LabelItem {
   id: string;
   name: string;
   color: string;
+}
+
+interface QuickReplyItem {
+  id: string;
+  name: string;
+  type: 'text' | 'audio';
+  text_content: string | null;
+  audio_url: string | null;
 }
 
 interface Conversation {
@@ -75,7 +84,8 @@ const Inbox = () => {
   const [filterType, setFilterType] = useState<'all' | 'unread'>('all');
   const [allLabels, setAllLabels] = useState<LabelItem[]>([]);
   const [selectedLabelFilterId, setSelectedLabelFilterId] = useState<string | null>(null);
-  const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false); // New state for quick replies popover
+  const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false);
+  const [dynamicQuickReplies, setDynamicQuickReplies] = useState<QuickReplyItem[]>([]); // New state for dynamic quick replies
 
   // Media states
   const [isRecording, setIsRecording] = useState(false);
@@ -97,14 +107,6 @@ const Inbox = () => {
   const [fileCaption, setFileCaption] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const quickReplies = [
-    { id: 'qr1', text: 'Hi, how can I help you today?' },
-    { id: 'qr2', text: 'Thanks for reaching out! What can I do for you?' },
-    { id: 'qr3', text: 'Our business hours are 9 AM to 5 PM, Monday to Friday.' },
-    { id: 'qr4', text: 'Please provide your order number for assistance.' },
-    { id: 'qr5', text: 'I will connect you with a human agent shortly.' },
-  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -146,6 +148,23 @@ const Inbox = () => {
     } catch (error: any) {
       console.error("Error fetching all labels:", error.message);
       showError("Failed to load labels for filtering.");
+    }
+  }, [user]);
+
+  const fetchDynamicQuickReplies = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_quick_replies')
+        .select('id, name, type, text_content, audio_url')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setDynamicQuickReplies(data || []);
+    } catch (error: any) {
+      console.error("Error fetching dynamic quick replies:", error.message);
+      showError("Failed to load quick replies.");
     }
   }, [user]);
 
@@ -258,11 +277,12 @@ const Inbox = () => {
   useEffect(() => {
     if (user) {
       fetchWhatsappAccounts();
-      fetchAllLabels(); // Fetch all labels when user is available
+      fetchAllLabels();
+      fetchDynamicQuickReplies(); // Fetch dynamic quick replies
     } else {
       setIsLoadingConversations(false);
     }
-  }, [user, fetchWhatsappAccounts, fetchAllLabels]);
+  }, [user, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]);
 
   useEffect(() => {
     if (user && whatsappAccounts.length > 0) {
@@ -348,12 +368,29 @@ const Inbox = () => {
       )
       .subscribe();
 
+    const quickReplyChannel = supabase
+      .channel(`quick_replies_for_user_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'whatsapp_quick_replies',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          fetchDynamicQuickReplies(); // Re-fetch quick replies when changes occur
+        }
+      )
+      .subscribe();
+
 
     return () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(labelChannel);
+      supabase.removeChannel(quickReplyChannel);
     };
-  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, conversations, fetchAllLabels]);
+  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, conversations, fetchAllLabels, fetchDynamicQuickReplies]);
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
@@ -672,6 +709,7 @@ const Inbox = () => {
         </div>
         <div className="flex space-x-2">
           <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} />
+          <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} /> {/* New button for managing quick replies */}
         </div>
       </div>
 
@@ -899,7 +937,7 @@ const Inbox = () => {
                   </PopoverContent>
                 </Popover>
 
-                {/* NEW: Quick Replies Popover */}
+                {/* Quick Replies Popover */}
                 <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
@@ -912,19 +950,32 @@ const Inbox = () => {
                       <p className="text-xs text-gray-500">Select a predefined message.</p>
                     </div>
                     <div className="space-y-1">
-                      {quickReplies.map((reply) => (
-                        <Button
-                          key={reply.id}
-                          variant="ghost"
-                          className="w-full justify-start text-sm h-auto py-1.5"
-                          onClick={() => {
-                            setNewMessage(reply.text);
-                            setIsQuickRepliesPopoverOpen(false); // Close popover after selection
-                          }}
-                        >
-                          {reply.text}
-                        </Button>
-                      ))}
+                      {dynamicQuickReplies.length === 0 ? (
+                        <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
+                      ) : (
+                        dynamicQuickReplies.map((reply) => (
+                          <Button
+                            key={reply.id}
+                            variant="ghost"
+                            className="w-full justify-start text-sm h-auto py-1.5"
+                            onClick={() => {
+                              if (reply.type === 'text' && reply.text_content) {
+                                setNewMessage(reply.text_content);
+                              } else if (reply.type === 'audio' && reply.audio_url) {
+                                handleSendMessage(null, reply.audio_url, 'audio', reply.name);
+                              }
+                              setIsQuickRepliesPopoverOpen(false); // Close popover after selection
+                            }}
+                          >
+                            {reply.type === 'text' ? (
+                              <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
+                            ) : (
+                              <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
+                            )}
+                            {reply.name}
+                          </Button>
+                        ))
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
