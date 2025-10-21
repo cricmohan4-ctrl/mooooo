@@ -19,9 +19,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import AddNewContactDialog from '@/components/AddNewContactDialog';
-import ManageLabelsDialog from '@/components/ManageLabelsDialog'; // Import new component
-import ApplyLabelsPopover from '@/components/ApplyLabelsPopover'; // Import new component
-import LabelBadge from '@/components/LabelBadge'; // Import new component
+import ManageLabelsDialog from '@/components/ManageLabelsDialog';
+import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
+import LabelBadge from '@/components/LabelBadge';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -38,14 +38,14 @@ interface LabelItem {
 }
 
 interface Conversation {
-  id: string; // Added conversation ID
+  id: string;
   contact_phone_number: string;
   last_message_body: string;
   last_message_time: string;
   whatsapp_account_id: string;
   whatsapp_account_name: string;
   unread_count: number;
-  labels: LabelItem[]; // Added labels
+  labels: LabelItem[];
 }
 
 interface Message {
@@ -73,6 +73,8 @@ const Inbox = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [filterType, setFilterType] = useState<'all' | 'unread'>('all');
+  const [allLabels, setAllLabels] = useState<LabelItem[]>([]); // New state for all labels
+  const [selectedLabelFilterId, setSelectedLabelFilterId] = useState<string | null>(null); // New state for selected label filter
 
   // Media states
   const [isRecording, setIsRecording] = useState(false);
@@ -108,7 +110,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
         .select("id, account_name, phone_number_id")
-        .eq("user_id", user.id); // Corrected from "user.id" to "user_id"
+        .eq("user_id", user.id);
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
@@ -118,6 +120,23 @@ const Inbox = () => {
       setWhatsappAccounts([]);
     } finally {
       setIsLoadingConversations(false);
+    }
+  }, [user]);
+
+  const fetchAllLabels = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_labels')
+        .select('id, name, color')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setAllLabels(data || []);
+    } catch (error: any) {
+      console.error("Error fetching all labels:", error.message);
+      showError("Failed to load labels for filtering.");
     }
   }, [user]);
 
@@ -133,8 +152,7 @@ const Inbox = () => {
 
       if (convError) throw convError;
 
-      // Ensure convData is an array and each item has an 'id'
-      const conversationIds = convData.map((conv: any) => conv.id).filter(Boolean); // Filter out undefined/null IDs
+      const conversationIds = convData.map((conv: any) => conv.id).filter(Boolean);
 
       let labelsByConversationId: Record<string, LabelItem[]> = {};
       if (conversationIds.length > 0) {
@@ -158,7 +176,7 @@ const Inbox = () => {
       }
 
       const formattedConversations: Conversation[] = convData.map((conv: any) => ({
-        id: conv.id, // Now 'id' is guaranteed to be present from the RPC function
+        id: conv.id,
         contact_phone_number: conv.contact_phone_number,
         last_message_body: conv.last_message_body,
         last_message_time: conv.last_message_time,
@@ -231,10 +249,11 @@ const Inbox = () => {
   useEffect(() => {
     if (user) {
       fetchWhatsappAccounts();
+      fetchAllLabels(); // Fetch all labels when user is available
     } else {
       setIsLoadingConversations(false);
     }
-  }, [user, fetchWhatsappAccounts]);
+  }, [user, fetchWhatsappAccounts, fetchAllLabels]);
 
   useEffect(() => {
     if (user && whatsappAccounts.length > 0) {
@@ -315,6 +334,7 @@ const Inbox = () => {
         (payload) => {
           // A label definition was changed (name/color), re-fetch conversations to update display
           fetchConversations();
+          fetchAllLabels(); // Also re-fetch all labels for the filter popover
         }
       )
       .subscribe();
@@ -324,7 +344,7 @@ const Inbox = () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(labelChannel);
     };
-  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, conversations]); // Added conversations to dependency array for labelChannel filter
+  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, conversations, fetchAllLabels]);
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
@@ -336,19 +356,14 @@ const Inbox = () => {
   };
 
   const handleNewChatCreated = (conversation: {
-    id: string; // Ensure ID is passed
+    id: string;
     contact_phone_number: string;
     last_message_body: string;
     last_message_time: string;
     whatsapp_account_id: string;
     whatsapp_account_name: string;
   }) => {
-    // When a new chat is created, it might not have labels yet, so we need to fetch them.
-    // For simplicity, we'll re-fetch all conversations.
     fetchConversations(); 
-    // Select the newly created/found conversation.
-    // We need to ensure the `conversation` object passed here matches the `Conversation` interface,
-    // especially regarding the `labels` array.
     setSelectedConversation({ ...conversation, unread_count: 0, labels: [] });
   };
 
@@ -618,9 +633,13 @@ const Inbox = () => {
     }
   };
 
-  const filteredConversations = filterType === 'unread'
-    ? conversations.filter(conv => conv.unread_count > 0)
-    : conversations;
+  const filteredConversations = conversations.filter(conv => {
+    const matchesFilterType = filterType === 'all' || (filterType === 'unread' && conv.unread_count > 0);
+    const matchesLabel = selectedLabelFilterId ? conv.labels.some(label => label.id === selectedLabelFilterId) : true;
+    return matchesFilterType && matchesLabel;
+  });
+
+  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter by Label";
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -643,7 +662,7 @@ const Inbox = () => {
           )}
         </div>
         <div className="flex space-x-2">
-          <ManageLabelsDialog onLabelsUpdated={fetchConversations} />
+          <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} />
         </div>
       </div>
 
@@ -664,14 +683,14 @@ const Inbox = () => {
                 <Button
                   variant={filterType === 'all' ? 'default' : 'secondary'}
                   className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
-                  onClick={() => setFilterType('all')}
+                  onClick={() => { setFilterType('all'); setSelectedLabelFilterId(null); }}
                 >
                   All
                 </Button>
                 <Button
                   variant={filterType === 'unread' ? 'default' : 'secondary'}
                   className={cn("rounded-full px-4 py-2 text-sm", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
-                  onClick={() => setFilterType('unread')}
+                  onClick={() => { setFilterType('unread'); setSelectedLabelFilterId(null); }}
                 >
                   Unread
                   {totalUnreadCount > 0 && (
@@ -680,6 +699,38 @@ const Inbox = () => {
                     </span>
                   )}
                 </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={selectedLabelFilterId ? 'default' : 'secondary'}
+                      className={cn("rounded-full px-4 py-2 text-sm", selectedLabelFilterId ? 'bg-brand-green text-white' : '')}
+                    >
+                      <Tag className="h-4 w-4 mr-2" /> {selectedLabelName}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2">
+                    <div className="space-y-1">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-sm"
+                        onClick={() => { setSelectedLabelFilterId(null); setFilterType('all'); }}
+                      >
+                        All Labels
+                      </Button>
+                      <Separator />
+                      {allLabels.map((label) => (
+                        <Button
+                          key={label.id}
+                          variant="ghost"
+                          className="w-full justify-start text-sm"
+                          onClick={() => { setSelectedLabelFilterId(label.id); setFilterType('all'); }}
+                        >
+                          <LabelBadge name={label.name} color={label.color} className="mr-2" />
+                        </Button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             <Separator />
