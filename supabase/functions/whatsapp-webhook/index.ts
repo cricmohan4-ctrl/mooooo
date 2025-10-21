@@ -68,6 +68,13 @@ serve(async (req) => {
         const whatsappBusinessAccountId = messageValue?.metadata?.phone_number_id;
         const whatsappBusinessPhoneNumber = messageValue?.metadata?.display_phone_number;
 
+        console.log('Parsed messageEntry:', JSON.stringify(messageEntry));
+        console.log('Parsed messageChange:', JSON.stringify(messageChange));
+        console.log('Parsed messageValue:', JSON.stringify(messageValue));
+        console.log('Parsed incomingMessage:', JSON.stringify(incomingMessage));
+        console.log('Parsed whatsappBusinessAccountId:', whatsappBusinessAccountId);
+        console.log('Parsed whatsappBusinessPhoneNumber:', whatsappBusinessPhoneNumber);
+
         // Check for 'status' updates (e.g., message delivered, read) and ignore them for now
         if (messageValue?.statuses) {
           console.log('Received status update, ignoring for now:', JSON.stringify(messageValue.statuses));
@@ -142,6 +149,9 @@ serve(async (req) => {
         const userId = accountData.user_id;
         const whatsappAccessToken = accountData.access_token;
         const whatsappAccountId = accountData.id;
+
+        console.log('Fetched userId:', userId);
+        console.log('Fetched whatsappAccountId:', whatsappAccountId);
 
         // Use supabaseServiceRoleClient for inserting incoming messages
         const { error: insertIncomingError } = await supabaseServiceRoleClient
@@ -269,6 +279,9 @@ serve(async (req) => {
           console.error('Error fetching conversation:', convError.message);
         } else if (conversationData) {
           currentConversation = conversationData;
+          console.log('Fetched existing conversation:', JSON.stringify(currentConversation));
+        } else {
+          console.log('No existing conversation found.');
         }
 
         let preferredLanguage = currentConversation?.preferred_language || 'en';
@@ -345,10 +358,12 @@ serve(async (req) => {
             const edges = flow.edges || [];
 
             const currentNode = nodes.find((n: any) => n.id === currentConversation.current_node_id);
+            console.log('Current node in active flow:', JSON.stringify(currentNode));
 
             if (currentNode && currentNode.type === 'incomingMessageNode') {
               const expectedInputType = currentNode.data.expectedInputType || 'any';
               const promptMessage = currentNode.data.prompt || "Please provide the requested information.";
+              console.log(`IncomingMessageNode: Expected input type: ${expectedInputType}, Prompt: "${promptMessage}"`);
 
               let inputMatchesExpectedType = false;
               if (expectedInputType === 'any') {
@@ -358,10 +373,14 @@ serve(async (req) => {
               } else if (expectedInputType === 'image' && messageType === 'image') {
                 inputMatchesExpectedType = true;
               }
+              console.log(`Incoming message type: ${messageType}, Input matches expected type: ${inputMatchesExpectedType}`);
+
 
               if (inputMatchesExpectedType) {
                 console.log(`Incoming message type "${messageType}" matched expected input type "${expectedInputType}" for node ${currentNode.id}`);
                 const outgoingEdge = edges.find((e: any) => e.source === currentNode.id);
+                console.log('Outgoing edge from current node:', JSON.stringify(outgoingEdge));
+
                 if (outgoingEdge) {
                   const nextNode = nodes.find((n: any) => n.id === outgoingEdge.target);
                   if (nextNode) {
@@ -424,18 +443,20 @@ serve(async (req) => {
         if (!responseSent) {
           const { data: rules, error: rulesError } = await supabaseServiceRoleClient
             .from('chatbot_rules')
-            .select('trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response')
+            .select('id, trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response')
             .eq('whatsapp_account_id', whatsappAccountId);
 
           if (rulesError) {
             console.error('Error fetching chatbot rules:', rulesError.message);
           }
+          console.log('Fetched chatbot rules:', JSON.stringify(rules));
 
           let matchedRule = null;
 
           for (const rule of rules || []) {
             const triggerValue = rule.trigger_value.toLowerCase();
             const triggerType = rule.trigger_type;
+            console.log(`Evaluating rule ID: ${rule.id}, Trigger Type: ${triggerType}, Trigger Value: "${triggerValue}"`);
 
             let match = false;
             switch (triggerType) {
@@ -457,6 +478,7 @@ serve(async (req) => {
               default:
                 break;
             }
+            console.log(`Rule match result for rule ID ${rule.id}: ${match}`);
 
             if (match) {
               matchedRule = rule;
@@ -469,12 +491,13 @@ serve(async (req) => {
             const generalAIFallbackRule = (rules || []).find(rule => rule.trigger_type === 'AI_RESPONSE' && !rule.trigger_value);
             if (generalAIFallbackRule) {
               matchedRule = generalAIFallbackRule;
-              console.log('Matched general AI_RESPONSE fallback rule.');
+              console.log('Matched general AI_RESPONSE fallback rule (empty trigger_value).');
             }
           }
 
           // Process the matched rule
           if (matchedRule) {
+            console.log('Processing matched rule:', JSON.stringify(matchedRule));
             if (matchedRule.use_ai_response) {
               console.log('Chatbot rule matched for AI Response. Invoking Gemini chat function.');
               try {
