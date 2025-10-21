@@ -289,8 +289,8 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
 
                 <div className="col-span-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Label className="text-right">Buttons (WhatsApp displays max 3)</Label>
-                    <Button type="button" variant="outline" size="sm" onClick={handleAddButton}>
+                    <Label className="text-right">Buttons (Max 3)</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddButton} disabled={buttons.length >= 3}>
                       Add Button
                     </Button>
                   </div>
