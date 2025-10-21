@@ -48,7 +48,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
   const [isOpen, setIsOpen] = useState(false);
   const [selectedWhatsappAccountId, setSelectedWhatsappAccountId] = useState<string>("");
   const [triggerValue, setTriggerValue] = useState("");
-  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE">("EXACT_MATCH");
+  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE" | "WELCOME_MESSAGE">("EXACT_MATCH");
   const [responseMessage, setResponseMessage] = useState(""); // This will be a multi-line string
   const [buttons, setButtons] = useState<ButtonConfig[]>([]); // State for buttons
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null); // New state for selected flow
@@ -56,6 +56,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
   const [isLoading, setIsLoading] = useState(false);
 
   const isAIResponseSelected = triggerType === "AI_RESPONSE";
+  const isWelcomeMessageSelected = triggerType === "WELCOME_MESSAGE";
   const hasWhatsappAccounts = whatsappAccounts.length > 0;
 
   useEffect(() => {
@@ -113,7 +114,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
       showError("Please add a WhatsApp account first.");
       return;
     }
-    if (!selectedWhatsappAccountId || (!isAIResponseSelected && !triggerValue.trim())) {
+    if (!selectedWhatsappAccountId || (!isAIResponseSelected && !isWelcomeMessageSelected && !triggerValue.trim())) {
       showError("Please fill in all required fields (WhatsApp Account, Trigger Value).");
       return;
     }
@@ -141,7 +142,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
         .insert({
           user_id: user.id,
           whatsapp_account_id: selectedWhatsappAccountId,
-          trigger_value: triggerValue,
+          trigger_value: isWelcomeMessageSelected ? "WELCOME" : triggerValue, // Set a default value for welcome message
           trigger_type: triggerType,
           response_message: responseMessagesArray,
           buttons: (isAIResponseSelected || selectedFlowId) ? null : (buttons.length > 0 ? buttons : null),
@@ -227,12 +228,17 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                 Trigger Type
               </Label>
               <Select
-                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE") => {
+                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE" | "WELCOME_MESSAGE") => {
                   setTriggerType(value);
-                  if (value === "AI_RESPONSE") {
-                    setSelectedFlowId(null); // Clear flow selection if AI is chosen
+                  if (value === "AI_RESPONSE" || value === "WELCOME_MESSAGE") {
+                    setSelectedFlowId(null); // Clear flow selection if AI or Welcome is chosen
                     setResponseMessage(""); // Clear static response
                     setButtons([]); // Clear buttons
+                  }
+                  if (value === "WELCOME_MESSAGE") {
+                    setTriggerValue("WELCOME"); // Set default trigger value for welcome message
+                  } else {
+                    setTriggerValue(""); // Clear trigger value for other types
                   }
                 }}
                 value={triggerType}
@@ -246,6 +252,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                   <SelectItem value="CONTAINS">Contains</SelectItem>
                   <SelectItem value="STARTS_WITH">Starts With</SelectItem>
                   <SelectItem value="AI_RESPONSE">AI Response</SelectItem>
+                  <SelectItem value="WELCOME_MESSAGE">Welcome Message</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -258,8 +265,9 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                 value={triggerValue}
                 onChange={(e) => setTriggerValue(e.target.value)}
                 className="col-span-3"
-                placeholder={isAIResponseSelected ? "e.g., 'any message', 'ask AI'" : "e.g., 'hello', 'support', 'pricing'"}
-                required={!isAIResponseSelected} // Trigger value is optional for AI Response if it's a fallback
+                placeholder={isAIResponseSelected ? "e.g., 'any message', 'ask AI'" : isWelcomeMessageSelected ? "Automatically set to 'WELCOME'" : "e.g., 'hello', 'support', 'pricing'"}
+                required={!isAIResponseSelected && !isWelcomeMessageSelected}
+                disabled={isWelcomeMessageSelected}
               />
             </div>
 

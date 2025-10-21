@@ -40,7 +40,7 @@ interface ChatbotRule {
   id: string;
   whatsapp_account_id: string;
   trigger_value: string;
-  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE";
+  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE" | "WELCOME_MESSAGE";
   response_message: string[];
   buttons?: ButtonConfig[] | null;
   flow_id?: string | null;
@@ -66,7 +66,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
   const { user } = useSession();
   const [selectedWhatsappAccountId, setSelectedWhatsappAccountId] = useState<string>(rule.whatsapp_account_id);
   const [triggerValue, setTriggerValue] = useState(rule.trigger_value);
-  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE">(rule.trigger_type);
+  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE" | "WELCOME_MESSAGE">(rule.trigger_type);
   const [responseMessage, setResponseMessage] = useState(rule.response_message.join('\n'));
   const [buttons, setButtons] = useState<ButtonConfig[]>(rule.buttons ? [...rule.buttons] : []);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(rule.flow_id || null);
@@ -74,6 +74,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const isAIResponseSelected = triggerType === "AI_RESPONSE";
+  const isWelcomeMessageSelected = triggerType === "WELCOME_MESSAGE";
   const hasWhatsappAccounts = whatsappAccounts.length > 0; // Although for editing, an account must exist
 
   // Update state when the rule prop changes (e.g., if a different rule is selected for editing)
@@ -129,7 +130,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
       showError("You must be logged in to edit a chatbot rule.");
       return;
     }
-    if (!selectedWhatsappAccountId || (!isAIResponseSelected && !triggerValue.trim())) {
+    if (!selectedWhatsappAccountId || (!isAIResponseSelected && !isWelcomeMessageSelected && !triggerValue.trim())) {
       showError("Please fill in all required fields (WhatsApp Account, Trigger Value).");
       return;
     }
@@ -155,7 +156,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
         .from("chatbot_rules")
         .update({
           whatsapp_account_id: selectedWhatsappAccountId,
-          trigger_value: triggerValue,
+          trigger_value: isWelcomeMessageSelected ? "WELCOME" : triggerValue,
           trigger_type: triggerType,
           response_message: responseMessagesArray,
           buttons: (isAIResponseSelected || selectedFlowId) ? null : (buttons.length > 0 ? buttons : null),
@@ -163,7 +164,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
           use_ai_response: isAIResponseSelected,
         })
         .eq("id", rule.id)
-        .eq("user.id", user.id);
+        .eq("user_id", user.id); // Corrected from user.id to user_id
 
       if (error) {
         throw error;
@@ -218,12 +219,17 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                 Trigger Type
               </Label>
               <Select
-                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE") => {
+                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE" | "WELCOME_MESSAGE") => {
                   setTriggerType(value);
-                  if (value === "AI_RESPONSE") {
-                    setSelectedFlowId(null); // Clear flow selection if AI is chosen
+                  if (value === "AI_RESPONSE" || value === "WELCOME_MESSAGE") {
+                    setSelectedFlowId(null); // Clear flow selection if AI or Welcome is chosen
                     setResponseMessage(""); // Clear static response
                     setButtons([]); // Clear buttons
+                  }
+                  if (value === "WELCOME_MESSAGE") {
+                    setTriggerValue("WELCOME"); // Set default trigger value for welcome message
+                  } else {
+                    setTriggerValue(""); // Clear trigger value for other types
                   }
                 }}
                 value={triggerType}
@@ -237,6 +243,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                   <SelectItem value="CONTAINS">Contains</SelectItem>
                   <SelectItem value="STARTS_WITH">Starts With</SelectItem>
                   <SelectItem value="AI_RESPONSE">AI Response</SelectItem>
+                  <SelectItem value="WELCOME_MESSAGE">Welcome Message</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -249,8 +256,9 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                 value={triggerValue}
                 onChange={(e) => setTriggerValue(e.target.value)}
                 className="col-span-3"
-                placeholder={isAIResponseSelected ? "e.g., 'any message', 'ask AI'" : "e.g., 'hello', 'support', 'pricing'"}
-                required={!isAIResponseSelected}
+                placeholder={isAIResponseSelected ? "e.g., 'any message', 'ask AI'" : isWelcomeMessageSelected ? "Automatically set to 'WELCOME'" : "e.g., 'hello', 'support', 'pricing'"}
+                required={!isAIResponseSelected && !isWelcomeMessageSelected}
+                disabled={isWelcomeMessageSelected}
               />
             </div>
 

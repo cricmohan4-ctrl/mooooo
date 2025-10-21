@@ -41,7 +41,7 @@ interface ChatbotRule {
   id: string;
   whatsapp_account_id: string;
   trigger_value: string;
-  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE"; // Updated trigger_type
+  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE" | "WELCOME_MESSAGE"; // Updated trigger_type
   response_message: string[];
   buttons?: ButtonConfig[] | null;
   flow_id?: string | null;

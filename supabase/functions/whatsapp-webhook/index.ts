@@ -63,6 +63,15 @@ serve(async (req) => {
     const whatsappBusinessAccountId = messageValue?.metadata?.phone_number_id;
     const whatsappBusinessPhoneNumber = messageValue?.metadata?.display_phone_number;
 
+    // Check for 'status' updates (e.g., message delivered, read) and ignore them for now
+    if (messageValue?.statuses) {
+      console.log('Received status update, ignoring for now:', JSON.stringify(messageValue.statuses));
+      return new Response(JSON.stringify({ status: 'success', message: 'Status update ignored' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
     if (!incomingMessage || !whatsappBusinessAccountId || !whatsappBusinessPhoneNumber) {
       console.log('No incoming message, account ID, or phone number in payload. Returning 200.');
       return new Response(JSON.stringify({ status: 'success', message: 'No message or account info to process' }), {
@@ -369,34 +378,48 @@ serve(async (req) => {
       let matchedRule = null;
       const lowerCaseIncomingText = incomingText.toLowerCase();
 
-      for (const rule of rules || []) {
-        const triggerValue = rule.trigger_value.toLowerCase();
-        const triggerType = rule.trigger_type;
-
-        let match = false;
-        switch (triggerType) {
-          case 'EXACT_MATCH':
-            match = lowerCaseIncomingText === triggerValue;
-            break;
-          case 'CONTAINS':
-            match = lowerCaseIncomingText.includes(triggerValue);
-            break;
-          case 'STARTS_WITH':
-            match = lowerCaseIncomingText.startsWith(triggerValue);
-            break;
-          case 'AI_RESPONSE': // AI_RESPONSE rules can act as a fallback or specific trigger
-            match = lowerCaseIncomingText.includes(triggerValue); // Can be triggered by a keyword
-            if (!triggerValue) { // If trigger_value is empty, it's a general AI fallback
-              match = true;
-            }
-            break;
-          default:
-            break;
+      // Prioritize WELCOME_MESSAGE if it's the first message in a new conversation
+      if (!currentConversation || (!currentConversation.last_message_at && incomingText)) {
+        const welcomeRule = (rules || []).find(rule => rule.trigger_type === 'WELCOME_MESSAGE');
+        if (welcomeRule) {
+          matchedRule = welcomeRule;
+          console.log('Matched WELCOME_MESSAGE rule for new conversation.');
         }
+      }
 
-        if (match) {
-          matchedRule = rule;
-          break;
+      // If no welcome rule matched or it's not a new conversation, check other rules
+      if (!matchedRule) {
+        for (const rule of rules || []) {
+          if (rule.trigger_type === 'WELCOME_MESSAGE') continue; // Skip welcome message rules here
+
+          const triggerValue = rule.trigger_value.toLowerCase();
+          const triggerType = rule.trigger_type;
+
+          let match = false;
+          switch (triggerType) {
+            case 'EXACT_MATCH':
+              match = lowerCaseIncomingText === triggerValue;
+              break;
+            case 'CONTAINS':
+              match = lowerCaseIncomingText.includes(triggerValue);
+              break;
+            case 'STARTS_WITH':
+              match = lowerCaseIncomingText.startsWith(triggerValue);
+              break;
+            case 'AI_RESPONSE': // AI_RESPONSE rules can act as a fallback or specific trigger
+              match = lowerCaseIncomingText.includes(triggerValue); // Can be triggered by a keyword
+              if (!triggerValue) { // If trigger_value is empty, it's a general AI fallback
+                match = true;
+              }
+              break;
+            default:
+              break;
+          }
+
+          if (match) {
+            matchedRule = rule;
+            break;
+          }
         }
       }
 
