@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } = "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -298,7 +298,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu.') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగుದಲ್ಲಿ సమాధానಂ ಇస్తాను.";
           }
 
           console.log(`Language change detected. New preferred language: ${newPreferredLanguage}, Confirmation message: "${confirmationMessage}"`);
@@ -509,16 +509,19 @@ serve(async (req) => {
                 if (geminiResponse.error) {
                   console.error('Error invoking Gemini chat function:', geminiResponse.error.message);
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment." });
+                  responseSent = true; // Set responseSent to true here
                 } else if (geminiResponse.data.status === 'success') {
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
                   responseSent = true;
                 } else {
                   console.error('Gemini chat function returned an error status:', geminiResponse.data.message);
                   await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
+                  responseSent = true; // Set responseSent to true here
                 }
               } catch (aiInvokeError: any) {
                 console.error('Unexpected error during Gemini invocation:', aiInvokeError.message);
                 await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
+                responseSent = true; // Set responseSent to true here
               }
             } else if (matchedRule.flow_id) {
               console.log(`Chatbot rule matched to start flow: ${matchedRule.flow_id}`);
