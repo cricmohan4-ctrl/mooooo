@@ -34,6 +34,7 @@ interface Conversation {
   last_message_time: string;
   whatsapp_account_id: string;
   whatsapp_account_name: string;
+  unread_count: number; // Added unread_count
 }
 
 interface Message {
@@ -46,6 +47,7 @@ interface Message {
   message_type: string; // e.g., 'text', 'image', 'audio', 'document'
   media_url?: string | null;
   media_caption?: string | null;
+  is_read?: boolean; // Added is_read
 }
 
 const Inbox = () => {
@@ -58,6 +60,7 @@ const Inbox = () => {
   const [newMessage, setNewMessage] = useState("");
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0); // New state for total unread
 
   // Media states
   const [isRecording, setIsRecording] = useState(false);
@@ -114,7 +117,7 @@ const Inbox = () => {
     setIsLoadingConversations(true);
     try {
       const { data, error } = await supabase
-        .rpc('get_latest_whatsapp_conversations', { p_user_id: user.id });
+        .rpc('get_whatsapp_conversations_with_unread_count', { p_user_id: user.id });
 
       if (error) throw error;
 
@@ -124,8 +127,14 @@ const Inbox = () => {
         last_message_time: conv.last_message_time,
         whatsapp_account_id: conv.whatsapp_account_id,
         whatsapp_account_name: conv.whatsapp_account_name,
+        unread_count: conv.unread_count,
       }));
       setConversations(formattedConversations);
+
+      // Calculate total unread count
+      const total = formattedConversations.reduce((sum, conv) => sum + conv.unread_count, 0);
+      setTotalUnreadCount(total);
+
     } catch (error: any) {
       console.error("Error fetching conversations:", error.message);
       showError("Failed to load conversations.");
@@ -159,6 +168,30 @@ const Inbox = () => {
     }
   }, [user]);
 
+  const markMessagesAsRead = useCallback(async (conversation: Conversation) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('whatsapp_account_id', conversation.whatsapp_account_id)
+        .eq('from_phone_number', conversation.contact_phone_number)
+        .eq('direction', 'incoming')
+        .eq('is_read', false); // Only update unread messages
+
+      if (error) {
+        console.error('Error marking messages as read:', error.message);
+      } else {
+        console.log('Messages marked as read for conversation:', conversation.contact_phone_number);
+        // After marking as read, refresh conversations to update unread counts
+        fetchConversations();
+      }
+    } catch (error: any) {
+      console.error('Error marking messages as read:', error.message);
+    }
+  }, [user, fetchConversations]);
+
   useEffect(() => {
     if (user) {
       fetchWhatsappAccounts();
@@ -178,17 +211,18 @@ const Inbox = () => {
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
+      markMessagesAsRead(selectedConversation); // Mark messages as read when conversation is opened
     } else {
       setMessages([]);
     }
-  }, [selectedConversation, fetchMessages]);
+  }, [selectedConversation, fetchMessages, markMessagesAsRead]);
 
   // Realtime subscription for messages
   useEffect(() => {
-    if (!user || !selectedConversation) return;
+    if (!user) return;
 
     const channel = supabase
-      .channel(`messages_for_conversation_${selectedConversation.whatsapp_account_id}_${selectedConversation.contact_phone_number}`)
+      .channel(`messages_for_user_${user.id}`) // Subscribe to all messages for the user
       .on(
         'postgres_changes',
         {
@@ -199,16 +233,18 @@ const Inbox = () => {
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          // Check if the new message belongs to the currently selected conversation
-          const isRelevant =
-            (newMessage.whatsapp_account_id === selectedConversation.whatsapp_account_id &&
-              (newMessage.from_phone_number === selectedConversation.contact_phone_number ||
-               newMessage.to_phone_number === selectedConversation.contact_phone_number));
-
-          if (isRelevant) {
+          // If a conversation is selected and the new message belongs to it, update messages
+          if (selectedConversation &&
+            newMessage.whatsapp_account_id === selectedConversation.whatsapp_account_id &&
+            (newMessage.from_phone_number === selectedConversation.contact_phone_number ||
+             newMessage.to_phone_number === selectedConversation.contact_phone_number)) {
             setMessages((prevMessages) => [...prevMessages, newMessage]);
-            fetchConversations(); // Refresh conversations to update last message preview
+            // If it's an incoming message, mark it as read immediately since the chat is open
+            if (newMessage.direction === 'incoming' && !newMessage.is_read) {
+              markMessagesAsRead(selectedConversation);
+            }
           }
+          fetchConversations(); // Always refresh conversations to update last message preview and unread counts
         }
       )
       .subscribe();
@@ -216,7 +252,7 @@ const Inbox = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, selectedConversation, fetchConversations]);
+  }, [user, selectedConversation, fetchConversations, markMessagesAsRead]);
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
@@ -228,8 +264,6 @@ const Inbox = () => {
   };
 
   const handleNewChatCreated = (conversation: Conversation) => {
-    // This function is called from AddNewContactDialog when a new chat is created
-    // or an existing one is found. We need to refresh conversations and select it.
     fetchConversations(); // Refresh the list to include the new/found conversation
     setSelectedConversation(conversation); // Directly select the conversation
   };
@@ -556,9 +590,14 @@ const Inbox = () => {
               </div>
               <div className="flex space-x-2 overflow-x-auto pb-2">
                 <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">All</Button>
-                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">Unread <span className="ml-2 bg-brand-green text-white rounded-full px-2">99+</span></Button>
-                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">Favourites</Button>
-                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">Groups</Button>
+                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">
+                  Unread
+                  {totalUnreadCount > 0 && (
+                    <span className="ml-2 bg-brand-green text-white rounded-full px-2">
+                      {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                    </span>
+                  )}
+                </Button>
               </div>
             </div>
             <Separator />
@@ -591,8 +630,11 @@ const Inbox = () => {
                   </div>
                   <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
                     <span>{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
-                    {/* Placeholder for unread count */}
-                    {Math.random() > 0.7 && <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">1</span>}
+                    {conv.unread_count > 0 && (
+                      <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                        {conv.unread_count > 99 ? '99+' : conv.unread_count}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
