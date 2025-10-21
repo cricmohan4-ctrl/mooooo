@@ -689,27 +689,7 @@ const Inbox = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Main Header for Inbox/Chat */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
-        <div className="flex items-center">
-          {selectedConversation ? (
-            <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          ) : (
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
-          )}
-          {/* Removed the h1 element for "WhatsApp Inbox" */}
-        </div>
-        <div className="flex space-x-2">
-          <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} />
-          <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} /> {/* New button for managing quick replies */}
-        </div>
-      </div>
+      {/* Main Header for Inbox/Chat - REMOVED */}
 
       {/* Main Content Area (Conversations List or Message Area) */}
       <div className="flex-1 flex overflow-hidden">
@@ -717,6 +697,17 @@ const Inbox = () => {
         {!selectedConversation && (
           <div className="relative w-full bg-white dark:bg-gray-800 overflow-y-auto">
             <div className="p-4">
+              <div className="flex items-center justify-between mb-4"> {/* New container for back button and dialogs */}
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/dashboard">
+                    <ArrowLeft className="h-5 w-5" />
+                  </Link>
+                </Button>
+                <div className="flex space-x-2">
+                  <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} />
+                  <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
+                </div>
+              </div>
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <Input
