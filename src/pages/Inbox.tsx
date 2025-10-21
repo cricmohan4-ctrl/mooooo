@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, MoreVertical } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import AddNewContactDialog from '@/components/AddNewContactDialog'; // Import the new component
+import { cn } from '@/lib/utils'; // Import cn for conditional classNames
 
 interface WhatsappAccount {
   id: string;
@@ -505,7 +506,8 @@ const Inbox = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      {/* Top Header for Inbox/Chat */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
         <div className="flex items-center">
           {selectedConversation ? (
             <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
@@ -518,28 +520,46 @@ const Inbox = () => {
               </Link>
             </Button>
           )}
-          <h1 className="text-2xl font-bold ml-4">
-            {selectedConversation ? selectedConversation.contact_phone_number : "WhatsApp Inbox"}
-          </h1>
-          {selectedConversation && (
-            <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-              ({selectedConversation.whatsapp_account_name})
-            </span>
+          {selectedConversation ? (
+            <div className="flex items-center">
+              <User className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 p-1 mr-3" />
+              <div>
+                <h1 className="text-lg font-bold">{selectedConversation.contact_phone_number}</h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {selectedConversation.whatsapp_account_name}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <h1 className="text-2xl font-bold ml-4">WhatsApp Inbox</h1>
           )}
         </div>
-        {!selectedConversation && whatsappAccounts.length > 0 && (
-          <AddNewContactDialog
-            whatsappAccounts={whatsappAccounts}
-            onNewChatCreated={handleNewChatCreated}
-          />
+        {selectedConversation && (
+          <Button variant="ghost" size="icon">
+            <MoreVertical className="h-5 w-5" />
+          </Button>
         )}
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Conversations List */}
         {!selectedConversation && (
-          <div className="w-full bg-white dark:bg-gray-800 overflow-y-auto">
-            <div className="p-4 text-lg font-semibold">Conversations</div>
+          <div className="relative w-full bg-white dark:bg-gray-800 overflow-y-auto">
+            <div className="p-4">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search chats..."
+                  className="pl-9 rounded-full bg-gray-100 dark:bg-gray-700 border-none"
+                />
+              </div>
+              <div className="flex space-x-2 overflow-x-auto pb-2">
+                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">All</Button>
+                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">Unread <span className="ml-2 bg-brand-green text-white rounded-full px-2">99+</span></Button>
+                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">Favourites</Button>
+                <Button variant="secondary" className="rounded-full px-4 py-2 text-sm">Groups</Button>
+              </div>
+            </div>
             <Separator />
             {isLoadingConversations ? (
               <div className="p-4 text-center text-gray-500">Loading conversations...</div>
@@ -557,17 +577,28 @@ const Inbox = () => {
                   }`}
                   onClick={() => handleConversationSelect(conv)}
                 >
-                  <User className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-600 p-1 mr-3" />
+                  <User className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-600 p-2 mr-3" />
                   <div className="flex-1">
                     <p className="font-medium">{conv.contact_phone_number}</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{conv.last_message_body}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
-                      {conv.whatsapp_account_name} - {format(new Date(conv.last_message_time), 'MMM d, HH:mm')}
+                      {conv.whatsapp_account_name}
                     </p>
+                  </div>
+                  <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
+                    <span>{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
+                    {/* Placeholder for unread count */}
+                    {Math.random() > 0.7 && <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">1</span>}
                   </div>
                 </div>
               ))
             )}
+            <div className="absolute bottom-4 right-4">
+              <AddNewContactDialog
+                whatsappAccounts={whatsappAccounts}
+                onNewChatCreated={handleNewChatCreated}
+              />
+            </div>
           </div>
         )}
 
@@ -584,33 +615,40 @@ const Inbox = () => {
                   messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
+                      className={cn(
+                        "flex",
+                        msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
+                      )}
                     >
                       <div
-                        className={`max-w-[70%] p-3 rounded-lg ${
+                        className={cn(
+                          "max-w-[80%] p-2 rounded-xl flex flex-col",
                           msg.direction === 'outgoing'
-                            ? 'bg-blue-500 text-white rounded-br-none'
+                            ? 'bg-brand-green text-white rounded-br-none'
                             : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
-                        }`}
+                        )}
                       >
+                        <span className="text-xs font-semibold mb-1 opacity-80">
+                          {msg.direction === 'outgoing' ? 'You' : selectedConversation.contact_phone_number}
+                        </span>
                         {msg.message_type === 'text' ? (
-                          <p>{msg.message_body}</p>
+                          <p className="text-sm">{msg.message_body}</p>
                         ) : (
                           renderMediaMessage(msg)
                         )}
-                        <p className="text-xs mt-1 opacity-75">
+                        <span className="text-xs mt-1 self-end opacity-75">
                           {format(new Date(msg.created_at), 'HH:mm')}
-                        </p>
+                        </span>
                       </div>
                     </div>
                   ))
                 )}
                 <div ref={messagesEndRef} /> {/* Scroll target */}
               </div>
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center">
+              <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex items-end bg-white dark:bg-gray-800">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="mr-2">
+                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400">
                       <Paperclip className="h-5 w-5" />
                     </Button>
                   </PopoverTrigger>
@@ -624,30 +662,31 @@ const Inbox = () => {
                   </PopoverContent>
                 </Popover>
 
+                <Input
+                  type="text"
+                  placeholder="Message"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newMessage.trim()) {
+                      handleSendMessage(newMessage);
+                    }
+                  }}
+                  className="flex-1 mx-2 rounded-full bg-gray-100 dark:bg-gray-700 border-none h-10"
+                />
+                
                 {isRecording ? (
-                  <Button variant="destructive" size="icon" onClick={stopRecording} className="mr-2">
+                  <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
                     <StopCircle className="h-5 w-5" />
                   </Button>
                 ) : (
-                  <Button variant="ghost" size="icon" onClick={startRecording} className="mr-2">
+                  <Button variant="ghost" size="icon" onClick={startRecording} className="text-gray-500 dark:text-gray-400">
                     <Mic className="h-5 w-5" />
                   </Button>
                 )}
 
-                <Input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSendMessage(newMessage);
-                    }
-                  }}
-                  className="flex-1 mr-2"
-                />
-                <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim()}>
-                  <Send className="h-4 w-4" />
+                <Button onClick={() => handleSendMessage(newMessage)} disabled={!newMessage.trim()} className="ml-2 rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
+                  <Send className="h-5 w-5 text-white" />
                 </Button>
               </div>
             </>
