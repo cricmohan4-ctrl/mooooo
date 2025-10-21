@@ -31,20 +31,11 @@ interface SidebarProps {
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Shared Inbox', href: '/inbox', icon: Inbox },
-  { name: 'Connect Account', href: '/connect-account', icon: Plug }, // Updated href
-  { name: 'Bot Manager', href: '/bot-manager', icon: Bot },
-  { name: 'Subscriber Manager', href: '/subscriber-manager', icon: Users },
-  { name: 'Broadcasting', href: '/broadcasting', icon: Radio },
-  { name: 'Live Chat', href: '/live-chat', icon: MessageSquare },
-  { name: 'Webhook Workflow', href: '/webhook-workflow', icon: Workflow },
-  { name: 'eCommerce Catalog', href: '/ecommerce-catalog', icon: ShoppingCart },
+  { name: 'Connect Account', href: '/connect-account', icon: Plug },
 ];
 
 const controlPanelItems = [
-  { name: 'Settings & Integration', href: '/settings', icon: Settings },
-  { name: 'Agent Role', href: '/agent-role', icon: UserCog },
-  { name: 'Agent Manager', href: '/agent-manager', icon: UserPlus },
-  { name: 'Transactions', href: '/transactions', icon: ReceiptText },
+  // All items removed as per user request
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
@@ -94,33 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           ))}
         </ul>
 
-        <div className="mt-6">
-          <Collapsible defaultOpen={true}>
-            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md text-sm font-semibold text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-              <span>Control Panel</span>
-              <Menu className="h-4 w-4" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-1 pl-4">
-              {controlPanelItems.map((item) => (
-                <li key={item.name}>
-                  <Link
-                    to={item.href}
-                    className={cn(
-                      "flex items-center p-2 rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                      location.pathname === item.href
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground"
-                    )}
-                    onClick={isMobile ? onClose : undefined}
-                  >
-                    <item.icon className="h-5 w-5 mr-3" />
-                    {item.name}
-                  </Link>
-                </li>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+        {/* Removed Control Panel section as it is now empty */}
       </nav>
     </aside>
   );
