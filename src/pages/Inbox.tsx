@@ -183,16 +183,14 @@ const Inbox = () => {
         .eq('is_read', false); // Only update unread messages
 
       if (error) {
-        console.error('Error marking messages as read:', error.message);
+        console.error('Error marking messages as read in DB:', error.message);
       } else {
-        console.log('Messages marked as read for conversation:', conversation.contact_phone_number);
-        // After marking as read, refresh conversations to update unread counts
-        fetchConversations();
+        console.log('Messages marked as read in DB for conversation:', conversation.contact_phone_number);
       }
     } catch (error: any) {
       console.error('Error marking messages as read:', error.message);
     }
-  }, [user, fetchConversations]);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -214,10 +212,11 @@ const Inbox = () => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
       markMessagesAsRead(selectedConversation); // Mark messages as read when conversation is opened
+      fetchConversations(); // Refresh conversations to update unread counts in sidebar
     } else {
       setMessages([]);
     }
-  }, [selectedConversation, fetchMessages, markMessagesAsRead]);
+  }, [selectedConversation, fetchMessages, markMessagesAsRead, fetchConversations]);
 
   // Realtime subscription for messages
   useEffect(() => {
@@ -236,23 +235,23 @@ const Inbox = () => {
         (payload) => {
           const newMessage = payload.new as Message;
           
+          const targetContact = newMessage.direction === 'incoming' ? newMessage.from_phone_number : newMessage.to_phone_number;
+          const targetWhatsappAccountId = newMessage.whatsapp_account_id;
+          const isMessageForSelectedConversation = selectedConversation &&
+            targetWhatsappAccountId === selectedConversation.whatsapp_account_id &&
+            targetContact === selectedConversation.contact_phone_number;
+
           // 1. Update messages in the active chat window
-          if (selectedConversation &&
-            newMessage.whatsapp_account_id === selectedConversation.whatsapp_account_id &&
-            (newMessage.from_phone_number === selectedConversation.contact_phone_number ||
-             newMessage.to_phone_number === selectedConversation.contact_phone_number)) {
+          if (isMessageForSelectedConversation) {
             setMessages((prevMessages) => [...prevMessages, newMessage]);
-            // If it's an incoming message, mark it as read immediately since the chat is open
+            // If it's an incoming message for the active chat, mark it as read in DB
             if (newMessage.direction === 'incoming' && !newMessage.is_read) {
-              markMessagesAsRead(selectedConversation);
+              markMessagesAsRead(selectedConversation); // This will only update DB, not re-fetch conversations
             }
           }
 
           // 2. Update conversations list (sidebar)
           setConversations(prevConversations => {
-            const targetContact = newMessage.direction === 'incoming' ? newMessage.from_phone_number : newMessage.to_phone_number;
-            const targetWhatsappAccountId = newMessage.whatsapp_account_id;
-
             let updatedConversations = prevConversations.filter(conv => 
               !(conv.whatsapp_account_id === targetWhatsappAccountId && conv.contact_phone_number === targetContact)
             );
@@ -262,19 +261,15 @@ const Inbox = () => {
             );
 
             let newUnreadCount = existingConversation ? existingConversation.unread_count : 0;
-            // Increment unread count only if it's an incoming message AND
-            // the conversation is NOT currently selected
-            if (newMessage.direction === 'incoming' && 
-                (!selectedConversation || 
-                 targetWhatsappAccountId !== selectedConversation.whatsapp_account_id || 
-                 targetContact !== selectedConversation.contact_phone_number)) {
-              newUnreadCount += 1;
-            } else if (newMessage.direction === 'incoming' && selectedConversation &&
-                       targetWhatsappAccountId === selectedConversation.whatsapp_account_id &&
-                       targetContact === selectedConversation.contact_phone_number) {
-              // If it's an incoming message for the active chat, and we're marking it as read,
-              // the unread count for this specific conversation should become 0 for immediate UI update.
-              newUnreadCount = 0; 
+            
+            if (newMessage.direction === 'incoming') {
+              if (isMessageForSelectedConversation) {
+                // If it's an incoming message for the active chat, its unread count becomes 0
+                newUnreadCount = 0; 
+              } else {
+                // If it's an incoming message for a non-active chat, increment unread count
+                newUnreadCount += 1;
+              }
             }
 
             const whatsappAccountName = whatsappAccounts.find(acc => acc.id === targetWhatsappAccountId)?.account_name || "Unknown Account";
@@ -303,7 +298,7 @@ const Inbox = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts]); // Add whatsappAccounts to dependencies
+  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts]);
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
