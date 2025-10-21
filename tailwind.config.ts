@@ -66,6 +66,10 @@ export default {
           DEFAULT: "#28a745", // A vibrant green from the image
           foreground: "#ffffff",
         },
+        "brand-yellow": { // New color for the second button
+          DEFAULT: "#ffc107", // A vibrant yellow/orange from the image
+          foreground: "#ffffff",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

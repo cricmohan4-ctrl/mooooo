@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, MessageSquare, Plug, CheckCircle } from 'lucide-react'; // Changed Whatsapp to MessageSquare
+import { ArrowLeft, MessageSquare, Plug, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showSuccess, showError } from '@/utils/toast';
@@ -61,8 +61,12 @@ const ConnectAccount = () => {
   };
 
   // Placeholder for the one-click integration (Meta Embedded Signup Flow)
-  const handleOneClickConnect = () => {
-    showError("One-click integration is a placeholder. Please use the alternative method for now.");
+  const handleOneClickConnect = (withCatalog: boolean) => {
+    if (withCatalog) {
+      showError("One-click integration WITH Catalog Permission is a placeholder. Please use the alternative method for now.");
+    } else {
+      showError("One-click integration WITHOUT Catalog Permission is a placeholder. Please use the alternative method for now.");
+    }
     // In a real application, this would redirect to Meta's embedded signup flow
     // window.open('https://www.facebook.com/v19.0/dialog/oauth?client_id={APP_ID}&redirect_uri={REDIRECT_URI}&scope=whatsapp_business_management,whatsapp_business_messaging', '_blank');
   };
@@ -86,9 +90,14 @@ const ConnectAccount = () => {
             <p className="text-sm text-muted-foreground">One Click Business Integration</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button className="w-full bg-brand-green hover:bg-brand-green/90 text-white" onClick={handleOneClickConnect}>
-              <MessageSquare className="h-5 w-5 mr-2" /> Connect WhatsApp
-            </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Button className="w-full bg-brand-green hover:bg-brand-green/90 text-white py-6" onClick={() => handleOneClickConnect(true)}>
+                <MessageSquare className="h-5 w-5 mr-2" /> Connect WhatsApp With Catalog Permission
+              </Button>
+              <Button className="w-full bg-brand-yellow hover:bg-brand-yellow/90 text-white py-6" onClick={() => handleOneClickConnect(false)}>
+                <MessageSquare className="h-5 w-5 mr-2" /> Connect WhatsApp Without Catalog Permission
+              </Button>
+            </div>
             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-2">
               <li className="flex items-start">
                 <CheckCircle className="h-4 w-4 text-brand-green mr-2 mt-1 flex-shrink-0" />
