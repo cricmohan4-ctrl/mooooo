@@ -283,27 +283,45 @@ serve(async (req) => {
 
         // Check for language change keywords
         const lowerCaseIncomingText = incomingText.toLowerCase();
-        if (lowerCaseIncomingText === 'hindi.') {
-          preferredLanguage = 'hi';
-          await supabaseServiceRoleClient
+        if (lowerCaseIncomingText === 'hindi.' || lowerCaseIncomingText === 'kannada.' || lowerCaseIncomingText === 'telugu.') {
+          let newPreferredLanguage = 'en';
+          let confirmationMessage = "Hello! I will now respond in English."; // Default
+
+          if (lowerCaseIncomingText === 'hindi.') {
+            newPreferredLanguage = 'hi';
+            confirmationMessage = "नमस्ते! अब मैं हिंदी में जवाब दूंगा।";
+          } else if (lowerCaseIncomingText === 'kannada.') {
+            newPreferredLanguage = 'kn';
+            confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
+          } else if (lowerCaseIncomingText === 'telugu.') {
+            newPreferredLanguage = 'te';
+            confirmationMessage = "నమస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ఇస్తాను.";
+          }
+
+          // Update or insert conversation with new preferred language
+          const { error: upsertLangError } = await supabaseServiceRoleClient
             .from('whatsapp_conversations')
-            .upsert({ id: currentConversation?.id, user_id: userId, whatsapp_account_id: whatsappAccountId, contact_phone_number: fromPhoneNumber, preferred_language: 'hi', updated_at: new Date().toISOString() }, { onConflict: 'whatsapp_account_id,contact_phone_number' });
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "नमस्ते! अब मैं हिंदी में जवाब दूंगा।" });
-          responseSent = true;
-        } else if (lowerCaseIncomingText === 'kannada.') {
-          preferredLanguage = 'kn';
-          await supabaseServiceRoleClient
-            .from('whatsapp_conversations')
-            .upsert({ id: currentConversation?.id, user_id: userId, whatsapp_account_id: whatsappAccountId, contact_phone_number: fromPhoneNumber, preferred_language: 'kn', updated_at: new Date().toISOString() }, { onConflict: 'whatsapp_account_id,contact_phone_number' });
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ." });
-          responseSent = true;
-        } else if (lowerCaseIncomingText === 'telugu.') { // New condition for Telugu
-          preferredLanguage = 'te';
-          await supabaseServiceRoleClient
-            .from('whatsapp_conversations')
-            .upsert({ id: currentConversation?.id, user_id: userId, whatsapp_account_id: whatsappAccountId, contact_phone_number: fromPhoneNumber, preferred_language: 'te', updated_at: new Date().toISOString() }, { onConflict: 'whatsapp_account_id,contact_phone_number' });
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "నమస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ఇస్తాను." });
-          responseSent = true;
+            .upsert(
+              {
+                user_id: userId,
+                whatsapp_account_id: whatsappAccountId,
+                contact_phone_number: fromPhoneNumber,
+                preferred_language: newPreferredLanguage,
+                last_message_at: new Date().toISOString(), // Update last message time
+                last_message_body: incomingText, // Update last message body
+              },
+              { onConflict: 'whatsapp_account_id,contact_phone_number' }
+            );
+
+          if (upsertLangError) {
+            console.error('Error upserting conversation for language change:', upsertLangError.message);
+            // Fallback to English confirmation if DB update fails
+            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Sorry, I couldn't update your language preference. Please try again." });
+          } else {
+            preferredLanguage = newPreferredLanguage; // Update local variable for subsequent AI calls
+            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: confirmationMessage });
+            responseSent = true;
+          }
         }
 
         // Priority 1: Check for active flow
@@ -594,7 +612,7 @@ serve(async (req) => {
           }
         }
 
-        // If still no response (e.g., no rule or flow was matched), send a generic fallback
+        // If still no response (e.g., no language change, no rule or flow was matched), send a generic fallback
         if (!responseSent) {
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
         }
