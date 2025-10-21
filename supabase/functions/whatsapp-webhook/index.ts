@@ -1,4 +1,4 @@
-import { serve } = "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -298,7 +298,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu.') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగుದಲ್ಲಿ సమాధానಂ ಇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ఇస్తాను.";
           }
 
           console.log(`Language change detected. New preferred language: ${newPreferredLanguage}, Confirmation message: "${confirmationMessage}"`);
