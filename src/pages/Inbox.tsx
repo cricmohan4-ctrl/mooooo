@@ -707,6 +707,7 @@ const Inbox = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Main Content Area (Conversations List or Message Area) */}
+      {/* On mobile, only one of these will be visible at a time, controlled by `selectedConversation` state. */}
       <div className="flex-1 flex overflow-hidden">
         {/* Conversations List */}
         {!selectedConversation && (
