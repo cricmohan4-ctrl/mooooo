@@ -11,7 +11,8 @@ import FlowsPage from "./pages/FlowsPage";
 import FlowEditor from "./pages/FlowEditor";
 import Inbox from "./pages/Inbox";
 import ConnectAccount from "./pages/ConnectAccount";
-import ChatbotRulesPage from "./pages/ChatbotRulesPage"; // Import the new page
+import ChatbotRulesPage from "./pages/ChatbotRulesPage";
+import UserManagementPage from "./pages/UserManagementPage"; // Import the new page
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 import DashboardLayout from "./layouts/DashboardLayout";
 
@@ -97,11 +98,21 @@ const AppContent = () => (
             }
           />
           <Route
-            path="/chatbot-rules" // New route for ChatbotRulesPage
+            path="/chatbot-rules"
             element={
               <ProtectedRoute>
                 <DashboardLayout>
                   <ChatbotRulesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user-management" {/* New route for UserManagementPage */}
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <UserManagementPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
