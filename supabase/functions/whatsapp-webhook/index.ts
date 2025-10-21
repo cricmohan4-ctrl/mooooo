@@ -223,9 +223,9 @@ serve(async (req) => {
           to_phone_number: to,
           message_body: type === 'text' ? content.body : `[${type} message]`,
           message_type: type,
-          direction: 'outgoing',
           media_url: content.mediaUrl || null,
           media_caption: content.caption || null,
+          direction: 'outgoing',
         });
 
       if (insertOutgoingError) {
@@ -359,7 +359,7 @@ serve(async (req) => {
     if (!responseSent) {
       const { data: rules, error: rulesError } = await supabaseServiceRoleClient
         .from('chatbot_rules')
-        .select('trigger_value, trigger_type, response_message, buttons, flow_id')
+        .select('trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response') // Select use_ai_response
         .eq('whatsapp_account_id', whatsappAccountId);
 
       if (rulesError) {
@@ -384,6 +384,12 @@ serve(async (req) => {
           case 'STARTS_WITH':
             match = lowerCaseIncomingText.startsWith(triggerValue);
             break;
+          case 'AI_RESPONSE': // AI_RESPONSE rules can act as a fallback or specific trigger
+            match = lowerCaseIncomingText.includes(triggerValue); // Can be triggered by a keyword
+            if (!triggerValue) { // If trigger_value is empty, it's a general AI fallback
+              match = true;
+            }
+            break;
           default:
             break;
         }
@@ -395,7 +401,28 @@ serve(async (req) => {
       }
 
       if (matchedRule) {
-        if (matchedRule.flow_id) {
+        if (matchedRule.use_ai_response) {
+          console.log('Chatbot rule matched for AI Response. Invoking Gemini chat function.');
+          try {
+            const geminiResponse = await supabaseClient.functions.invoke('gemini-chat', {
+              body: { message: incomingText, whatsappAccountId: whatsappAccountId },
+            });
+
+            if (geminiResponse.error) {
+              console.error('Error invoking Gemini chat function:', geminiResponse.error.message);
+              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment." });
+            } else if (geminiResponse.data.status === 'success') {
+              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
+              responseSent = true;
+            } else {
+              console.error('Gemini chat function returned an error status:', geminiResponse.data.message);
+              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
+            }
+          } catch (aiInvokeError: any) {
+            console.error('Unexpected error during Gemini invocation:', aiInvokeError.message);
+            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
+          }
+        } else if (matchedRule.flow_id) {
           console.log(`Chatbot rule matched to start flow: ${matchedRule.flow_id}`);
           const { data: flowData, error: flowError } = await supabaseServiceRoleClient
             .from('chatbot_flows')
@@ -494,31 +521,7 @@ serve(async (req) => {
       }
     }
 
-    // If no rule or flow was matched, try Google Gemini
-    if (!responseSent) {
-      console.log('No rule or flow matched. Attempting to get AI response from Google Gemini.');
-      try {
-        const geminiResponse = await supabaseClient.functions.invoke('gemini-chat', {
-          body: { message: incomingText, whatsappAccountId: whatsappAccountId }, // Pass whatsappAccountId
-        });
-
-        if (geminiResponse.error) {
-          console.error('Error invoking Gemini chat function:', geminiResponse.error.message);
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment." });
-        } else if (geminiResponse.data.status === 'success') {
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
-          responseSent = true;
-        } else {
-          console.error('Gemini chat function returned an error status:', geminiResponse.data.message);
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
-        }
-      } catch (aiInvokeError: any) {
-        console.error('Unexpected error during Gemini invocation:', aiInvokeError.message);
-        await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
-      }
-    }
-
-    // If still no response (e.g., Gemini failed or was not enabled), send a generic fallback
+    // If still no response (e.g., no rule or flow was matched), send a generic fallback
     if (!responseSent) {
       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Hello! Welcome to our WhatsApp service. How can I help you today?" });
     }

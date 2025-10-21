@@ -47,12 +47,14 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
   const [isOpen, setIsOpen] = useState(false);
   const [selectedWhatsappAccountId, setSelectedWhatsappAccountId] = useState<string>("");
   const [triggerValue, setTriggerValue] = useState("");
-  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH">("EXACT_MATCH");
+  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE">("EXACT_MATCH");
   const [responseMessage, setResponseMessage] = useState(""); // This will be a multi-line string
   const [buttons, setButtons] = useState<ButtonConfig[]>([]); // State for buttons
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null); // New state for selected flow
   const [chatbotFlows, setChatbotFlows] = useState<ChatbotFlow[]>([]); // State for available flows
   const [isLoading, setIsLoading] = useState(false);
+
+  const isAIResponseSelected = triggerType === "AI_RESPONSE";
 
   useEffect(() => {
     if (whatsappAccounts.length > 0 && !selectedWhatsappAccountId) {
@@ -103,18 +105,18 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
       showError("You must be logged in to add a chatbot rule.");
       return;
     }
-    if (!selectedWhatsappAccountId || !triggerValue.trim()) {
+    if (!selectedWhatsappAccountId || (!isAIResponseSelected && !triggerValue.trim())) {
       showError("Please fill in all required fields (WhatsApp Account, Trigger Value).");
       return;
     }
 
-    if (!selectedFlowId && !responseMessage.trim()) {
+    if (!isAIResponseSelected && !selectedFlowId && !responseMessage.trim()) {
       showError("Please provide a response message or select a chatbot flow.");
       return;
     }
 
     // Validate buttons only if a flow is NOT selected and buttons are present
-    if (!selectedFlowId && buttons.length > 0) {
+    if (!isAIResponseSelected && !selectedFlowId && buttons.length > 0) {
       const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
       if (invalidButtons) {
         showError("Please ensure all button text and payload values are filled.");
@@ -124,7 +126,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
 
     setIsLoading(true);
     try {
-      const responseMessagesArray = selectedFlowId ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
+      const responseMessagesArray = (isAIResponseSelected || selectedFlowId) ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
 
       const { error } = await supabase
         .from("chatbot_rules")
@@ -134,9 +136,9 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
           trigger_value: triggerValue,
           trigger_type: triggerType,
           response_message: responseMessagesArray,
-          buttons: selectedFlowId ? null : (buttons.length > 0 ? buttons : null),
-          flow_id: selectedFlowId,
-          use_ai_response: false, // AI response is removed, always set to false
+          buttons: (isAIResponseSelected || selectedFlowId) ? null : (buttons.length > 0 ? buttons : null),
+          flow_id: isAIResponseSelected ? null : selectedFlowId,
+          use_ai_response: isAIResponseSelected,
         });
 
       if (error) {
@@ -165,7 +167,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
         <DialogHeader>
           <DialogTitle>Add Chatbot Rule</DialogTitle>
           <DialogDescription>
-            Define a trigger phrase and either an automated response or link a chatbot flow for a WhatsApp account.
+            Define a trigger phrase and either an automated response, link a chatbot flow, or use AI for a WhatsApp account.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -196,7 +198,14 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                 Trigger Type
               </Label>
               <Select
-                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH") => setTriggerType(value)}
+                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE") => {
+                  setTriggerType(value);
+                  if (value === "AI_RESPONSE") {
+                    setSelectedFlowId(null); // Clear flow selection if AI is chosen
+                    setResponseMessage(""); // Clear static response
+                    setButtons([]); // Clear buttons
+                  }
+                }}
                 value={triggerType}
                 required
               >
@@ -207,6 +216,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                   <SelectItem value="EXACT_MATCH">Exact Match</SelectItem>
                   <SelectItem value="CONTAINS">Contains</SelectItem>
                   <SelectItem value="STARTS_WITH">Starts With</SelectItem>
+                  <SelectItem value="AI_RESPONSE">AI Response</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -219,40 +229,46 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                 value={triggerValue}
                 onChange={(e) => setTriggerValue(e.target.value)}
                 className="col-span-3"
-                placeholder="e.g., 'hello', 'support', 'pricing'"
-                required
+                placeholder={isAIResponseSelected ? "e.g., 'any message', 'ask AI'" : "e.g., 'hello', 'support', 'pricing'"}
+                required={!isAIResponseSelected} // Trigger value is optional for AI Response if it's a fallback
               />
             </div>
 
             <Separator className="my-2" />
 
             {/* Flow Selection */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="chatbotFlow" className="text-right">
-                Link to Flow (Optional)
-              </Label>
-              <Select
-                onValueChange={(value) => {
-                  setSelectedFlowId(value === "none" ? null : value);
-                }}
-                value={selectedFlowId || "none"}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a chatbot flow" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Flow (Use static response)</SelectItem>
-                  {chatbotFlows.map((flow) => (
-                    <SelectItem key={flow.id} value={flow.id}>
-                      {flow.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isAIResponseSelected && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="chatbotFlow" className="text-right">
+                  Link to Flow (Optional)
+                </Label>
+                <Select
+                  onValueChange={(value) => {
+                    setSelectedFlowId(value === "none" ? null : value);
+                    if (value !== "none") {
+                      setResponseMessage(""); // Clear static response if flow is selected
+                      setButtons([]); // Clear buttons if flow is selected
+                    }
+                  }}
+                  value={selectedFlowId || "none"}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a chatbot flow" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Flow (Use static response)</SelectItem>
+                    {chatbotFlows.map((flow) => (
+                      <SelectItem key={flow.id} value={flow.id}>
+                        {flow.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Conditional Response Message and Buttons */}
-            {!selectedFlowId && (
+            {!isAIResponseSelected && !selectedFlowId && (
               <>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="responseMessage" className="text-right">
@@ -264,7 +280,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
                     onChange={(e) => setResponseMessage(e.target.value)}
                     className="col-span-3"
                     placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
-                    required={!selectedFlowId}
+                    required={!selectedFlowId && !isAIResponseSelected}
                     rows={4}
                   />
                 </div>
