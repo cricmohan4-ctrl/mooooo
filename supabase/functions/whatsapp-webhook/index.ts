@@ -191,7 +191,10 @@ serve(async (req) => {
         }
       }
 
-      console.log(`Sending ${type} message to ${to} using account ${whatsappBusinessAccountId}`);
+      console.log(`Attempting to send ${type} message to ${to} via WhatsApp API.`);
+      console.log('WhatsApp API URL:', whatsappApiUrl);
+      console.log('Request Body:', JSON.stringify(body, null, 2)); // Added detailed request body logging
+
       const response = await fetch(whatsappApiUrl, {
         method: 'POST',
         headers: {
@@ -202,10 +205,13 @@ serve(async (req) => {
       });
 
       const responseData = await response.json();
+      console.log('WhatsApp API Response Status:', response.status); // Added response status logging
+      console.log('WhatsApp API Response Data:', JSON.stringify(responseData, null, 2)); // Added detailed response data logging
+
       if (!response.ok) {
         console.error(`Error sending WhatsApp ${type} message:`, responseData);
       } else {
-        console.log(`WhatsApp ${type} message sent successfully:`, responseData);
+        console.log(`WhatsApp ${type} message sent successfully.`);
       }
 
       const { error: insertOutgoingError } = await supabaseServiceRoleClient
@@ -506,7 +512,7 @@ serve(async (req) => {
           console.error('Gemini chat function returned an error status:', geminiResponse.data.message);
           await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
         }
-      } catch (aiInvokeError) {
+      } catch (aiInvokeError: any) {
         console.error('Unexpected error during Gemini invocation:', aiInvokeError.message);
         await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
       }
@@ -522,7 +528,7 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error processing WhatsApp webhook:', error.message);
     return new Response(JSON.stringify({ status: 'error', message: 'Internal server error in Edge Function', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -96,7 +96,9 @@ serve(async (req) => {
       };
     }
 
-    console.log(`Attempting to send message to ${toPhoneNumber} via WhatsApp API. Payload:`, JSON.stringify(messagePayload));
+    console.log(`Attempting to send message to ${toPhoneNumber} via WhatsApp API.`);
+    console.log('WhatsApp API URL:', whatsappApiUrl);
+    console.log('Request Body:', JSON.stringify(messagePayload, null, 2)); // Added detailed request body logging
     const response = await fetch(whatsappApiUrl, {
       method: 'POST',
       headers: {
@@ -107,6 +109,8 @@ serve(async (req) => {
     });
 
     const responseData = await response.json();
+    console.log('WhatsApp API Response Status:', response.status); // Added response status logging
+    console.log('WhatsApp API Response Data:', JSON.stringify(responseData, null, 2)); // Added detailed response data logging
 
     if (!response.ok) {
       console.error('Error from WhatsApp API:', responseData);
@@ -158,7 +162,7 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in send-whatsapp-message Edge Function:', error.message);
     return new Response(JSON.stringify({ status: 'error', message: 'Internal server error in Edge Function', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
