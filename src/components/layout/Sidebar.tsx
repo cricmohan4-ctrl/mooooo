@@ -22,7 +22,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useSession } from '@/integrations/supabase/auth'; // Import useSession
 
 interface SidebarProps {
   isOpen: boolean;
@@ -34,7 +33,7 @@ const navItems = [
   { name: 'Shared Inbox', href: '/inbox', icon: Inbox },
   { name: 'Connect Account', href: '/connect-account', icon: Plug },
   { name: 'Chatbot Rules', href: '/chatbot-rules', icon: Bot },
-  // User Management will be added conditionally
+  { name: 'User Management', href: '/user-management', icon: Users }, // New navigation item
 ];
 
 const controlPanelItems = [
@@ -44,7 +43,6 @@ const controlPanelItems = [
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { isAdmin } = useSession(); // Get isAdmin from session
 
   const sidebarClasses = cn(
     "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-300 ease-in-out",
@@ -87,23 +85,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               </Link>
             </li>
           ))}
-          {isAdmin && ( // Conditionally render User Management for admins
-            <li>
-              <Link
-                to="/user-management"
-                className={cn(
-                  "flex items-center p-2 rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  location.pathname === '/user-management'
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground"
-                )}
-                onClick={isMobile ? onClose : undefined}
-              >
-                <Users className="h-5 w-5 mr-3" />
-                User Management
-              </Link>
-            </li>
-          )}
         </ul>
 
         {/* Removed Control Panel section as it is now empty */}
