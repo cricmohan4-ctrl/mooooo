@@ -612,14 +612,13 @@ const Inbox = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8"> {/* Added padding here */}
       {/* Main Content Area (Conversations List or Message Area) */}
-      {/* On mobile, only one of these will be visible at a time, controlled by `selectedConversation` state. */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden rounded-lg shadow-lg"> {/* Added rounded-lg and shadow-lg */}
         {/* Conversations List */}
         {!selectedConversation && (
-          <div className="relative w-full bg-white dark:bg-gray-800 overflow-y-auto">
-            <div className="p-4">
+          <div className="relative w-full bg-white dark:bg-gray-800 flex flex-col"> {/* Changed to flex-col to manage its children */}
+            <div className="p-4 flex-shrink-0"> {/* Padding already here, keep it */}
               <div className="flex items-center justify-between mb-4">
                 <Button variant="ghost" size="icon" asChild>
                   <Link to="/dashboard">
@@ -717,50 +716,51 @@ const Inbox = () => {
               </div>
             </div>
             <Separator />
-            {isLoadingConversations ? (
-              <div className="p-4 text-center text-gray-500">Loading conversations...</div>
-            ) : filteredConversations.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
-                {filterType === 'unread' ? 'No unread conversations.' : 'No conversations yet.'}
-              </div>
-            ) : (
-              filteredConversations.map((conv) => (
-                <div
-                  key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
-                  className={cn(
-                    `flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700`,
-                    selectedConversation?.contact_phone_number === conv.contact_phone_number &&
-                    selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
-                      ? 'bg-blue-50 dark:bg-blue-900'
-                      : '',
-                    selectedConversationIds.includes(conv.id)
-                      ? 'bg-yellow-100 dark:bg-yellow-900 border-l-4 border-brand-yellow'
-                      : ''
-                  )}
-                >
-                  <Checkbox
-                    checked={selectedConversationIds.includes(conv.id)}
-                    onCheckedChange={() => handleToggleConversationSelection(conv.id)}
-                    className="mr-3 cursor-pointer"
-                  />
-                  <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
-                    <Avatar className="h-10 w-10 mr-3">
-                      <AvatarImage src={undefined} alt={conv.contact_phone_number} />
-                      <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium">{conv.contact_phone_number}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{conv.last_message_body}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        {conv.whatsapp_account_name}
-                      </p>
-                      {conv.labels.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {conv.labels.map(label => (
-                            <LabelBadge key={label.id} name={label.name} color={label.color} />
-                          ))}
-                        </div>
-                      )}
+            <div className="flex-1 overflow-y-auto"> {/* This is the scrollable part for conversations */}
+              {isLoadingConversations ? (
+                <div className="p-4 text-center text-gray-500">Loading conversations...</div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  {filterType === 'unread' ? 'No unread conversations.' : 'No conversations yet.'}
+                </div>
+              ) : (
+                filteredConversations.map((conv) => (
+                  <div
+                    key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
+                    className={cn(
+                      `flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700`,
+                      selectedConversation?.contact_phone_number === conv.contact_phone_number &&
+                      selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
+                        ? 'bg-blue-50 dark:bg-blue-900'
+                        : '',
+                      selectedConversationIds.includes(conv.id)
+                        ? 'bg-yellow-100 dark:bg-yellow-900 border-l-4 border-brand-yellow'
+                        : ''
+                    )}
+                  >
+                    <Checkbox
+                      checked={selectedConversationIds.includes(conv.id)}
+                      onCheckedChange={() => handleToggleConversationSelection(conv.id)}
+                      className="mr-3 cursor-pointer"
+                    />
+                    <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
+                      <Avatar className="h-10 w-10 mr-3">
+                        <AvatarImage src={undefined} alt={conv.contact_phone_number} />
+                        <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium">{conv.contact_phone_number}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{conv.last_message_body}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          {conv.whatsapp_account_name}
+                        </p>
+                        {conv.labels.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {conv.labels.map(label => (
+                              <LabelBadge key={label.id} name={label.name} color={label.color} />
+                            ))}
+                          </div>
+                        )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
@@ -774,6 +774,7 @@ const Inbox = () => {
                 </div>
               ))
             )}
+            </div>
           </div>
         )}
 
@@ -808,7 +809,7 @@ const Inbox = () => {
               </div>
             </div>
 
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+            <div className="flex-1 p-4 overflow-y-auto space-y-4"> {/* This should be the scrollable part */}
               {isLoadingMessages ? (
                 <div className="text-center text-gray-500">Loading messages...</div>
               ) : messages.length === 0 ? (
