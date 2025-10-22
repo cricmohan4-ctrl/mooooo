@@ -95,7 +95,7 @@ const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated
       const { error } = await supabase
         .from('whatsapp_labels')
         .insert({
-          // user_id: user.id, // RLS will handle user_id based on admin role
+          user_id: user.id, // Explicitly set user_id
           name: newLabelName.trim(),
           color: newLabelColor,
         });
