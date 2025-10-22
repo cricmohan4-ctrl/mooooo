@@ -61,8 +61,8 @@ const ChatbotRulesPage = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, account_name, phone_number_id, access_token, gemini_system_instruction")
-        .eq("user_id", user.id);
+        .select("id, account_name, phone_number_id, access_token, gemini_system_instruction");
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all accounts
 
       if (error) {
         throw error;
@@ -80,8 +80,8 @@ const ChatbotRulesPage = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_rules")
-        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response, whatsapp_accounts(account_name), chatbot_flows(name)")
-        .eq("user_id", user.id);
+        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response, whatsapp_accounts(account_name), chatbot_flows(name)");
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all rules
 
       if (error) {
         throw error;
@@ -105,8 +105,8 @@ const ChatbotRulesPage = () => {
       const { error } = await supabase
         .from("chatbot_rules")
         .delete()
-        .eq("id", ruleId)
-        .eq("user_id", user?.id);
+        .eq("id", ruleId);
+        // RLS will enforce that only admins can delete
 
       if (error) {
         throw error;

@@ -54,7 +54,7 @@ const FlowsPage = () => {
       const { data, error } = await supabase
         .from("chatbot_flows")
         .select("id, name, description, created_at")
-        .eq("user_id", user.id)
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all flows
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -95,7 +95,7 @@ const FlowsPage = () => {
       const { error } = await supabase
         .from("chatbot_flows")
         .insert({
-          user_id: user.id,
+          // user_id: user.id, // RLS will handle user_id based on admin role
           name: newFlowName.trim(),
           description: newFlowDescription.trim() || null,
           flow_data: initialFlowData,
@@ -121,8 +121,8 @@ const FlowsPage = () => {
       const { error } = await supabase
         .from("chatbot_flows")
         .delete()
-        .eq("id", flowId)
-        .eq("user_id", user?.id);
+        .eq("id", flowId);
+        // RLS will enforce that only admins can delete
 
       if (error) throw error;
 

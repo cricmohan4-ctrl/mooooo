@@ -48,7 +48,7 @@ const BulkApplyLabelsPopover: React.FC<BulkApplyLabelsPopoverProps> = ({
       const { data, error } = await supabase
         .from('whatsapp_labels')
         .select('id, name, color')
-        .eq('user_id', user.id)
+        // Removed .eq('user_id', user.id) to allow all authenticated users to see all labels
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -69,6 +69,7 @@ const BulkApplyLabelsPopover: React.FC<BulkApplyLabelsPopoverProps> = ({
         .from('whatsapp_conversation_labels')
         .select('conversation_id, label_id, user_id') // Fetch user_id
         .in('conversation_id', conversationIds);
+        // Removed .eq('user_id', user.id) to allow all authenticated users to see all conversation labels
 
       if (error) throw error;
       setAllConversationLabels(data || []);
@@ -111,28 +112,20 @@ const BulkApplyLabelsPopover: React.FC<BulkApplyLabelsPopoverProps> = ({
         // Attempting to remove label from selected conversations
         let removedCount = 0;
         for (const convId of conversationIds) {
-          // Find the specific entry for this conversation and label, applied by the current user
-          const entryToRemove = allConversationLabels.find(
-            cl => cl.conversation_id === convId && cl.label_id === label.id && cl.user_id === user.id
+          // The RLS policy for whatsapp_conversation_labels DELETE is now `USING (true)`,
+          // so any authenticated user can remove any label.
+          operations.push(
+            supabase
+              .from('whatsapp_conversation_labels')
+              .delete()
+              .eq('conversation_id', convId)
+              .eq('label_id', label.id)
+              // Removed .eq('user_id', user.id)
+              .then(res => {
+                if (!res.error) removedCount++;
+                return res;
+              })
           );
-
-          if (entryToRemove) {
-            operations.push(
-              supabase
-                .from('whatsapp_conversation_labels')
-                .delete()
-                .eq('conversation_id', convId)
-                .eq('label_id', label.id)
-                .eq('user_id', user.id) // Crucial for RLS and user-specific deletion
-                .then(res => {
-                  if (!res.error) removedCount++;
-                  return res;
-                })
-            );
-          } else {
-            // If the label is applied by another user, or not applied at all by current user, skip deletion for this conv
-            console.log(`Skipping deletion of label ${label.name} from conversation ${convId}: not applied by current user or not found.`);
-          }
         }
         
         if (operations.length > 0) {
@@ -141,12 +134,12 @@ const BulkApplyLabelsPopover: React.FC<BulkApplyLabelsPopoverProps> = ({
 
           if (hasErrors) {
             console.error("Errors during bulk label removal:", results.filter(res => res.error));
-            showError(`Failed to remove some labels. You can only remove labels you applied.`);
+            showError(`Failed to remove some labels.`);
           } else {
             showSuccess(`Label "${label.name}" removed from ${removedCount} conversations.`);
           }
         } else {
-          showError(`Label "${label.name}" is not applied by you to any of the selected conversations.`);
+          showError(`Label "${label.name}" is not applied to any of the selected conversations.`);
         }
 
       } else {

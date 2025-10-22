@@ -93,7 +93,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
         const { data, error } = await supabase
           .from("chatbot_flows")
           .select("id, name")
-          .eq("user_id", user.id)
+          // Removed .eq("user_id", user.id) to allow all authenticated users to see all flows
           .order("name", { ascending: true });
 
         if (error) throw error;
@@ -162,8 +162,8 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
           flow_id: isAIResponseSelected ? null : selectedFlowId,
           use_ai_response: isAIResponseSelected,
         })
-        .eq("id", rule.id)
-        .eq("user_id", user.id);
+        .eq("id", rule.id);
+        // RLS will enforce that only admins can update
 
       if (error) {
         throw error;

@@ -73,7 +73,7 @@ const AddNewContactDialog: React.FC<AddNewContactDialogProps> = ({ whatsappAccou
       const { data: existingConversation, error: fetchError } = await supabase
         .from("whatsapp_conversations")
         .select("*")
-        .eq("user_id", user.id)
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all conversations
         .eq("whatsapp_account_id", selectedWhatsappAccountId)
         .eq("contact_phone_number", newContactPhoneNumber.trim())
         .single();
@@ -99,7 +99,7 @@ const AddNewContactDialog: React.FC<AddNewContactDialogProps> = ({ whatsappAccou
         const { data, error } = await supabase
           .from("whatsapp_conversations")
           .insert({
-            user_id: user.id,
+            user_id: user.id, // Keep user_id here to track who initiated the conversation
             whatsapp_account_id: selectedWhatsappAccountId,
             contact_phone_number: newContactPhoneNumber.trim(),
             last_message_at: new Date().toISOString(),

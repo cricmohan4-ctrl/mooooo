@@ -114,8 +114,8 @@ const Inbox = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, account_name, phone_number_id")
-        .eq("user_id", user.id);
+        .select("id, account_name, phone_number_id");
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all accounts
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
@@ -134,7 +134,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from('whatsapp_labels')
         .select('id, name, color')
-        .eq('user_id', user.id)
+        // Removed .eq('user_id', user.id) to allow all authenticated users to see all labels
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -151,7 +151,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from('whatsapp_quick_replies')
         .select('id, name, type, text_content, audio_url')
-        .eq('user_id', user.id)
+        // Removed .eq('user_id', user.id) to allow all authenticated users to see all quick replies
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -170,7 +170,7 @@ const Inbox = () => {
     setIsLoadingConversations(true);
     try {
       const { data: convData, error: convError } = await supabase
-        .rpc('get_whatsapp_conversations_with_unread_count', { p_user_id: user.id });
+        .rpc('get_whatsapp_conversations_with_unread_count', { p_user_id: user.id }); // p_user_id is now ignored by the RPC function
 
       if (convError) throw convError;
 
@@ -182,6 +182,7 @@ const Inbox = () => {
           .from('whatsapp_conversation_labels')
           .select('conversation_id, label_id, user_id, whatsapp_labels(id, name, color)') // Fetch user_id
           .in('conversation_id', conversationIds);
+          // Removed .eq('user_id', user.id) to allow all authenticated users to see all conversation labels
 
         if (convLabelsError) throw convLabelsError;
 
@@ -229,7 +230,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_messages")
         .select("*")
-        .eq("user_id", user.id)
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all messages
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
@@ -252,7 +253,7 @@ const Inbox = () => {
       const { error } = await supabase
         .from('whatsapp_messages')
         .update({ is_read: true })
-        .eq('user_id', user.id)
+        // Removed .eq('user_id', user.id) to allow any authenticated user to mark messages as read
         .eq('whatsapp_account_id', conversation.whatsapp_account_id)
         .eq('from_phone_number', conversation.contact_phone_number)
         .eq('direction', 'incoming')
@@ -301,14 +302,14 @@ const Inbox = () => {
     if (!user) return;
 
     const messageChannel = supabase
-      .channel(`messages_for_user_${user.id}`)
+      .channel(`messages_for_all_users`) // Changed channel name to be generic
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'whatsapp_messages',
-          filter: `user_id=eq.${user.id}`,
+          // Removed filter: `user_id=eq.${user.id}`, to listen to all messages
         },
         (payload) => {
           const newMessage = payload.new as Message;
@@ -331,14 +332,14 @@ const Inbox = () => {
       .subscribe();
 
     const labelChannel = supabase
-      .channel(`conversation_labels_for_user_${user.id}`)
+      .channel(`conversation_labels_for_all_users`) // Changed channel name to be generic
       .on(
         'postgres_changes',
         {
           event: '*', // Listen for INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'whatsapp_conversation_labels',
-          filter: `conversation_id.in.(${conversations.map(c => c.id).join(',')})`, // Only for current conversations
+          // Removed filter: `conversation_id.in.(${conversations.map(c => c.id).join(',')})`, to listen to all labels
         },
         (payload) => {
           // A label was added/removed from a conversation, or a label itself was updated
@@ -352,7 +353,7 @@ const Inbox = () => {
           event: '*', // Listen for INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'whatsapp_labels',
-          filter: `user_id=eq.${user.id}`,
+          // Removed filter: `user_id=eq.${user.id}`, to listen to all label definitions
         },
         (payload) => {
           // A label definition was changed (name/color), re-fetch conversations to update display
@@ -363,14 +364,14 @@ const Inbox = () => {
       .subscribe();
 
     const quickReplyChannel = supabase
-      .channel(`quick_replies_for_user_${user.id}`)
+      .channel(`quick_replies_for_all_users`) // Changed channel name to be generic
       .on(
         'postgres_changes',
         {
           event: '*', // Listen for INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'whatsapp_quick_replies',
-          filter: `user_id=eq.${user.id}`,
+          // Removed filter: `user_id=eq.${user.id}`, to listen to all quick replies
         },
         (payload) => {
           fetchDynamicQuickReplies(); // Re-fetch quick replies when changes occur
@@ -468,7 +469,7 @@ const Inbox = () => {
           toPhoneNumber: selectedConversation.contact_phone_number,
           messageBody: messageBody,
           whatsappAccountId: selectedConversation.whatsapp_account_id,
-          userId: user.id,
+          userId: user.id, // Keep userId for the edge function to log/associate
           mediaUrl: mediaUrl,
           mediaType: mediaType,
           mediaCaption: mediaCaption,

@@ -57,8 +57,8 @@ const GeminiConfigDialog: React.FC<GeminiConfigDialogProps> = ({
         .update({
           gemini_system_instruction: systemInstruction.trim() || null, // Save as null if empty
         })
-        .eq("id", account.id)
-        .eq("user_id", user.id);
+        .eq("id", account.id);
+        // RLS will enforce that only admins can update
 
       if (error) {
         throw error;

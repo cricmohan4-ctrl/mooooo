@@ -73,7 +73,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
         const { data, error } = await supabase
           .from("chatbot_flows")
           .select("id, name")
-          .eq("user_id", user.id)
+          // Removed .eq("user_id", user.id) to allow all authenticated users to see all flows
           .order("name", { ascending: true });
 
         if (error) throw error;
@@ -139,7 +139,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
       const { error } = await supabase
         .from("chatbot_rules")
         .insert({
-          user_id: user.id,
+          // user_id: user.id, // RLS will handle user_id based on admin role
           whatsapp_account_id: selectedWhatsappAccountId,
           trigger_value: triggerValue,
           trigger_type: triggerType,

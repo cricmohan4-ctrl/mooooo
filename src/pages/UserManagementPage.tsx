@@ -67,6 +67,7 @@ const UserManagementPage = () => {
       const { data, error } = await supabase
         .from("user_details")
         .select("*")
+        // Removed .eq("user_id", user.id) to allow admins to see all users
         .order("auth_created_at", { ascending: false });
 
       if (error) {

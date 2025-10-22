@@ -74,8 +74,8 @@ const EditWhatsappAccountDialog: React.FC<EditWhatsappAccountDialogProps> = ({
       const { error: accountError } = await supabase
         .from("whatsapp_accounts")
         .update(updateAccountPayload)
-        .eq("id", account.id)
-        .eq("user_id", user.id);
+        .eq("id", account.id);
+        // RLS will enforce that only admins can update
 
       if (accountError) {
         throw accountError;

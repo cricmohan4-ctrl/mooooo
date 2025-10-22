@@ -99,8 +99,8 @@ const FlowEditorContent = () => {
       const { error } = await supabase
         .from("chatbot_flows")
         .update({ flow_data: flowData, updated_at: new Date().toISOString() })
-        .eq("id", flowId)
-        .eq("user_id", user.id);
+        .eq("id", flowId);
+        // RLS will enforce that only admins can update
 
       if (error) throw error;
       showSuccess("Flow saved successfully!");
@@ -120,7 +120,7 @@ const FlowEditorContent = () => {
         .from("chatbot_flows")
         .select("name, flow_data")
         .eq("id", flowId)
-        .eq("user_id", user.id)
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all flows
         .single();
 
       if (error) {

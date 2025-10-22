@@ -46,8 +46,8 @@ const ConnectAccount = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, account_name, phone_number_id, access_token, gemini_system_instruction")
-        .eq("user_id", user.id);
+        .select("id, account_name, phone_number_id, access_token, gemini_system_instruction");
+        // Removed .eq("user_id", user.id) to allow all authenticated users to see all accounts
 
       if (error) {
         throw error;
@@ -66,8 +66,8 @@ const ConnectAccount = () => {
       const { error } = await supabase
         .from("whatsapp_accounts")
         .delete()
-        .eq("id", accountId)
-        .eq("user_id", user?.id);
+        .eq("id", accountId);
+        // RLS will enforce that only admins can delete
 
       if (error) {
         throw error;

@@ -60,7 +60,7 @@ const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated
       const { data, error } = await supabase
         .from('whatsapp_labels')
         .select('id, name, color')
-        .eq('user_id', user.id)
+        // Removed .eq('user_id', user.id) to allow all authenticated users to see all labels
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -93,7 +93,7 @@ const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated
       const { error } = await supabase
         .from('whatsapp_labels')
         .insert({
-          user_id: user.id,
+          // user_id: user.id, // RLS will handle user_id based on admin role
           name: newLabelName.trim(),
           color: newLabelColor,
         });
@@ -135,8 +135,8 @@ const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated
           name: editingLabel.name.trim(),
           color: editingLabel.color,
         })
-        .eq('id', editingLabel.id)
-        .eq('user_id', user.id);
+        .eq('id', editingLabel.id);
+        // RLS will enforce that only admins can update
 
       if (error) {
         if (error.code === '23505') { // Unique violation
@@ -164,8 +164,8 @@ const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated
       const { error } = await supabase
         .from('whatsapp_labels')
         .delete()
-        .eq('id', labelId)
-        .eq('user_id', user.id);
+        .eq('id', labelId);
+        // RLS will enforce that only admins can delete
 
       if (error) throw error;
       showSuccess("Label deleted successfully!");

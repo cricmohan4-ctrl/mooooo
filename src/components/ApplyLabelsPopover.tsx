@@ -43,7 +43,7 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
       const { data, error } = await supabase
         .from('whatsapp_labels')
         .select('id, name, color')
-        .eq('user_id', user.id)
+        // Removed .eq('user_id', user.id) to allow all authenticated users to see all labels
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -72,17 +72,18 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
 
       if (appliedLabel) {
         // Attempting to remove label
-        if (appliedLabel.applied_by_user_id !== user.id) {
-          showError("You can only remove labels you have applied.");
-          setIsLoading(false);
-          return;
-        }
+        // The RLS policy for whatsapp_conversation_labels DELETE is now `USING (true)`,
+        // so any authenticated user can remove any label.
+        // However, for a more nuanced team approach, you might want to restrict this
+        // to only allow users to remove labels they applied, or admins.
+        // For now, following the "team members give replies" and "all users must connect same whatsapp account and conversions"
+        // I'm assuming any team member can manage labels on conversations.
         const { error } = await supabase
           .from('whatsapp_conversation_labels')
           .delete()
           .eq('conversation_id', conversationId)
-          .eq('label_id', label.id)
-          .eq('user_id', user.id); // Ensure only own labels are deleted
+          .eq('label_id', label.id);
+          // Removed .eq('user_id', user.id) to allow any authenticated user to delete
 
         if (error) throw error;
         showSuccess(`Label "${label.name}" removed.`);
@@ -93,8 +94,9 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
           .insert({
             conversation_id: conversationId,
             label_id: label.id,
-            user_id: user.id, // Explicitly set user_id on insert
+            user_id: user.id, // Explicitly set user_id on insert to track who applied it
           });
+          // RLS will enforce that any authenticated user can insert
 
         if (error) throw error;
         showSuccess(`Label "${label.name}" applied.`);
@@ -125,9 +127,7 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
         ) : (
           <div className="space-y-1">
             {allLabels.map((label) => {
-              const appliedLabel = getAppliedLabel(label.id);
-              const isApplied = !!appliedLabel;
-              const canRemove = isApplied && appliedLabel.applied_by_user_id === user?.id;
+              const isApplied = !!getAppliedLabel(label.id);
 
               return (
                 <Button
@@ -135,7 +135,7 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
                   variant="ghost"
                   className="w-full justify-between text-sm h-auto py-1.5"
                   onClick={() => handleToggleLabel(label)}
-                  disabled={isLoading || (isApplied && !canRemove)} // Disable if applied by another user
+                  disabled={isLoading}
                 >
                   <div className="flex items-center">
                     <LabelBadge name={label.name} color={label.color} className="mr-2" />

@@ -72,7 +72,7 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
       const { data, error } = await supabase
         .from('whatsapp_quick_replies')
         .select('id, name, type, text_content, audio_url')
-        .eq('user_id', user.id)
+        // Removed .eq('user_id', user.id) to allow all authenticated users to see all quick replies
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -185,7 +185,7 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
       const { error } = await supabase
         .from('whatsapp_quick_replies')
         .insert({
-          user_id: user.id,
+          // user_id: user.id, // RLS will handle user_id based on admin role
           name: newReplyName.trim(),
           type: newReplyType,
           text_content: newReplyType === 'text' ? newReplyTextContent.trim() : null,
@@ -253,8 +253,8 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
           audio_url: editingReply.type === 'audio' ? audioUrlToUpdate : null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', editingReply.id)
-        .eq('user_id', user.id);
+        .eq('id', editingReply.id);
+        // RLS will enforce that only admins can update
 
       if (error) {
         if (error.code === '23505') { // Unique violation
@@ -285,8 +285,8 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
       const { error } = await supabase
         .from('whatsapp_quick_replies')
         .delete()
-        .eq('id', replyId)
-        .eq('user_id', user.id);
+        .eq('id', replyId);
+        // RLS will enforce that only admins can delete
 
       if (error) throw error;
       showSuccess("Quick reply deleted successfully!");
