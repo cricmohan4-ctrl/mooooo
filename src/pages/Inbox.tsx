@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import AddNewContactDialog from '@/components/AddNewContactDialog';
-import ManageLabelsDialog from '@/components/ManageLabelsDialog';
+// import ManageLabelsDialog from '@/components/ManageLabelsDialog'; // Removed from here
 import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
 import LabelBadge from '@/components/LabelBadge';
 import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog';
@@ -626,7 +626,7 @@ const Inbox = () => {
                   </Link>
                 </Button>
                 <div className="flex space-x-2">
-                  <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} />
+                  {/* <ManageLabelsDialog onLabelsUpdated={() => { fetchConversations(); fetchAllLabels(); }} /> */}
                   <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
                   <AddNewContactDialog
                     whatsappAccounts={whatsappAccounts}

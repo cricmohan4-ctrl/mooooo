@@ -9,6 +9,7 @@ import {
   Bot,
   Users,
   Menu,
+  Tag, // Import Tag icon for Label Management
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ const allNavItems = [
   { name: 'Shared Inbox', href: '/inbox', icon: Inbox, roles: ['user', 'admin'] },
   { name: 'Connect Account', href: '/connect-account', icon: Plug, roles: ['admin'] },
   { name: 'Chatbot Rules', href: '/chatbot-rules', icon: Bot, roles: ['admin'] },
+  { name: 'Label Management', href: '/label-management', icon: Tag, roles: ['admin'] }, // New item
   { name: 'User Management', href: '/user-management', icon: Users, roles: ['admin'] },
 ];
 

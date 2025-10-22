@@ -39,15 +39,17 @@ interface LabelItem {
 
 interface ManageLabelsDialogProps {
   onLabelsUpdated: () => void;
+  isOpen: boolean; // Added prop for external control
+  onOpenChange: (open: boolean) => void; // Added prop for external control
 }
 
 const defaultColors = [
   '#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997', '#6c757d', '#17a2b8', '#e83e8c'
 ];
 
-const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated }) => {
+const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated, isOpen, onOpenChange }) => {
   const { user } = useSession();
-  const [isOpen, setIsOpen] = useState(false);
+  // const [isOpen, setIsOpen] = useState(false); // Removed internal state
   const [labels, setLabels] = useState<LabelItem[]>([]);
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelColor, setNewLabelColor] = useState(defaultColors[0]);
@@ -72,10 +74,10 @@ const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated
   };
 
   useEffect(() => {
-    if (user && isOpen) {
+    if (user && isOpen) { // Use external isOpen prop
       fetchLabels();
     }
-  }, [user, isOpen]);
+  }, [user, isOpen]); // Depend on isOpen
 
   const handleAddLabel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,12 +180,8 @@ const ManageLabelsDialog: React.FC<ManageLabelsDialogProps> = ({ onLabelsUpdated
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" title="Manage Labels">
-          <PlusCircle className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}> {/* Use external props here */}
+      {/* Removed DialogTrigger as it will be triggered by a button on the LabelManagementPage */}
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle>Manage Labels</DialogTitle>
