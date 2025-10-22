@@ -612,7 +612,7 @@ const Inbox = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Main Content Area (Conversations List or Message Area) */}
       {/* On mobile, only one of these will be visible at a time, controlled by `selectedConversation` state. */}
       <div className="flex-1 flex overflow-hidden">
@@ -780,8 +780,8 @@ const Inbox = () => {
         {/* Message Area */}
         {selectedConversation && (
           <div className="flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900">
-            {/* Sticky Header for Selected Conversation */}
-            <div className="sticky top-0 z-10 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
+            {/* Header for Selected Conversation */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
               <div className="flex items-center">
                 <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
                   <ArrowLeft className="h-5 w-5" />
