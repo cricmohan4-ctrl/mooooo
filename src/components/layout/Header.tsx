@@ -1,11 +1,20 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Menu, Bell, UserCircle } from 'lucide-react';
+import { Menu, Bell, UserCircle, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useSession } from '@/integrations/supabase/auth';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -13,6 +22,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user } = useSession();
+  const navigate = useNavigate(); // Initialize useNavigate
   const [userRole, setUserRole] = useState<string | null>(null);
   const userEmail = user?.email || 'Guest';
   const userInitials = userEmail.charAt(0).toUpperCase();
@@ -41,6 +51,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     fetchUserRole();
   }, [user]);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login'); // Redirect to login page after logout
+  };
+
   return (
     <header className="flex items-center justify-between h-16 px-4 bg-brand-green text-brand-green-foreground shadow-md z-40">
       <div className="flex items-center">
@@ -68,10 +83,31 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         <Button variant="ghost" size="icon" className="text-white">
           <Bell className="h-5 w-5" />
         </Button>
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={user?.user_metadata?.avatar_url || "https://github.com/shadcn.png"} alt={userEmail} />
-          <AvatarFallback>{userInitials}</AvatarFallback>
-        </Avatar>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.user_metadata?.avatar_url || "https://github.com/shadcn.png"} alt={userEmail} />
+                <AvatarFallback>{userInitials}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.user_metadata?.first_name || userEmail}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {userEmail}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
