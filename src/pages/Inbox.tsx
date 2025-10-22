@@ -125,7 +125,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
         .select("id, account_name, phone_number_id")
-        .eq("user_id", user.id);
+        .eq("user.id", user.id);
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
@@ -690,7 +690,7 @@ const Inbox = () => {
     return matchesFilterType && matchesLabel;
   });
 
-  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter";
+  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "f";
 
   const handleToggleConversationSelection = (conversationId: string) => {
     setSelectedConversationIds(prev =>
