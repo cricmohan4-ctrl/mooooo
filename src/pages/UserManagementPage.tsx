@@ -3,12 +3,25 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, RefreshCw, PlusCircle } from 'lucide-react';
+import { ArrowLeft, User, RefreshCw, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
+import AddUserDialog from '@/components/AddUserDialog';
+import EditUserDialog from '@/components/EditUserDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface UserDetail {
   id: string;
@@ -18,12 +31,16 @@ interface UserDetail {
   avatar_url: string | null;
   auth_created_at: string;
   profile_updated_at: string;
+  role: 'user' | 'admin'; // Added role
 }
 
 const UserManagementPage = () => {
-  const { user } = useSession();
+  const { user, isAdmin, session } = useSession();
   const [users, setUsers] = useState<UserDetail[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [selectedUserToEdit, setSelectedUserToEdit] = useState<UserDetail | null>(null);
 
   const fetchUsers = async () => {
     if (!user) return;
@@ -47,6 +64,49 @@ const UserManagementPage = () => {
     }
   };
 
+  const handleDeleteUser = async (userIdToDelete: string) => {
+    if (!session) {
+      showError("You must be logged in to delete a user.");
+      return;
+    }
+    if (userIdToDelete === user?.id) {
+      showError("You cannot delete your own account.");
+      return;
+    }
+
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: userIdToDelete },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (invokeError) {
+        console.error("Supabase Function Invoke Error:", invokeError.message);
+        showError(`Failed to delete user: ${invokeError.message}`);
+        return;
+      }
+
+      if (data.error) {
+        console.error("Edge Function returned error status:", data.error);
+        showError(`Failed to delete user: ${data.error}`);
+        return;
+      }
+
+      showSuccess("User deleted successfully!");
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error deleting user:", error.message);
+      showError(`Failed to delete user: ${error.message}`);
+    }
+  };
+
+  const handleEditUserClick = (user: UserDetail) => {
+    setSelectedUserToEdit(user);
+    setIsEditUserDialogOpen(true);
+  };
+
   useEffect(() => {
     if (user) {
       fetchUsers();
@@ -63,10 +123,11 @@ const UserManagementPage = () => {
           <Button variant="ghost" size="icon" onClick={fetchUsers} title="Refresh Users">
             <RefreshCw className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </Button>
-          {/* For adding new users, you might link to a custom signup form or an admin panel */}
-          {/* <Button variant="outline" size="icon" title="Add New User">
-            <PlusCircle className="h-4 w-4" />
-          </Button> */}
+          {isAdmin && (
+            <Button variant="outline" size="icon" title="Add New User" onClick={() => setIsAddUserDialogOpen(true)}>
+              <PlusCircle className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -101,25 +162,59 @@ const UserManagementPage = () => {
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{u.email}</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">
-                        Joined: {new Date(u.auth_created_at).toLocaleDateString()}
+                        Role: <span className="font-semibold">{u.role}</span> | Joined: {new Date(u.auth_created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  {/* Future: Add buttons for editing user roles, deleting users, etc. */}
-                  {/* <div className="flex space-x-2">
-                    <Button variant="ghost" size="icon" title="Edit User">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" title="Delete User">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div> */}
+                  {isAdmin && (
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="icon" title="Edit User" onClick={() => handleEditUserClick(u)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" title="Delete User" disabled={u.id === user?.id}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the user "{u.email}".
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteUser(u.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <AddUserDialog
+        isOpen={isAddUserDialogOpen}
+        onOpenChange={setIsAddUserDialogOpen}
+        onUserAdded={fetchUsers}
+      />
+
+      {selectedUserToEdit && (
+        <EditUserDialog
+          isOpen={isEditUserDialogOpen}
+          onOpenChange={setIsEditUserDialogOpen}
+          userToEdit={selectedUserToEdit}
+          onUserUpdated={fetchUsers}
+        />
+      )}
     </div>
   );
 };
