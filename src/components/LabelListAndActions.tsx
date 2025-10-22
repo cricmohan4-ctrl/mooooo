@@ -51,36 +51,29 @@ const LabelListAndActions: React.FC<LabelListAndActionsProps> = ({ onLabelsUpdat
     if (!currentUser) return;
     setIsLoading(true);
     try {
-      // Re-introduce the join to profiles to get user details
+      // Fetch labels without joining profiles initially to isolate the issue
       const { data, error } = await supabase
         .from('whatsapp_labels')
-        .select('id, name, color, user_id, profiles(first_name, last_name, id)') // Select user_id and profile info
+        .select('id, name, color, user_id') // Simplified select
         .order('name', { ascending: true });
 
       if (error) {
-        console.error("Supabase error fetching labels:", error); // Log the full error object
+        console.error("Supabase error fetching labels (simplified query):", error); // Log the full error object
         throw error;
       }
 
-      const labelsWithUserDetails: LabelItem[] = data.map((label: any) => {
-        const profile = label.profiles;
-        let userDisplayName = `User ID: ${label.user_id}`;
-        if (profile) {
-          const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-          userDisplayName = fullName || `User ID: ${label.user_id}`;
-        }
-        return {
-          id: label.id,
-          name: label.name,
-          color: label.color,
-          user_id: label.user_id,
-          user_email: userDisplayName,
-        };
-      });
+      // For now, user_email will just show the user_id
+      const labelsWithUserDetails: LabelItem[] = data.map((label: any) => ({
+        id: label.id,
+        name: label.name,
+        color: label.color,
+        user_id: label.user_id,
+        user_email: `User ID: ${label.user_id}`, // Placeholder
+      }));
 
       setLabels(labelsWithUserDetails);
     } catch (error: any) {
-      console.error("Error fetching labels in LabelListAndActions:", error.message); // More specific log
+      console.error("Error fetching labels in LabelListAndActions (simplified query):", error.message); // More specific log
       showError("Failed to load labels.");
     } finally {
       setIsLoading(false);
