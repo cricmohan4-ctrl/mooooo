@@ -24,6 +24,7 @@ import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
 import LabelBadge from '@/components/LabelBadge';
 import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog';
 import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover'; // Import new component
+import AttachmentOptionsDialog from '@/components/AttachmentOptionsDialog'; // Import new component
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
@@ -91,24 +92,13 @@ const Inbox = () => {
 
   const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]); // New state for multi-select
 
-  // Media states
+  // Media states for audio recording (kept here as it's direct input)
   const [isRecording, setIsRecording] = useState(false);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [audioCaption, setAudioCaption] = useState("");
-
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [capturedImageBlob, setCapturedImageBlob] = useState<Blob | null>(null);
-  const [capturedImageUrl, setCapturedImageUrl] = useState<string | null>(null);
-  const [imageCaption, setImageCaption] = useState("");
-
-  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileCaption, setFileCaption] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -421,7 +411,7 @@ const Inbox = () => {
     setSelectedConversation({ ...conversation, unread_count: 0, labels: [] });
   };
 
-  const uploadMediaToSupabase = async (file: Blob, fileName: string, fileType: string) => {
+  const uploadMediaToSupabase = useCallback(async (file: Blob, fileName: string, fileType: string) => {
     if (!user) {
       showError("You must be logged in to upload media.");
       return null;
@@ -451,9 +441,9 @@ const Inbox = () => {
       showError(`Failed to upload media: ${error.message}`);
       return null;
     }
-  };
+  }, [user]);
 
-  const handleSendMessage = async (
+  const handleSendMessage = useCallback(async (
     messageBody: string | null = null,
     mediaUrl: string | null = null,
     mediaType: string | null = null,
@@ -502,17 +492,12 @@ const Inbox = () => {
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setAudioCaption("");
-      setCapturedImageBlob(null);
-      setCapturedImageUrl(null);
-      setImageCaption("");
-      setSelectedFile(null);
-      setFileCaption("");
-      setIsAttachmentDialogOpen(false);
+      // No need to reset camera/gallery/attachment states here, as they are managed by their own dialogs
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
     }
-  };
+  }, [user, selectedConversation, whatsappAccounts]);
 
   // --- Audio Recording Logic ---
   const startRecording = async () => {
@@ -560,87 +545,6 @@ const Inbox = () => {
       }
     } else {
       showError("No audio recorded to send.");
-    }
-  };
-
-  // --- Camera Logic ---
-  const openCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setIsCameraOpen(true);
-      }
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      showError("Failed to open camera. Please check camera permissions.");
-    }
-  };
-
-  const closeCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-    }
-    setIsCameraOpen(false);
-    setCapturedImageBlob(null);
-    setCapturedImageUrl(null);
-    setImageCaption("");
-  };
-
-  const takePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
-      if (context) {
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
-        canvasRef.current.toBlob(async (blob) => {
-          if (blob) {
-            setCapturedImageBlob(blob);
-            setCapturedImageUrl(URL.createObjectURL(blob));
-            showSuccess("Photo captured!");
-          }
-        }, 'image/jpeg');
-      }
-    }
-  };
-
-  const sendCapturedImage = async () => {
-    if (capturedImageBlob && user) {
-      const fileName = `image-${Date.now()}.jpeg`;
-      const mediaUrl = await uploadMediaToSupabase(capturedImageBlob, fileName, 'image/jpeg');
-      if (mediaUrl) {
-        await handleSendMessage(null, mediaUrl, 'image', imageCaption);
-        closeCamera();
-      }
-    } else {
-      showError("No image captured to send.");
-    }
-  };
-
-  // --- Attachment Logic ---
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
-    }
-  };
-
-  const sendAttachment = async () => {
-    if (selectedFile && user) {
-      const fileExtension = selectedFile.name.split('.').pop();
-      const fileName = `document-${Date.now()}.${fileExtension}`;
-      const mediaUrl = await uploadMediaToSupabase(selectedFile, fileName, selectedFile.type);
-      if (mediaUrl) {
-        let mediaType = 'document';
-        if (selectedFile.type.startsWith('image/')) mediaType = 'image';
-        if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
-        if (selectedFile.type.startsWith('video/')) mediaType = 'video';
-
-        await handleSendMessage(null, mediaUrl, mediaType, fileCaption);
-      }
-    } else {
-      showError("No file selected to send.");
     }
   };
 
@@ -953,21 +857,15 @@ const Inbox = () => {
                   }}
                   className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
                 />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-2 flex flex-col space-y-2">
-                    <Button variant="ghost" className="justify-start" onClick={openCamera}>
-                      <Camera className="h-4 w-4 mr-2" /> Camera
-                    </Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => setIsAttachmentDialogOpen(true)}>
-                      <Paperclip className="h-4 w-4 mr-2" /> Document
-                    </Button>
-                  </PopoverContent>
-                </Popover>
+                {selectedConversation && user && (
+                  <AttachmentOptionsDialog
+                    onSendMessage={handleSendMessage}
+                    onUploadMedia={uploadMediaToSupabase}
+                    selectedConversationId={selectedConversation.id}
+                    whatsappAccountId={selectedConversation.whatsapp_account_id}
+                    userId={user.id}
+                  />
+                )}
 
                 {/* Quick Replies Popover */}
                 <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
@@ -1031,11 +929,11 @@ const Inbox = () => {
         )}
       </div>
 
-      {/* Audio Recording Dialog */}
+      {/* Audio Recording Dialog (for direct mic recording) */}
       <Dialog open={!!recordedAudioUrl} onOpenChange={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Send Audio Message</DialogTitle>
+            <DialogTitle>Send Recorded Audio Message</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {recordedAudioUrl && (
@@ -1057,87 +955,6 @@ const Inbox = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>Cancel</Button>
             <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob}>Send Audio</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Camera Dialog */}
-      <Dialog open={isCameraOpen} onOpenChange={closeCamera}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Take Photo</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            {!capturedImageUrl ? (
-              <video ref={videoRef} className="w-full h-auto rounded-md bg-black" autoPlay playsInline></video>
-            ) : (
-              <img src={capturedImageUrl} alt="Captured" className="w-full h-auto rounded-md object-contain" />
-            )}
-            <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
-            <div className="grid grid-cols-4 items-center gap-4 w-full">
-              <Label htmlFor="imageCaption" className="text-right">
-                Caption (Optional)
-              </Label>
-              <Input
-                id="imageCaption"
-                value={imageCaption}
-                onChange={(e) => setImageCaption(e.target.value)}
-                className="col-span-3"
-                placeholder="Add a caption to your image"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeCamera}>Cancel</Button>
-            {!capturedImageUrl ? (
-              <Button onClick={takePhoto}>Take Photo</Button>
-            ) : (
-              <Button onClick={sendCapturedImage} disabled={!capturedImageBlob}>Send Photo</Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Attachment Dialog */}
-      <Dialog open={isAttachmentDialogOpen} onOpenChange={setIsAttachmentDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Attachment</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="fileInput" className="text-right">
-                File
-              </Label>
-              <Input
-                id="fileInput"
-                type="file"
-                onChange={handleFileChange}
-                className="col-span-3"
-              />
-            </div>
-            {selectedFile && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Selected:</Label>
-                <span className="col-span-3 text-sm truncate">{selectedFile.name}</span>
-              </div>
-            )}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="fileCaption" className="text-right">
-                Caption (Optional)
-              </Label>
-              <Input
-                id="fileCaption"
-                value={fileCaption}
-                onChange={(e) => setFileCaption(e.target.value)}
-                className="col-span-3"
-                placeholder="Add a caption to your file"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsAttachmentDialogOpen(false); setSelectedFile(null); setFileCaption(""); }}>Cancel</Button>
-            <Button onClick={sendAttachment} disabled={!selectedFile}>Send File</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
