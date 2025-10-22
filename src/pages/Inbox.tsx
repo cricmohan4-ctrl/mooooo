@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X } from 'lucide-react'; // Added FileAudio, MessageSquareText, X
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags } from 'lucide-react'; // Added ListFilter, MailOpen, SquareX, Tags
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -690,7 +690,7 @@ const Inbox = () => {
     return matchesFilterType && matchesLabel;
   });
 
-  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "f";
+  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter"; // Keep for popover content
 
   const handleToggleConversationSelection = (conversationId: string) => {
     setSelectedConversationIds(prev =>
@@ -740,15 +740,19 @@ const Inbox = () => {
                   variant={filterType === 'all' ? 'default' : 'secondary'}
                   className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
                   onClick={() => { setFilterType('all'); setSelectedLabelFilterId(null); }}
+                  size="icon" // Make it an icon button
+                  title="All Conversations"
                 >
-                  All
+                  <ListFilter className="h-4 w-4" />
                 </Button>
                 <Button
                   variant={filterType === 'unread' ? 'default' : 'secondary'}
                   className={cn("rounded-full px-4 py-2 text-sm", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
                   onClick={() => { setFilterType('unread'); setSelectedLabelFilterId(null); }}
+                  size="icon" // Make it an icon button
+                  title="Unread Conversations"
                 >
-                  Unread
+                  <MailOpen className="h-4 w-4" />
                   {totalUnreadCount > 0 && (
                     <span className="ml-2 bg-white text-brand-green rounded-full px-2">
                       {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
@@ -760,8 +764,10 @@ const Inbox = () => {
                     <Button
                       variant={selectedLabelFilterId ? 'default' : 'secondary'}
                       className={cn("rounded-full px-4 py-2 text-sm", selectedLabelFilterId ? 'bg-brand-green text-white' : '')}
+                      size="icon" // Make it an icon button
+                      title={selectedLabelFilterId ? `Filter: ${selectedLabelName}` : "Filter by Label"}
                     >
-                      <Tag className="h-4 w-4 mr-2" /> {selectedLabelName}
+                      <Tag className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-48 p-2">
@@ -796,8 +802,8 @@ const Inbox = () => {
                         handleClearSelection(); // Clear selection after applying labels
                       }}
                     />
-                    <Button variant="outline" size="sm" onClick={handleClearSelection}>
-                      <X className="h-4 w-4 mr-2" /> Clear ({selectedConversationIds.length})
+                    <Button variant="outline" size="icon" onClick={handleClearSelection} title={`Clear Selection (${selectedConversationIds.length})`}>
+                      <SquareX className="h-4 w-4" />
                     </Button>
                   </>
                 )}

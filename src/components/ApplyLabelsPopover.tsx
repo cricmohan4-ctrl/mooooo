@@ -7,8 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Label } from '@/components/ui/label';
-import { Check, Tag } from 'lucide-react';
+import { Check, Tag, Tags } from 'lucide-react'; // Added Tags icon
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -103,7 +102,7 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" title="Apply Labels">
-          <Tag className="h-4 w-4" />
+          <Tags className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-2">
