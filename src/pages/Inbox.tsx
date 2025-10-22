@@ -125,7 +125,7 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
         .select("id, account_name, phone_number_id")
-        .eq("user.id", user.id);
+        .eq("user_id", user.id);
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
@@ -398,7 +398,10 @@ const Inbox = () => {
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
-    scrollToBottom();
+    // Use requestAnimationFrame to ensure DOM has rendered before scrolling
+    requestAnimationFrame(() => {
+      scrollToBottom();
+    });
   }, [messages]);
 
   const handleConversationSelect = (conversation: Conversation) => {
