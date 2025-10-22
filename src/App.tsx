@@ -1,4 +1,4 @@
-import React from "react"; // Added explicit React import
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -21,10 +21,20 @@ const queryClient = new QueryClient();
 
 // A wrapper component to protect routes
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, isLoading } = useSession();
+  const { session, isLoading, hasAuthError } = useSession();
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading authentication...</div>;
+  }
+
+  if (hasAuthError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center text-red-600 dark:text-red-400">
+        <h2 className="text-2xl font-bold mb-2">Authentication Error</h2>
+        <p className="text-lg mb-4">Could not load user session. Please check your Supabase configuration or try logging in again.</p>
+        <Navigate to="/login" replace /> {/* Redirect to login on error */}
+      </div>
+    );
   }
 
   if (!session) {
@@ -82,7 +92,7 @@ const AppContent = () => (
             path="/inbox"
             element={
               <ProtectedRoute>
-                <DashboardLayout hideHeader={true}> {/* noMainPadding removed */}
+                <DashboardLayout hideHeader={true}>
                   <Inbox />
                 </DashboardLayout>
               </ProtectedRoute>

@@ -7,15 +7,16 @@ interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
-  role: 'user' | 'admin'; // Added role
+  role: 'user' | 'admin';
 }
 
 interface SessionContextType {
   session: Session | null;
   user: User | null;
-  profile: UserProfile | null; // Added profile
+  profile: UserProfile | null;
   isLoading: boolean;
-  isAdmin: boolean; // Added isAdmin helper
+  isAdmin: boolean;
+  hasAuthError: boolean; // Added hasAuthError
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -26,6 +27,7 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hasAuthError, setHasAuthError] = useState(false); // Initialize hasAuthError
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -35,7 +37,7 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
         .eq('id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
       if (data) {
@@ -49,24 +51,36 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
       console.error("Error fetching user profile:", error);
       setProfile(null);
       setIsAdmin(false);
+      setHasAuthError(true); // Set error state if profile fetch fails
     }
   };
 
   useEffect(() => {
     const handleAuthStateChange = async (_event: string, currentSession: Session | null) => {
-      setSession(currentSession);
-      setUser(currentSession?.user || null);
-      if (currentSession?.user) {
-        await fetchUserProfile(currentSession.user.id);
-      } else {
-        setProfile(null);
-        setIsAdmin(false);
+      try {
+        setSession(currentSession);
+        setUser(currentSession?.user || null);
+        if (currentSession?.user) {
+          await fetchUserProfile(currentSession.user.id);
+        } else {
+          setProfile(null);
+          setIsAdmin(false);
+        }
+        setHasAuthError(false); // Clear error on successful state change
+      } catch (error) {
+        console.error("Error during auth state change:", error);
+        setHasAuthError(true); // Set error state if anything goes wrong
+      } finally {
+        setIsLoading(false); // Always set loading to false
       }
-      setIsLoading(false);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleAuthStateChange('INITIAL_SESSION', session);
+    }).catch((error) => {
+      console.error("Error getting initial session:", error);
+      setHasAuthError(true);
+      setIsLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
@@ -75,7 +89,7 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
   }, []);
 
   return (
-    <SessionContext.Provider value={{ session, user, profile, isLoading, isAdmin }}>
+    <SessionContext.Provider value={{ session, user, profile, isLoading, isAdmin, hasAuthError }}>
       {children}
     </SessionContext.Provider>
   );
