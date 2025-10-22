@@ -7,15 +7,15 @@ interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
-  role: 'user' | 'admin'; // Added role
+  role: 'user' | 'admin';
 }
 
 interface SessionContextType {
   session: Session | null;
   user: User | null;
-  profile: UserProfile | null; // Added profile
+  profile: UserProfile | null;
   isLoading: boolean;
-  isAdmin: boolean; // Added isAdmin helper
+  isAdmin: boolean;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -28,6 +28,7 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchUserProfile = async (userId: string) => {
+    console.log('Fetching user profile for userId:', userId);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -41,9 +42,11 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
       if (data) {
         setProfile(data as UserProfile);
         setIsAdmin(data.role === 'admin');
+        console.log('User profile fetched:', data);
       } else {
         setProfile(null);
         setIsAdmin(false);
+        console.log('No user profile found for userId:', userId);
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -54,6 +57,7 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
 
   useEffect(() => {
     const handleAuthStateChange = async (_event: string, currentSession: Session | null) => {
+      console.log('Auth state changed:', _event, 'Session:', currentSession ? 'present' : 'null');
       setSession(currentSession);
       setUser(currentSession?.user || null);
       if (currentSession?.user) {
@@ -62,16 +66,29 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
         setProfile(null);
         setIsAdmin(false);
       }
-      setIsLoading(false);
+      setIsLoading(false); // Ensure isLoading is always set to false here
+      console.log('Authentication loading complete.');
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      handleAuthStateChange('INITIAL_SESSION', session);
-    });
+    const initializeSession = async () => {
+      try {
+        console.log('Attempting to get initial Supabase session...');
+        const { data: { session } } = await supabase.auth.getSession();
+        await handleAuthStateChange('INITIAL_SESSION', session);
+      } catch (error) {
+        console.error('Error during initial session fetch:', error);
+        setIsLoading(false); // Ensure isLoading is false even if initial fetch fails
+      }
+    };
+
+    initializeSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('Unsubscribing from auth state changes.');
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
