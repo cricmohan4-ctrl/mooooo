@@ -1,48 +1,67 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Inbox,
   Plug,
   Bot,
-  Users, // Import Users icon
-  Radio,
-  MessageSquare,
-  Workflow,
-  ShoppingCart,
-  Settings,
-  UserCog,
-  UserPlus,
-  ReceiptText,
+  Users,
   Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSession } from '@/integrations/supabase/auth'; // Import useSession
+import { supabase } from '@/integrations/supabase/client'; // Import supabase client
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const navItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Shared Inbox', href: '/inbox', icon: Inbox },
-  { name: 'Connect Account', href: '/connect-account', icon: Plug },
-  { name: 'Chatbot Rules', href: '/chatbot-rules', icon: Bot },
-  { name: 'User Management', href: '/user-management', icon: Users }, // New navigation item
-];
-
-const controlPanelItems = [
-  // All items removed as per user request
+const allNavItems = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['user', 'admin'] },
+  { name: 'Shared Inbox', href: '/inbox', icon: Inbox, roles: ['user', 'admin'] },
+  { name: 'Connect Account', href: '/connect-account', icon: Plug, roles: ['admin'] },
+  { name: 'Chatbot Rules', href: '/chatbot-rules', icon: Bot, roles: ['admin'] },
+  { name: 'User Management', href: '/user-management', icon: Users, roles: ['admin'] },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { user: currentUser } = useSession(); // Get current user from session
+  const [userRole, setUserRole] = useState<'user' | 'admin' | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (currentUser) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', currentUser.id)
+            .single();
+
+          if (error) throw error;
+          setUserRole(data?.role || 'user'); // Default to 'user' if role is null
+        } catch (error: any) {
+          console.error("Error fetching user role for sidebar:", error.message);
+          setUserRole('user'); // Default to 'user' role on error
+        }
+      } else {
+        setUserRole(null);
+      }
+    };
+
+    fetchUserRole();
+  }, [currentUser]);
+
+  const filteredNavItems = allNavItems.filter(item => 
+    userRole && item.roles.includes(userRole)
+  );
 
   const sidebarClasses = cn(
     "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-300 ease-in-out",
@@ -68,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       </div>
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <li key={item.name}>
               <Link
                 to={item.href}
@@ -86,8 +105,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </li>
           ))}
         </ul>
-
-        {/* Removed Control Panel section as it is now empty */}
       </nav>
     </aside>
   );
