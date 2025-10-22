@@ -612,13 +612,12 @@ const Inbox = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8"> {/* Added padding here */}
-      {/* Main Content Area (Conversations List or Message Area) */}
-      <div className="flex-1 flex overflow-hidden rounded-lg shadow-lg"> {/* Added rounded-lg and shadow-lg */}
+    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8">
+      <div className="flex-1 flex overflow-hidden rounded-lg shadow-lg">
         {/* Conversations List */}
         {!selectedConversation && (
-          <div className="relative w-full bg-white dark:bg-gray-800 flex flex-col"> {/* Changed to flex-col to manage its children */}
-            <div className="p-4 flex-shrink-0"> {/* Padding already here, keep it */}
+          <div className="relative w-full bg-white dark:bg-gray-800 flex flex-col">
+            <div className="p-4 flex-shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <Button variant="ghost" size="icon" asChild>
                   <Link to="/dashboard">
@@ -646,7 +645,7 @@ const Inbox = () => {
                   variant={filterType === 'all' ? 'default' : 'secondary'}
                   className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
                   onClick={() => { setFilterType('all'); setSelectedLabelFilterId(null); }}
-                  size="icon" // Make it an icon button
+                  size="icon"
                   title="All Conversations"
                 >
                   <ListFilter className="h-4 w-4" />
@@ -655,7 +654,7 @@ const Inbox = () => {
                   variant={filterType === 'unread' ? 'default' : 'secondary'}
                   className={cn("rounded-full px-4 py-2 text-sm", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
                   onClick={() => { setFilterType('unread'); setSelectedLabelFilterId(null); }}
-                  size="icon" // Make it an icon button
+                  size="icon"
                   title="Unread Conversations"
                 >
                   <MailOpen className="h-4 w-4" />
@@ -670,7 +669,7 @@ const Inbox = () => {
                     <Button
                       variant={selectedLabelFilterId ? 'default' : 'secondary'}
                       className={cn("rounded-full px-4 py-2 text-sm", selectedLabelFilterId ? 'bg-brand-green text-white' : '')}
-                      size="icon" // Make it an icon button
+                      size="icon"
                       title={selectedLabelFilterId ? `Filter: ${selectedLabelName}` : "Filter by Label"}
                     >
                       <Tag className="h-4 w-4" />
@@ -704,8 +703,8 @@ const Inbox = () => {
                     <BulkApplyLabelsPopover
                       conversationIds={selectedConversationIds}
                       onLabelsApplied={() => {
-                        fetchConversations(); // Refresh conversations to update labels
-                        handleClearSelection(); // Clear selection after applying labels
+                        fetchConversations();
+                        handleClearSelection();
                       }}
                     />
                     <Button variant="outline" size="icon" onClick={handleClearSelection} title={`Clear Selection (${selectedConversationIds.length})`}>
@@ -716,7 +715,7 @@ const Inbox = () => {
               </div>
             </div>
             <Separator />
-            <div className="flex-1 overflow-y-auto"> {/* This is the scrollable part for conversations */}
+            <div className="flex-1 overflow-y-auto">
               {isLoadingConversations ? (
                 <div className="p-4 text-center text-gray-500">Loading conversations...</div>
               ) : filteredConversations.length === 0 ? (
@@ -780,9 +779,9 @@ const Inbox = () => {
 
         {/* Message Area */}
         {selectedConversation && (
-          <div className="flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900">
-            {/* Header for Selected Conversation */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 flex-shrink-0">
+          <div className="relative flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900">
+            {/* Header for Selected Conversation - Fixed at top */}
+            <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-10 h-[72px]"> {/* Explicit height for padding calc */}
               <div className="flex items-center">
                 <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
                   <ArrowLeft className="h-5 w-5" />
@@ -809,7 +808,8 @@ const Inbox = () => {
               </div>
             </div>
 
-            <div className="flex-1 p-4 overflow-y-auto space-y-4"> {/* This should be the scrollable part */}
+            {/* Messages - Scrollable area, takes remaining space */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 pt-[72px] pb-[80px]"> {/* Adjusted padding-top/bottom */}
               {isLoadingMessages ? (
                 <div className="text-center text-gray-500">Loading messages...</div>
               ) : messages.length === 0 ? (
@@ -848,7 +848,9 @@ const Inbox = () => {
               )}
               <div ref={messagesEndRef} />
             </div>
-            <div className="p-2 flex items-end bg-gray-50 dark:bg-gray-900 flex-shrink-0">
+
+            {/* Input Area - Fixed at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-2 flex items-end bg-gray-50 dark:bg-gray-900 z-10 h-[80px]"> {/* Explicit height for padding calc */}
               <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
                 <Input
                   type="text"
