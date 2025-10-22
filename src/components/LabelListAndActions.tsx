@@ -57,7 +57,10 @@ const LabelListAndActions: React.FC<LabelListAndActionsProps> = ({ onLabelsUpdat
         .select('id, name, color, user_id, profiles(first_name, last_name, id)') // Select user_id and profile info
         .order('name', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error fetching labels:", error); // Log the full error object
+        throw error;
+      }
 
       const labelsWithUserDetails: LabelItem[] = data.map((label: any) => ({
         id: label.id,
@@ -69,7 +72,7 @@ const LabelListAndActions: React.FC<LabelListAndActionsProps> = ({ onLabelsUpdat
 
       setLabels(labelsWithUserDetails);
     } catch (error: any) {
-      console.error("Error fetching labels:", error.message);
+      console.error("Error fetching labels in LabelListAndActions:", error.message); // More specific log
       showError("Failed to load labels.");
     } finally {
       setIsLoading(false);
@@ -110,8 +113,8 @@ const LabelListAndActions: React.FC<LabelListAndActionsProps> = ({ onLabelsUpdat
       } else {
         showSuccess("Label updated successfully!");
         setEditingLabel(null);
-        fetchLabels();
-        onLabelsUpdated();
+        fetchLabels(); // Re-fetch locally
+        onLabelsUpdated(); // Notify parent
       }
     } catch (error: any) {
       console.error("Error updating label:", error.message);
@@ -132,8 +135,8 @@ const LabelListAndActions: React.FC<LabelListAndActionsProps> = ({ onLabelsUpdat
 
       if (error) throw error;
       showSuccess("Label deleted successfully!");
-      fetchLabels();
-      onLabelsUpdated();
+      fetchLabels(); // Re-fetch locally
+      onLabelsUpdated(); // Notify parent
     } catch (error: any) {
       console.error("Error deleting label:", error.message);
       showError(`Failed to delete label: ${error.message}`);
