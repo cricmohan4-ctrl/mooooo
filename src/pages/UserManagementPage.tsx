@@ -1,14 +1,26 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, RefreshCw, PlusCircle } from 'lucide-react';
+import { ArrowLeft, User, RefreshCw, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
-import { showError } from "@/utils/toast";
+import { showError, showSuccess } from "@/utils/toast";
+import AddUserDialog from '@/components/AddUserDialog'; // Import the new dialog
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface UserDetail {
   id: string;
@@ -18,18 +30,40 @@ interface UserDetail {
   avatar_url: string | null;
   auth_created_at: string;
   profile_updated_at: string;
+  role: 'user' | 'admin'; // Added role
 }
 
 const UserManagementPage = () => {
-  const { user } = useSession();
+  const { user: currentUser, isLoading: isLoadingSession } = useSession();
   const [users, setUsers] = useState<UserDetail[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<'user' | 'admin' | null>(null);
+
+  const fetchCurrentUserRole = useCallback(async () => {
+    if (!currentUser) {
+      setCurrentUserRole(null);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (error) throw error;
+      setCurrentUserRole(data?.role || 'user');
+    } catch (error: any) {
+      console.error("Error fetching current user role:", error.message);
+      setCurrentUserRole('user'); // Default to user role on error
+    }
+  }, [currentUser]);
 
   const fetchUsers = async () => {
-    if (!user) return;
+    if (!currentUser) return;
     setIsLoadingUsers(true);
     try {
-      // Fetch from the new user_details view
       const { data, error } = await supabase
         .from("user_details")
         .select("*")
@@ -47,11 +81,53 @@ const UserManagementPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchUsers();
+  const handleDeleteUser = async (userIdToDelete: string, userEmail: string) => {
+    if (!currentUser || currentUserRole !== 'admin') {
+      showError("You do not have permission to delete users.");
+      return;
     }
-  }, [user]);
+    if (userIdToDelete === currentUser.id) {
+      showError("You cannot delete your own account from here.");
+      return;
+    }
+
+    try {
+      // Invoke Edge Function to delete user
+      const { data, error: invokeError } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userIdToDelete },
+        headers: {
+          Authorization: `Bearer ${await supabase.auth.getSession().then(s => s.data.session?.access_token)}`,
+        },
+      });
+
+      if (invokeError) {
+        console.error("Supabase Function Invoke Error:", invokeError.message);
+        showError(`Failed to delete user: ${invokeError.message}`);
+        return;
+      }
+
+      if (data.status === 'error') {
+        console.error("Edge Function returned error status:", data.message, data.details);
+        showError(`Failed to delete user: ${data.message}`);
+        return;
+      }
+
+      showSuccess(`User "${userEmail}" deleted successfully!`);
+      fetchUsers(); // Refresh the list
+    } catch (error: any) {
+      console.error("Error deleting user:", error.message);
+      showError(`Failed to delete user: ${error.message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoadingSession) {
+      fetchCurrentUserRole();
+      if (currentUser) {
+        fetchUsers();
+      }
+    }
+  }, [currentUser, isLoadingSession, fetchCurrentUserRole]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -63,10 +139,11 @@ const UserManagementPage = () => {
           <Button variant="ghost" size="icon" onClick={fetchUsers} title="Refresh Users">
             <RefreshCw className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </Button>
-          {/* For adding new users, you might link to a custom signup form or an admin panel */}
-          {/* <Button variant="outline" size="icon" title="Add New User">
-            <PlusCircle className="h-4 w-4" />
-          </Button> */}
+          {currentUserRole === 'admin' && (
+            <Button variant="outline" size="icon" onClick={() => setIsAddUserDialogOpen(true)} title="Add New User">
+              <PlusCircle className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -101,25 +178,51 @@ const UserManagementPage = () => {
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{u.email}</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">
-                        Joined: {new Date(u.auth_created_at).toLocaleDateString()}
+                        Joined: {new Date(u.auth_created_at).toLocaleDateString()} | Role: {u.role}
                       </p>
                     </div>
                   </div>
-                  {/* Future: Add buttons for editing user roles, deleting users, etc. */}
-                  {/* <div className="flex space-x-2">
-                    <Button variant="ghost" size="icon" title="Edit User">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" title="Delete User">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div> */}
+                  {currentUserRole === 'admin' && u.id !== currentUser?.id && (
+                    <div className="flex space-x-2">
+                      {/* Edit User functionality can be added here */}
+                      {/* <Button variant="ghost" size="icon" title="Edit User">
+                        <Edit className="h-4 w-4" />
+                      </Button> */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" title="Delete User">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the user "{u.email}" and all their associated data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteUser(u.id, u.email)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <AddUserDialog
+        isOpen={isAddUserDialogOpen}
+        onOpenChange={setIsAddUserDialogOpen}
+        onUserAdded={fetchUsers}
+      />
     </div>
   );
 };

@@ -1,10 +1,11 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Menu, Bell, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useSession } from '@/integrations/supabase/auth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -12,8 +13,33 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user } = useSession();
+  const [userRole, setUserRole] = useState<string | null>(null);
   const userEmail = user?.email || 'Guest';
   const userInitials = userEmail.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+          if (error) throw error;
+          setUserRole(data?.role || 'user');
+        } catch (error: any) {
+          console.error("Error fetching user role for header:", error.message);
+          setUserRole('user'); // Default to user role on error
+        }
+      } else {
+        setUserRole(null);
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   return (
     <header className="flex items-center justify-between h-16 px-4 bg-brand-green text-brand-green-foreground shadow-md z-40">
@@ -25,6 +51,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
       </div>
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2 text-sm">
+          {userRole && (
+            <div className="bg-white bg-opacity-20 px-3 py-1 rounded-full flex items-center">
+              <span className="font-medium">Role: {userRole.charAt(0).toUpperCase() + userRole.slice(1)}</span>
+            </div>
+          )}
           <div className="bg-white bg-opacity-20 px-3 py-1 rounded-full flex items-center">
             <span className="font-medium">Subscriber</span>
             <span className="ml-1">0/00</span>
