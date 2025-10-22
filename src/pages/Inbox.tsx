@@ -57,7 +57,7 @@ interface Conversation {
   whatsapp_account_id: string;
   whatsapp_account_name: string;
   unread_count: number;
-  labels: LabelItem[];
+  labels: (LabelItem & { applied_by_user_id: string })[]; // Added applied_by_user_id
 }
 
 interface Message {
@@ -176,11 +176,11 @@ const Inbox = () => {
 
       const conversationIds = convData.map((conv: any) => conv.id).filter(Boolean);
 
-      let labelsByConversationId: Record<string, LabelItem[]> = {};
+      let labelsByConversationId: Record<string, (LabelItem & { applied_by_user_id: string })[]> = {};
       if (conversationIds.length > 0) {
         const { data: convLabelsData, error: convLabelsError } = await supabase
           .from('whatsapp_conversation_labels')
-          .select('conversation_id, label_id, whatsapp_labels(id, name, color)')
+          .select('conversation_id, label_id, user_id, whatsapp_labels(id, name, color)') // Fetch user_id
           .in('conversation_id', conversationIds);
 
         if (convLabelsError) throw convLabelsError;
@@ -191,10 +191,10 @@ const Inbox = () => {
             if (!acc[cl.conversation_id]) {
               acc[cl.conversation_id] = [];
             }
-            acc[cl.conversation_id].push(label);
+            acc[cl.conversation_id].push({ ...label, applied_by_user_id: cl.user_id }); // Store applied_by_user_id
           }
           return acc;
-        }, {} as Record<string, LabelItem[]>);
+        }, {} as Record<string, (LabelItem & { applied_by_user_id: string })[]>);
       }
 
       const formattedConversations: Conversation[] = convData.map((conv: any) => ({
@@ -612,8 +612,8 @@ const Inbox = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full"> {/* Added h-full */}
-      <div className="flex-1 flex rounded-lg shadow-lg h-full"> {/* Added h-full */}
+    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full">
+      <div className="flex-1 flex rounded-lg shadow-lg h-full">
         {/* Conversations List */}
         {!selectedConversation && (
           <div className="relative w-full bg-white dark:bg-gray-800 flex flex-col overflow-y-auto p-4 sm:p-6 lg:p-8">
@@ -779,7 +779,7 @@ const Inbox = () => {
 
         {/* Message Area */}
         {selectedConversation && (
-          <div className="relative flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900 h-full"> {/* Added h-full */}
+          <div className="relative flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900 h-full">
             {/* Header for Selected Conversation - Fixed at top */}
             <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-10 h-[72px]"> {/* Explicit height for padding calc */}
               <div className="flex items-center">

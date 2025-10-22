@@ -18,11 +18,12 @@ interface LabelItem {
   id: string;
   name: string;
   color: string;
+  applied_by_user_id?: string; // Added optional applied_by_user_id
 }
 
 interface ApplyLabelsPopoverProps {
   conversationId: string;
-  currentLabels: LabelItem[]; // Labels currently applied to this conversation
+  currentLabels: (LabelItem & { applied_by_user_id: string })[]; // Explicitly include applied_by_user_id
   onLabelsApplied: () => void; // Callback to refresh parent
 }
 
@@ -59,31 +60,40 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
     }
   }, [user, isOpen, fetchAllLabels]);
 
-  const isLabelApplied = (labelId: string) => {
-    return currentLabels.some(label => label.id === labelId);
+  const getAppliedLabel = (labelId: string) => {
+    return currentLabels.find(label => label.id === labelId);
   };
 
   const handleToggleLabel = async (label: LabelItem) => {
     if (!user) return;
     setIsLoading(true);
     try {
-      if (isLabelApplied(label.id)) {
-        // Remove label
+      const appliedLabel = getAppliedLabel(label.id);
+
+      if (appliedLabel) {
+        // Attempting to remove label
+        if (appliedLabel.applied_by_user_id !== user.id) {
+          showError("You can only remove labels you have applied.");
+          setIsLoading(false);
+          return;
+        }
         const { error } = await supabase
           .from('whatsapp_conversation_labels')
           .delete()
           .eq('conversation_id', conversationId)
-          .eq('label_id', label.id);
+          .eq('label_id', label.id)
+          .eq('user_id', user.id); // Ensure only own labels are deleted
 
         if (error) throw error;
         showSuccess(`Label "${label.name}" removed.`);
       } else {
-        // Add label
+        // Attempting to add label
         const { error } = await supabase
           .from('whatsapp_conversation_labels')
           .insert({
             conversation_id: conversationId,
             label_id: label.id,
+            user_id: user.id, // Explicitly set user_id on insert
           });
 
         if (error) throw error;
@@ -114,20 +124,26 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
           <p className="text-sm text-gray-500">No labels available. Create some in "Manage Labels".</p>
         ) : (
           <div className="space-y-1">
-            {allLabels.map((label) => (
-              <Button
-                key={label.id}
-                variant="ghost"
-                className="w-full justify-between text-sm h-auto py-1.5"
-                onClick={() => handleToggleLabel(label)}
-                disabled={isLoading}
-              >
-                <div className="flex items-center">
-                  <LabelBadge name={label.name} color={label.color} className="mr-2" />
-                </div>
-                {isLabelApplied(label.id) && <Check className="h-4 w-4 text-green-500" />}
-              </Button>
-            ))}
+            {allLabels.map((label) => {
+              const appliedLabel = getAppliedLabel(label.id);
+              const isApplied = !!appliedLabel;
+              const canRemove = isApplied && appliedLabel.applied_by_user_id === user?.id;
+
+              return (
+                <Button
+                  key={label.id}
+                  variant="ghost"
+                  className="w-full justify-between text-sm h-auto py-1.5"
+                  onClick={() => handleToggleLabel(label)}
+                  disabled={isLoading || (isApplied && !canRemove)} // Disable if applied by another user
+                >
+                  <div className="flex items-center">
+                    <LabelBadge name={label.name} color={label.color} className="mr-2" />
+                  </div>
+                  {isApplied && <Check className="h-4 w-4 text-green-500" />}
+                </Button>
+              );
+            })}
           </div>
         )}
       </PopoverContent>

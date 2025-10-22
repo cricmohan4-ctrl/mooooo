@@ -20,6 +20,13 @@ interface LabelItem {
   color: string;
 }
 
+// New interface for conversation labels with user_id
+interface ConversationLabel {
+  conversation_id: string;
+  label_id: string;
+  user_id: string;
+}
+
 interface BulkApplyLabelsPopoverProps {
   conversationIds: string[]; // IDs of selected conversations
   onLabelsApplied: () => void; // Callback to refresh parent
@@ -33,7 +40,7 @@ const BulkApplyLabelsPopover: React.FC<BulkApplyLabelsPopoverProps> = ({
   const [allLabels, setAllLabels] = useState<LabelItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [labelsAppliedToAllSelected, setLabelsAppliedToAllSelected] = useState<string[]>([]);
+  const [allConversationLabels, setAllConversationLabels] = useState<ConversationLabel[]>([]); // Store all labels for selected conversations
 
   const fetchAllLabels = useCallback(async () => {
     if (!user) return;
@@ -52,93 +59,134 @@ const BulkApplyLabelsPopover: React.FC<BulkApplyLabelsPopoverProps> = ({
     }
   }, [user]);
 
-  const checkLabelsAppliedToAllSelected = useCallback(async () => {
+  const fetchConversationLabels = useCallback(async () => {
     if (!user || conversationIds.length === 0) {
-      setLabelsAppliedToAllSelected([]);
+      setAllConversationLabels([]);
       return;
     }
-
     try {
-      const { data: conversationLabels, error } = await supabase
+      const { data, error } = await supabase
         .from('whatsapp_conversation_labels')
-        .select('conversation_id, label_id')
+        .select('conversation_id, label_id, user_id') // Fetch user_id
         .in('conversation_id', conversationIds);
 
       if (error) throw error;
-
-      const labelCounts: { [labelId: string]: number } = {};
-      conversationLabels.forEach(cl => {
-        labelCounts[cl.label_id] = (labelCounts[cl.label_id] || 0) + 1;
-      });
-
-      const labelsFullyApplied = Object.keys(labelCounts).filter(
-        labelId => labelCounts[labelId] === conversationIds.length
-      );
-      setLabelsAppliedToAllSelected(labelsFullyApplied);
-
+      setAllConversationLabels(data || []);
     } catch (error: any) {
-      console.error("Error checking labels for selected conversations:", error.message);
-      showError("Failed to check applied labels.");
+      console.error("Error fetching conversation labels for bulk action:", error.message);
+      showError("Failed to load applied labels.");
     }
   }, [user, conversationIds]);
 
   useEffect(() => {
     if (user && isOpen) {
       fetchAllLabels();
-      checkLabelsAppliedToAllSelected();
+      fetchConversationLabels();
     }
-  }, [user, isOpen, fetchAllLabels, checkLabelsAppliedToAllSelected]);
+  }, [user, isOpen, fetchAllLabels, fetchConversationLabels]);
 
   useEffect(() => {
-    // Re-check labels if conversationIds change while popover is open
+    // Re-fetch conversation labels if conversationIds change while popover is open
     if (isOpen) {
-      checkLabelsAppliedToAllSelected();
+      fetchConversationLabels();
     }
-  }, [conversationIds, isOpen, checkLabelsAppliedToAllSelected]);
+  }, [conversationIds, isOpen, fetchConversationLabels]);
 
+  const isLabelAppliedToAllSelected = (labelId: string) => {
+    if (conversationIds.length === 0) return false;
+    return conversationIds.every(convId =>
+      allConversationLabels.some(cl => cl.conversation_id === convId && cl.label_id === labelId)
+    );
+  };
 
   const handleToggleLabel = async (label: LabelItem) => {
     if (!user || conversationIds.length === 0) return;
     setIsLoading(true);
 
-    const isCurrentlyAppliedToAll = labelsAppliedToAllSelected.includes(label.id);
     const operations: Promise<any>[] = [];
+    const isCurrentlyApplied = isLabelAppliedToAllSelected(label.id); // Check if applied to ALL selected
 
     try {
-      for (const convId of conversationIds) {
-        if (isCurrentlyAppliedToAll) {
-          // Remove label from all selected conversations
-          operations.push(
-            supabase
-              .from('whatsapp_conversation_labels')
-              .delete()
-              .eq('conversation_id', convId)
-              .eq('label_id', label.id)
+      if (isCurrentlyApplied) {
+        // Attempting to remove label from selected conversations
+        let removedCount = 0;
+        for (const convId of conversationIds) {
+          // Find the specific entry for this conversation and label, applied by the current user
+          const entryToRemove = allConversationLabels.find(
+            cl => cl.conversation_id === convId && cl.label_id === label.id && cl.user_id === user.id
           );
+
+          if (entryToRemove) {
+            operations.push(
+              supabase
+                .from('whatsapp_conversation_labels')
+                .delete()
+                .eq('conversation_id', convId)
+                .eq('label_id', label.id)
+                .eq('user_id', user.id) // Crucial for RLS and user-specific deletion
+                .then(res => {
+                  if (!res.error) removedCount++;
+                  return res;
+                })
+            );
+          } else {
+            // If the label is applied by another user, or not applied at all by current user, skip deletion for this conv
+            console.log(`Skipping deletion of label ${label.name} from conversation ${convId}: not applied by current user or not found.`);
+          }
+        }
+        
+        if (operations.length > 0) {
+          const results = await Promise.all(operations);
+          const hasErrors = results.some(res => res.error);
+
+          if (hasErrors) {
+            console.error("Errors during bulk label removal:", results.filter(res => res.error));
+            showError(`Failed to remove some labels. You can only remove labels you applied.`);
+          } else {
+            showSuccess(`Label "${label.name}" removed from ${removedCount} conversations.`);
+          }
         } else {
-          // Add label to all selected conversations (upsert to avoid duplicates)
-          operations.push(
-            supabase
-              .from('whatsapp_conversation_labels')
-              .upsert(
-                { conversation_id: convId, label_id: label.id },
-                { onConflict: 'conversation_id,label_id', ignoreDuplicates: true }
-              )
+          showError(`Label "${label.name}" is not applied by you to any of the selected conversations.`);
+        }
+
+      } else {
+        // Attempting to add label to selected conversations
+        let addedCount = 0;
+        for (const convId of conversationIds) {
+          // Check if the label is already applied by *any* user to this conversation
+          const isAlreadyAppliedToThisConv = allConversationLabels.some(
+            cl => cl.conversation_id === convId && cl.label_id === label.id
           );
+
+          if (!isAlreadyAppliedToThisConv) {
+            operations.push(
+              supabase
+                .from('whatsapp_conversation_labels')
+                .insert({ conversation_id: convId, label_id: label.id, user_id: user.id }) // Explicitly set user_id
+                .then(res => {
+                  if (!res.error) addedCount++;
+                  return res;
+                })
+            );
+          }
+        }
+
+        if (operations.length > 0) {
+          const results = await Promise.all(operations);
+          const hasErrors = results.some(res => res.error);
+
+          if (hasErrors) {
+            console.error("Errors during bulk label application:", results.filter(res => res.error));
+            showError(`Failed to apply some labels.`);
+          } else {
+            showSuccess(`Label "${label.name}" applied to ${addedCount} conversations.`);
+          }
+        } else {
+          showSuccess(`Label "${label.name}" is already applied to all selected conversations.`);
         }
       }
-
-      const results = await Promise.all(operations);
-      const hasErrors = results.some(res => res.error);
-
-      if (hasErrors) {
-        console.error("Errors during bulk label update:", results.filter(res => res.error));
-        showError(`Failed to ${isCurrentlyAppliedToAll ? 'remove' : 'apply'} some labels.`);
-      } else {
-        showSuccess(`Label "${label.name}" ${isCurrentlyAppliedToAll ? 'removed from' : 'applied to'} ${conversationIds.length} conversations.`);
-        onLabelsApplied(); // Refresh parent component's labels
-        checkLabelsAppliedToAllSelected(); // Re-check state after update
-      }
+      onLabelsApplied(); // Refresh parent component's labels
+      fetchConversationLabels(); // Re-fetch to update internal state
     } catch (error: any) {
       console.error("Error during bulk label operation:", error.message);
       showError(`Failed to update labels: ${error.message}`);
@@ -174,7 +222,7 @@ const BulkApplyLabelsPopover: React.FC<BulkApplyLabelsPopoverProps> = ({
                 <div className="flex items-center">
                   <LabelBadge name={label.name} color={label.color} className="mr-2" />
                 </div>
-                {labelsAppliedToAllSelected.includes(label.id) && <Check className="h-4 w-4 text-green-500" />}
+                {isLabelAppliedToAllSelected(label.id) && <Check className="h-4 w-4 text-green-500" />}
               </Button>
             ))}
           </div>
