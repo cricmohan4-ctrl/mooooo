@@ -612,8 +612,8 @@ const Inbox = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <div className="flex-1 flex rounded-lg shadow-lg"> {/* Removed h-full */}
+    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full"> {/* Added h-full */}
+      <div className="flex-1 flex rounded-lg shadow-lg h-full"> {/* Added h-full */}
         {/* Conversations List */}
         {!selectedConversation && (
           <div className="relative w-full bg-white dark:bg-gray-800 flex flex-col overflow-y-auto p-4 sm:p-6 lg:p-8">
@@ -779,7 +779,7 @@ const Inbox = () => {
 
         {/* Message Area */}
         {selectedConversation && (
-          <div className="relative flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900"> {/* Removed h-full and padding */}
+          <div className="relative flex flex-col flex-1 w-full bg-gray-50 dark:bg-gray-900 h-full"> {/* Added h-full */}
             {/* Header for Selected Conversation - Fixed at top */}
             <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-10 h-[72px]"> {/* Explicit height for padding calc */}
               <div className="flex items-center">
