@@ -727,19 +727,23 @@ const Inbox = () => {
               filteredConversations.map((conv) => (
                 <div
                   key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
-                  className={`flex items-center p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  className={cn(
+                    `flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700`,
                     selectedConversation?.contact_phone_number === conv.contact_phone_number &&
                     selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
                       ? 'bg-blue-50 dark:bg-blue-900'
+                      : '',
+                    selectedConversationIds.includes(conv.id)
+                      ? 'bg-yellow-100 dark:bg-yellow-900 border-l-4 border-brand-yellow'
                       : ''
-                  }`}
+                  )}
                 >
                   <Checkbox
                     checked={selectedConversationIds.includes(conv.id)}
                     onCheckedChange={() => handleToggleConversationSelection(conv.id)}
-                    className="mr-3"
+                    className="mr-3 cursor-pointer"
                   />
-                  <div className="flex-1 flex items-center" onClick={() => handleConversationSelect(conv)}>
+                  <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
                     <Avatar className="h-10 w-10 mr-3">
                       <AvatarImage src={undefined} alt={conv.contact_phone_number} />
                       <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
