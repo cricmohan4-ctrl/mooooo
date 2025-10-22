@@ -20,7 +20,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, hideHeader 
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900"> {/* Changed min-h-screen to h-screen */}
       {/* Sidebar */}
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
