@@ -690,7 +690,7 @@ const Inbox = () => {
     return matchesFilterType && matchesLabel;
   });
 
-  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter by Label";
+  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter";
 
   const handleToggleConversationSelection = (conversationId: string) => {
     setSelectedConversationIds(prev =>
