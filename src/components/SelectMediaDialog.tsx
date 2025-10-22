@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { showSuccess, showError } from '@/utils/toast';
 
-interface GalleryDialogProps {
+interface SelectMediaDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSendMessage: (messageBody: string | null, mediaUrl: string | null, mediaType: string | null, mediaCaption: string | null) => Promise<void>;
@@ -23,7 +23,7 @@ interface GalleryDialogProps {
   userId: string;
 }
 
-export const GalleryDialog: React.FC<GalleryDialogProps> = ({
+export const SelectMediaDialog: React.FC<SelectMediaDialogProps> = ({
   isOpen,
   onOpenChange,
   onSendMessage,
@@ -84,7 +84,7 @@ export const GalleryDialog: React.FC<GalleryDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Select from Gallery</DialogTitle>
+          <DialogTitle>Select Media from Gallery</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">

@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Camera, Image, FileAudio, MapPin } from 'lucide-react';
 import { CameraDialog } from './CameraDialog';
-import { GalleryDialog } from './GalleryDialog';
+import { SelectMediaDialog } from './SelectMediaDialog'; // Updated import
 import { AudioFileDialog } from './AudioFileDialog';
 import { LocationDialog } from './LocationDialog';
 import { showSuccess } from '@/utils/toast';
@@ -34,7 +34,7 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
 }) => {
   const [isMainDialogOpen, setIsMainDialogOpen] = useState(false);
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
-  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
+  const [isSelectMediaDialogOpen, setIsSelectMediaDialogOpen] = useState(false); // Updated state name
   const [isAudioFileDialogOpen, setIsAudioFileDialogOpen] = useState(false);
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
 
@@ -45,7 +45,7 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
         setIsCameraDialogOpen(true);
         break;
       case 'gallery':
-        setIsGalleryDialogOpen(true);
+        setIsSelectMediaDialogOpen(true); // Updated to open SelectMediaDialog
         break;
       case 'audio':
         setIsAudioFileDialogOpen(true);
@@ -104,9 +104,9 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
         whatsappAccountId={whatsappAccountId}
         userId={userId}
       />
-      <GalleryDialog
-        isOpen={isGalleryDialogOpen}
-        onOpenChange={setIsGalleryDialogOpen}
+      <SelectMediaDialog // Updated component name
+        isOpen={isSelectMediaDialogOpen} // Updated state name
+        onOpenChange={setIsSelectMediaDialogOpen} // Updated state name
         onSendMessage={onSendMessage}
         onUploadMedia={onUploadMedia}
         selectedConversationId={selectedConversationId}
