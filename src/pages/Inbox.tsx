@@ -613,10 +613,10 @@ const Inbox = () => {
 
   return (
     <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8">
-      <div className="flex-1 flex overflow-hidden rounded-lg shadow-lg">
+      <div className="flex-1 flex rounded-lg shadow-lg"> {/* Removed overflow-hidden here */}
         {/* Conversations List */}
         {!selectedConversation && (
-          <div className="relative w-full bg-white dark:bg-gray-800 flex flex-col">
+          <div className="relative w-full bg-white dark:bg-gray-800 flex flex-col overflow-y-auto"> {/* Added overflow-y-auto here */}
             <div className="p-4 flex-shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <Button variant="ghost" size="icon" asChild>
