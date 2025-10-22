@@ -51,28 +51,29 @@ const LabelListAndActions: React.FC<LabelListAndActionsProps> = ({ onLabelsUpdat
     if (!currentUser) return;
     setIsLoading(true);
     try {
-      // Fetch labels and join with profiles to get user email for display
+      // Fetch labels without joining profiles initially to isolate the issue
       const { data, error } = await supabase
         .from('whatsapp_labels')
-        .select('id, name, color, user_id, profiles(first_name, last_name, id)') // Select user_id and profile info
+        .select('id, name, color, user_id') // Simplified select
         .order('name', { ascending: true });
 
       if (error) {
-        console.error("Supabase error fetching labels:", error); // Log the full error object
+        console.error("Supabase error fetching labels (simplified query):", error); // Log the full error object
         throw error;
       }
 
+      // For now, user_email will just show the user_id
       const labelsWithUserDetails: LabelItem[] = data.map((label: any) => ({
         id: label.id,
         name: label.name,
         color: label.color,
         user_id: label.user_id,
-        user_email: label.profiles ? `${label.profiles.first_name || ''} ${label.profiles.last_name || ''}`.trim() || `User ID: ${label.user_id}` : `User ID: ${label.user_id}`,
+        user_email: `User ID: ${label.user_id}`, // Placeholder
       }));
 
       setLabels(labelsWithUserDetails);
     } catch (error: any) {
-      console.error("Error fetching labels in LabelListAndActions:", error.message); // More specific log
+      console.error("Error fetching labels in LabelListAndActions (simplified query):", error.message); // More specific log
       showError("Failed to load labels.");
     } finally {
       setIsLoading(false);
