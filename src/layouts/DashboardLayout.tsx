@@ -40,7 +40,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, hideHeader 
         {!hideHeader && <Header onMenuClick={toggleSidebar} />}
 
         {/* Main Content */}
-        <main className="flex-1"> {/* Removed padding here */}
+        <main className="flex-1 overflow-hidden"> {/* Added overflow-hidden here */}
           {children}
         </main>
 
