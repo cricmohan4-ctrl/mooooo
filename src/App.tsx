@@ -14,7 +14,8 @@ import Inbox from "./pages/Inbox";
 import ConnectAccount from "./pages/ConnectAccount";
 import ChatbotRulesPage from "./pages/ChatbotRulesPage";
 import UserManagementPage from "./pages/UserManagementPage";
-import LabelManagementPage from "./pages/LabelManagementPage"; // Import new page
+import LabelManagementPage from "./pages/LabelManagementPage";
+import FormBuilderPage from "./pages/FormBuilderPage"; // Import new page
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 import DashboardLayout from "./layouts/DashboardLayout";
 
@@ -83,7 +84,7 @@ const AppContent = () => (
             path="/inbox"
             element={
               <ProtectedRoute>
-                <DashboardLayout hideHeader={true}> {/* noMainPadding removed */}
+                <DashboardLayout hideHeader={true}>
                   <Inbox />
                 </DashboardLayout>
               </ProtectedRoute>
@@ -125,6 +126,16 @@ const AppContent = () => (
               <ProtectedRoute>
                 <DashboardLayout>
                   <LabelManagementPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/form-builder"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <FormBuilderPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
