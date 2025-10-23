@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, XCircle, Type, Hash, Mail, Textarea as TextareaIcon } from "lucide-react";
+import { PlusCircle, XCircle, Type, Hash, Mail, AlignLeft } from "lucide-react"; // Changed TextareaIcon to AlignLeft
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { showSuccess, showError } from "@/utils/toast";
@@ -227,7 +227,7 @@ const AddEditFormDialog: React.FC<AddEditFormDialogProps> = ({
                             <div className="flex items-center"><Mail className="h-4 w-4 mr-2" /> Email</div>
                           </SelectItem>
                           <SelectItem value="textarea">
-                            <div className="flex items-center"><TextareaIcon className="h-4 w-4 mr-2" /> Text Area</div>
+                            <div className="flex items-center"><AlignLeft className="h-4 w-4 mr-2" /> Text Area</div>
                           </SelectItem>
                         </SelectContent>
                       </Select>
