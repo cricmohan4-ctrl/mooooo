@@ -19,13 +19,14 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText, Type, Image } from 'lucide-react';
+import { ArrowLeft, Save, PlusCircle, MessageCircle, MousePointerClick, XCircle, Trash2, MessageSquareText, Type, Image, FileText } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import MessageNode from '@/components/nodes/MessageNode';
 import ButtonMessageNode from '@/components/nodes/ButtonMessageNode';
 import IncomingMessageNode from '@/components/nodes/IncomingMessageNode';
+import FormNode from '@/components/nodes/FormNode'; // Import new FormNode
 import {
   Dialog,
   DialogContent,
@@ -46,11 +47,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Form } from '@/types/form'; // Import Form type
 
 const nodeTypes = {
   messageNode: MessageNode,
   buttonMessageNode: ButtonMessageNode,
   incomingMessageNode: IncomingMessageNode,
+  formNode: FormNode, // Add new FormNode
 };
 
 interface FlowData {
@@ -79,6 +82,8 @@ const FlowEditorContent = () => {
   const [editedButtons, setEditedButtons] = useState<ButtonConfig[]>([]);
   const [editedExpectedInputType, setEditedExpectedInputType] = useState<'text' | 'image' | 'any'>('any');
   const [editedPrompt, setEditedPrompt] = useState("");
+  const [availableForms, setAvailableForms] = useState<Form[]>([]); // State for available forms
+  const [selectedFormForNode, setSelectedFormForNode] = useState<string | null>(null); // State for selected form in FormNode
 
   const onConnect = useCallback(
     (params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)),
@@ -171,11 +176,28 @@ const FlowEditorContent = () => {
     }
   }, [flowId, user, setNodes, setEdges, setViewport, fitView, navigate]);
 
+  const fetchAvailableForms = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('forms')
+        .select('id, name')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setAvailableForms(data || []);
+    } catch (error: any) {
+      console.error("Error fetching available forms:", error.message);
+      showError("Failed to load available forms.");
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user && flowId) {
       onRestore();
+      fetchAvailableForms(); // Fetch forms when component mounts
     }
-  }, [user, flowId, onRestore]);
+  }, [user, flowId, onRestore, fetchAvailableForms]);
 
   const addNode = useCallback((type: string) => {
     const baseNode = {
@@ -195,6 +217,9 @@ const FlowEditorContent = () => {
       case 'incomingMessageNode':
         newNode = { ...baseNode, data: { label: 'Incoming Message', expectedInputType: 'text', prompt: "Please provide the requested information." } };
         break;
+      case 'formNode': // New form node
+        newNode = { ...baseNode, data: { label: 'Send Form', formId: null, formName: "Select a Form" } };
+        break;
       default:
         newNode = { ...baseNode, data: { label: 'Unknown Node' } };
     }
@@ -209,6 +234,7 @@ const FlowEditorContent = () => {
     setEditedButtons(node.data.buttons ? [...node.data.buttons] : []);
     setEditedExpectedInputType(node.data.expectedInputType || 'any');
     setEditedPrompt(node.data.prompt || "");
+    setSelectedFormForNode(node.data.formId || null); // Set selected form for FormNode
     setIsNodeEditorOpen(true);
   }, []);
 
@@ -226,6 +252,14 @@ const FlowEditorContent = () => {
             }
             if (node.type === 'incomingMessageNode') {
               updatedData = { ...updatedData, expectedInputType: editedExpectedInputType, prompt: editedPrompt };
+            }
+            if (node.type === 'formNode') { // Handle FormNode data
+              const selectedForm = availableForms.find(form => form.id === selectedFormForNode);
+              updatedData = {
+                ...updatedData,
+                formId: selectedFormForNode,
+                formName: selectedForm ? selectedForm.name : "Select a Form",
+              };
             }
             return { ...node, data: updatedData };
           }
@@ -299,6 +333,9 @@ const FlowEditorContent = () => {
             </Button>
             <Button className="w-full justify-start" variant="outline" onClick={() => addNode('incomingMessageNode')}>
               <MessageSquareText className="h-4 w-4 mr-2" /> Incoming Message Node
+            </Button>
+            <Button className="w-full justify-start" variant="outline" onClick={() => addNode('formNode')}>
+              <FileText className="h-4 w-4 mr-2" /> Form Node
             </Button>
           </div>
         </div>
@@ -420,6 +457,33 @@ const FlowEditorContent = () => {
                   </div>
                 </div>
               </>
+            )}
+
+            {editingNode?.type === 'formNode' && ( // New section for FormNode
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="formSelect" className="text-right">
+                  Select Form
+                </Label>
+                <Select
+                  onValueChange={setSelectedFormForNode}
+                  value={selectedFormForNode || ""}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Choose a form" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableForms.length === 0 ? (
+                      <SelectItem value="no-forms" disabled>No forms available</SelectItem>
+                    ) : (
+                      availableForms.map((form) => (
+                        <SelectItem key={form.id} value={form.id}>
+                          {form.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
           <DialogFooter>
