@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,10 +12,9 @@ import {
 } from '@/components/ui/dialog';
 import { Camera, Image, FileAudio, MapPin } from 'lucide-react';
 import { CameraDialog } from './CameraDialog';
-import { SelectMediaDialog } from './SelectMediaDialog'; // Updated import
 import { AudioFileDialog } from './AudioFileDialog';
 import { LocationDialog } from './LocationDialog';
-import { showSuccess } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface AttachmentOptionsDialogProps {
   onSendMessage: (messageBody: string | null, mediaUrl: string | null, mediaType: string | null, mediaCaption: string | null) => Promise<void>;
@@ -34,9 +33,10 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
 }) => {
   const [isMainDialogOpen, setIsMainDialogOpen] = useState(false);
   const [isCameraDialogOpen, setIsCameraDialogOpen] = useState(false);
-  const [isSelectMediaDialogOpen, setIsSelectMediaDialogOpen] = useState(false); // Updated state name
   const [isAudioFileDialogOpen, setIsAudioFileDialogOpen] = useState(false);
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
+
+  const galleryFileInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden file input
 
   const handleOptionClick = (option: 'camera' | 'gallery' | 'audio' | 'location') => {
     setIsMainDialogOpen(false); // Close main dialog
@@ -45,7 +45,7 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
         setIsCameraDialogOpen(true);
         break;
       case 'gallery':
-        setIsSelectMediaDialogOpen(true); // Updated to open SelectMediaDialog
+        galleryFileInputRef.current?.click(); // Directly trigger the hidden file input
         break;
       case 'audio':
         setIsAudioFileDialogOpen(true);
@@ -55,6 +55,30 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
         break;
       default:
         break;
+    }
+  };
+
+  const handleGalleryFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `gallery-${Date.now()}.${fileExtension}`;
+      const mediaUrl = await onUploadMedia(file, fileName, file.type);
+
+      if (mediaUrl) {
+        let mediaType = 'document'; // Default
+        if (file.type.startsWith('image/')) mediaType = 'image';
+        if (file.type.startsWith('video/')) mediaType = 'video';
+
+        await onSendMessage(null, mediaUrl, mediaType, null); // No caption for direct gallery upload for now
+        showSuccess("Media sent successfully!");
+      }
+    } else {
+      showError("No file selected from gallery.");
+    }
+    // Reset the input value to allow selecting the same file again if needed
+    if (galleryFileInputRef.current) {
+      galleryFileInputRef.current.value = '';
     }
   };
 
@@ -94,19 +118,19 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
         </DialogContent>
       </Dialog>
 
+      {/* Hidden file input for direct gallery access */}
+      <input
+        type="file"
+        accept="image/*,video/*"
+        ref={galleryFileInputRef}
+        onChange={handleGalleryFileChange}
+        style={{ display: 'none' }}
+      />
+
       {/* Sub-dialogs for each attachment type */}
       <CameraDialog
         isOpen={isCameraDialogOpen}
         onOpenChange={setIsCameraDialogOpen}
-        onSendMessage={onSendMessage}
-        onUploadMedia={onUploadMedia}
-        selectedConversationId={selectedConversationId}
-        whatsappAccountId={whatsappAccountId}
-        userId={userId}
-      />
-      <SelectMediaDialog // Updated component name
-        isOpen={isSelectMediaDialogOpen} // Updated state name
-        onOpenChange={setIsSelectMediaDialogOpen} // Updated state name
         onSendMessage={onSendMessage}
         onUploadMedia={onUploadMedia}
         selectedConversationId={selectedConversationId}
