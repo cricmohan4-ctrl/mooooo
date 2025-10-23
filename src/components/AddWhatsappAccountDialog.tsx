@@ -46,7 +46,7 @@ const AddWhatsappAccountDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onA
       const { error } = await supabase
         .from("whatsapp_accounts")
         .insert({
-          // user_id: user.id, // RLS will handle user_id based on admin role
+          user_id: user.id, // Explicitly setting user_id
           account_name: accountName,
           phone_number_id: phoneNumberId,
           access_token: accessToken,
