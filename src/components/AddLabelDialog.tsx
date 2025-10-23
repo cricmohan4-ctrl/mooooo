@@ -78,7 +78,7 @@ const AddLabelDialog: React.FC<AddLabelDialogProps> = ({ onLabelAdded }) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button title="Add New Label">
+        <Button size="sm" title="Add New Label">
           <PlusCircle className="h-4 w-4 mr-2" /> Add Label
         </Button>
       </DialogTrigger>
@@ -133,7 +133,7 @@ const AddLabelDialog: React.FC<AddLabelDialogProps> = ({ onLabelAdded }) => {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" size="sm" disabled={isLoading}>
               {isLoading ? "Adding..." : "Add Label"}
             </Button>
           </DialogFooter>

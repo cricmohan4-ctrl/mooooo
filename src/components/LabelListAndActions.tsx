@@ -170,7 +170,7 @@ const LabelListAndActions: React.FC<LabelListAndActionsProps> = ({ onLabelsUpdat
                   <Input
                     value={editingLabel.name}
                     onChange={(e) => setEditingLabel({ ...editingLabel, name: e.target.value })}
-                    className="flex-1"
+                    className="flex-1 h-8" // Added h-8 for compactness
                     required
                   />
                   <Input
