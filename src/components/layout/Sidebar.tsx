@@ -9,14 +9,15 @@ import {
   Bot,
   Users,
   Menu,
-  Tag, // Import Tag icon for Label Management
-  FileText, // Import FileText icon for Form Builder
+  Tag,
+  FileText,
+  Brain, // Import Brain icon for AI Integration
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useSession } from '@/integrations/supabase/auth'; // Import useSession
-import { supabase } from '@/integrations/supabase/client'; // Import supabase client
+import { useSession } from '@/integrations/supabase/auth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -28,15 +29,16 @@ const allNavItems = [
   { name: 'Shared Inbox', href: '/inbox', icon: Inbox, roles: ['user', 'admin'] },
   { name: 'Connect Account', href: '/connect-account', icon: Plug, roles: ['admin'] },
   { name: 'Chatbot Rules', href: '/chatbot-rules', icon: Bot, roles: ['admin'] },
-  { name: 'Form Builder', href: '/form-builder', icon: FileText, roles: ['admin'] }, // New item
+  { name: 'Form Builder', href: '/form-builder', icon: FileText, roles: ['admin'] },
   { name: 'Label Management', href: '/label-management', icon: Tag, roles: ['admin'] },
+  { name: 'AI Integration', href: '/ai-integration', icon: Brain, roles: ['admin'] }, // New item
   { name: 'User Management', href: '/user-management', icon: Users, roles: ['admin'] },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { user: currentUser } = useSession(); // Get current user from session
+  const { user: currentUser } = useSession();
   const [userRole, setUserRole] = useState<'user' | 'admin' | null>(null);
 
   useEffect(() => {
@@ -50,10 +52,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             .single();
 
           if (error) throw error;
-          setUserRole(data?.role || 'user'); // Default to 'user' if role is null
+          setUserRole(data?.role || 'user');
         } catch (error: any) {
           console.error("Error fetching user role for sidebar:", error.message);
-          setUserRole('user'); // Default to 'user' role on error
+          setUserRole('user');
         }
       } else {
         setUserRole(null);
@@ -63,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     fetchUserRole();
   }, [currentUser]);
 
-  const filteredNavItems = allNavItems.filter(item => 
+  const filteredNavItems = allNavItems.filter(item =>
     userRole && item.roles.includes(userRole)
   );
 
@@ -72,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     {
       "translate-x-0": isOpen,
       "-translate-x-full": !isOpen,
-      "lg:translate-x-0 lg:static": !isMobile, // Always visible on desktop
+      "lg:translate-x-0 lg:static": !isMobile,
     }
   );
 

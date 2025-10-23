@@ -19,6 +19,7 @@ import FormBuilderPage from "./pages/FormBuilderPage";
 import TermsAndConditions from "./pages/TermsAndConditions"; // Import new page
 import PrivacyPolicy from "./pages/PrivacyPolicy"; // Import new page
 import DataDeletionInstructions from "./pages/DataDeletionInstructions"; // Import new page
+import AIIntegrationPage from "./pages/AIIntegrationPage"; // Import new page
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 import DashboardLayout from "./layouts/DashboardLayout";
 
@@ -55,7 +56,7 @@ const AppContent = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/data-deletion-instructions" element={<DataDeletionInstructions />} /> {/* New public route */}
+          <Route path="/data-deletion-instructions" element={<DataDeletionInstructions />} />
           <Route
             path="/dashboard"
             element={
@@ -142,6 +143,16 @@ const AppContent = () => (
               <ProtectedRoute>
                 <DashboardLayout>
                   <FormBuilderPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ai-integration"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AIIntegrationPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
