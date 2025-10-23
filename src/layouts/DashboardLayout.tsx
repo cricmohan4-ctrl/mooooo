@@ -5,6 +5,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom'; // Import Link for footer navigation
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -45,8 +46,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, hideHeader 
         </main>
 
         {/* Footer */}
-        <footer className="p-4 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-          2025 © Meghi
+        <footer className="p-4 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 flex justify-center space-x-4">
+          <Link to="/terms-and-conditions" className="hover:underline">Terms and Conditions</Link>
+          <Link to="/privacy-policy" className="hover:underline">Privacy Policy</Link>
+          <span>2025 © Meghi</span>
         </footer>
       </div>
     </div>
