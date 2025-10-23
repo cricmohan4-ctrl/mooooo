@@ -46,6 +46,9 @@ const Dashboard = () => {
               <Link to="/chatbot-rules">
                 <Button variant="secondary">Manage Chatbot Rules</Button>
               </Link>
+              <Link to="/form-builder">
+                <Button variant="outline">Form Builder</Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
