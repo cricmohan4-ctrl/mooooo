@@ -18,6 +18,7 @@ import LabelManagementPage from "./pages/LabelManagementPage";
 import FormBuilderPage from "./pages/FormBuilderPage";
 import TermsAndConditions from "./pages/TermsAndConditions"; // Import new page
 import PrivacyPolicy from "./pages/PrivacyPolicy"; // Import new page
+import DataDeletionInstructions from "./pages/DataDeletionInstructions"; // Import new page
 import { SessionContextProvider, useSession } from "./integrations/supabase/auth";
 import DashboardLayout from "./layouts/DashboardLayout";
 
@@ -52,8 +53,9 @@ const AppContent = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/terms-and-conditions" element={<TermsAndConditions />} /> {/* New public route */}
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} /> {/* New public route */}
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/data-deletion-instructions" element={<DataDeletionInstructions />} /> {/* New public route */}
           <Route
             path="/dashboard"
             element={

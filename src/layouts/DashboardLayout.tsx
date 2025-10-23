@@ -49,6 +49,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, hideHeader 
         <footer className="p-4 text-center text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 flex justify-center space-x-4">
           <Link to="/terms-and-conditions" className="hover:underline">Terms and Conditions</Link>
           <Link to="/privacy-policy" className="hover:underline">Privacy Policy</Link>
+          <Link to="/data-deletion-instructions" className="hover:underline">Data Deletion Instructions</Link> {/* New link */}
           <span>2025 © Meghi</span>
         </footer>
       </div>
