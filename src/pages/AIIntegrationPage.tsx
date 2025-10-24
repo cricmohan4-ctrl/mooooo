@@ -42,7 +42,7 @@ const AIIntegrationPage = () => {
   const [openAiSystemInstruction, setOpenAiSystemInstruction] = useState("");
 
   // State for Gemini (already integrated, but showing how it would be configured here)
-  const [geminiEnabled, setGeminiEnabled] = useState(true); // Gemini is currently hardcoded as active
+  const [geminiEnabled, setGeminiEnabled] = useState(false); // Changed to false to disable by default
   const [geminiSecretKey, setGeminiSecretKey] = useState(""); // Gemini key is an env var, not user-configurable here
   const [geminiPromptModel, setGeminiPromptModel] = useState("gemini-2.5-flash");
   const [geminiSystemInstruction, setGeminiSystemInstruction] = useState("You are a helpful customer service assistant for a business selling plastic mobile covers with customer photos. You must answer in the language the user asks in. The price for Cash on Delivery (COD) is 220. The price for prepaid orders is 150. All orders are delivered within 7 days.");
@@ -101,7 +101,7 @@ const AIIntegrationPage = () => {
       // and GOOGLE_GEMINI_API_KEY env var. This section is for future expansion
       // if Gemini also needs per-user secret_key/model configuration here.
       // For now, we'll just display its default model and instruction.
-      setGeminiEnabled(true); // Assume Gemini is always "enabled" if the env var is set
+      setGeminiEnabled(false); // Ensure it remains false after fetch
       setGeminiPromptModel("gemini-2.5-flash");
       setGeminiSystemInstruction("You are a helpful customer service assistant for a business selling plastic mobile covers with customer photos. You must answer in the language the user asks in. The price for Cash on Delivery (COD) is 220. The price for prepaid orders is 150. All orders are delivered within 7 days.");
 
