@@ -701,7 +701,7 @@ const Inbox = () => {
                         className="w-full justify-start text-sm"
                         onClick={() => { setSelectedLabelFilterId(label.id); setFilterType('all'); }}
                       >
-                        <LabelBadge name={label.name} color={label.color} className="mr-2" />
+                        <LabelBadge name={label.name} color={label.color} />
                       </Button>
                     ))}
                   </div>
@@ -788,6 +788,7 @@ const Inbox = () => {
         {/* Message Area */}
         <div className={cn(
           "relative flex-col flex-1 bg-gray-50 dark:bg-gray-900 h-full",
+          "bg-[radial-gradient(circle,var(--tw-gradient-stops))] from-gray-200/50 to-transparent bg-[size:20px_20px] dark:from-gray-700/50 dark:to-transparent", // WhatsApp-like background
           (isMobile && !selectedConversation) ? "hidden" : "flex" // Mobile: hide if not selected, show if selected. Desktop: always flex.
         )}>
           {/* Header for Selected Conversation - Fixed at top */}
