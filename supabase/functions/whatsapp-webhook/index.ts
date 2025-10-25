@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
+// Import the normalization utility
+import { normalizePhoneNumber } from '../../src/utils/phoneUtils.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -187,7 +190,7 @@ serve(async (req) => {
           incomingText = `[${incomingMessage.type} message]`;
         }
 
-        const fromPhoneNumber = incomingMessage.from;
+        const fromPhoneNumber = normalizePhoneNumber(incomingMessage.from); // Normalize incoming phone number
 
         console.log(`Processing message from ${fromPhoneNumber} to ${whatsappBusinessAccountId}: "${incomingText}"`);
 
@@ -245,6 +248,8 @@ serve(async (req) => {
         }
 
         const sendWhatsappMessage = async (to: string, type: string, content: any) => {
+          const normalizedTo = normalizePhoneNumber(to); // Normalize 'to' phone number for outgoing messages
+
           if (!whatsappAccessToken || !whatsappBusinessAccountId) {
             console.warn('No WhatsApp access token or business account ID. Cannot send message.');
             return;
@@ -253,7 +258,7 @@ serve(async (req) => {
           const whatsappApiUrl = `https://graph.facebook.com/v19.0/${whatsappBusinessAccountId}/messages`;
           const body: any = {
             messaging_product: 'whatsapp',
-            to: to,
+            to: normalizedTo, // Use normalized number for sending
             type: type,
           };
 
@@ -268,7 +273,7 @@ serve(async (req) => {
             }
           }
 
-          console.log(`Attempting to send ${type} message to ${to} via WhatsApp API.`);
+          console.log(`Attempting to send ${type} message to ${normalizedTo} via WhatsApp API.`);
           console.log('WhatsApp API URL:', whatsappApiUrl);
           console.log('Request Body:', JSON.stringify(body, null, 2));
 
@@ -297,7 +302,7 @@ serve(async (req) => {
               user_id: userId,
               whatsapp_account_id: whatsappAccountId,
               from_phone_number: whatsappBusinessPhoneNumber,
-              to_phone_number: to,
+              to_phone_number: normalizedTo, // Use normalized number for saving
               message_body: type === 'text' ? content.body : `[${type} message]`,
               message_type: type,
               media_url: content.mediaUrl || null,
@@ -332,7 +337,7 @@ serve(async (req) => {
           .from('whatsapp_conversations')
           .select('*')
           .eq('whatsapp_account_id', whatsappAccountId)
-          .eq('contact_phone_number', fromPhoneNumber)
+          .eq('contact_phone_number', fromPhoneNumber) // Use normalized number for lookup
           .single();
 
         if (convError && convError.code !== 'PGRST116') {
@@ -364,7 +369,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నమస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ఇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ಇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";

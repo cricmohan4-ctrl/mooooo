@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { normalizePhoneNumber } from '@/utils/phoneUtils'; // Import normalization utility
 
 interface WhatsappAccount {
   id: string;
@@ -68,14 +69,16 @@ const AddNewContactDialog: React.FC<AddNewContactDialogProps> = ({ whatsappAccou
     }
 
     setIsLoading(true);
+    const normalizedPhoneNumber = normalizePhoneNumber(newContactPhoneNumber); // Normalize the input phone number
+
     try {
-      // Check if conversation already exists
+      // Check if conversation already exists using the normalized phone number
       const { data: existingConversation, error: fetchError } = await supabase
         .from("whatsapp_conversations")
         .select("*")
         // Removed .eq("user_id", user.id) to allow all authenticated users to see all conversations
         .eq("whatsapp_account_id", selectedWhatsappAccountId)
-        .eq("contact_phone_number", newContactPhoneNumber.trim())
+        .eq("contact_phone_number", normalizedPhoneNumber) // Use normalized number for lookup
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found
@@ -95,13 +98,13 @@ const AddNewContactDialog: React.FC<AddNewContactDialogProps> = ({ whatsappAccou
           whatsapp_account_name: whatsappAccounts.find(acc => acc.id === existingConversation.whatsapp_account_id)?.account_name || "Unknown Account",
         };
       } else {
-        // Insert new conversation
+        // Insert new conversation with the normalized phone number
         const { data, error } = await supabase
           .from("whatsapp_conversations")
           .insert({
             user_id: user.id, // Keep user_id here to track who initiated the conversation
             whatsapp_account_id: selectedWhatsappAccountId,
-            contact_phone_number: newContactPhoneNumber.trim(),
+            contact_phone_number: normalizedPhoneNumber, // Use normalized number for insert
             last_message_at: new Date().toISOString(),
             last_message_body: "", // Initialize with empty message
           })

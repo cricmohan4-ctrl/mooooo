@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
+// Import the normalization utility
+import { normalizePhoneNumber } from '../../src/utils/phoneUtils.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -26,7 +29,8 @@ serve(async (req) => {
     const payload = await req.json();
     console.log('Received payload for sending message:', JSON.stringify(payload, null, 2));
 
-    const { toPhoneNumber, messageBody, whatsappAccountId, userId, mediaUrl, mediaType, mediaCaption } = payload;
+    const { toPhoneNumber: rawToPhoneNumber, messageBody, whatsappAccountId, userId, mediaUrl, mediaType, mediaCaption } = payload;
+    const toPhoneNumber = normalizePhoneNumber(rawToPhoneNumber); // Normalize the target phone number
 
     if (!toPhoneNumber || !whatsappAccountId || !userId) {
       return new Response(JSON.stringify({ status: 'error', message: 'Missing required parameters: toPhoneNumber, whatsappAccountId, userId' }), {
@@ -77,7 +81,7 @@ serve(async (req) => {
     if (mediaUrl && mediaType) {
       messagePayload = {
         messaging_product: 'whatsapp',
-        to: toPhoneNumber,
+        to: toPhoneNumber, // Use normalized number for sending
         type: mediaType,
         [mediaType]: {
           link: mediaUrl,
@@ -90,7 +94,7 @@ serve(async (req) => {
     } else {
       messagePayload = {
         messaging_product: 'whatsapp',
-        to: toPhoneNumber,
+        to: toPhoneNumber, // Use normalized number for sending
         type: 'text',
         text: { body: messageBody },
       };
@@ -131,7 +135,7 @@ serve(async (req) => {
         user_id: userId,
         whatsapp_account_id: whatsappAccountId,
         from_phone_number: whatsappBusinessPhoneNumberId, // The WA Business Account's phone number ID
-        to_phone_number: toPhoneNumber,
+        to_phone_number: toPhoneNumber, // Use normalized number for saving
         message_body: messageBodyToSave,
         message_type: mediaType || 'text',
         direction: 'outgoing',
@@ -153,7 +157,7 @@ serve(async (req) => {
           {
             user_id: userId,
             whatsapp_account_id: whatsappAccountId,
-            contact_phone_number: toPhoneNumber,
+            contact_phone_number: toPhoneNumber, // Use normalized number for upsert
             last_message_at: new Date().toISOString(),
             last_message_body: messageBodyToSave,
           },
