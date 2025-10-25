@@ -671,11 +671,11 @@ const Inbox = () => {
 
   const renderTickMarks = (status: Message['status']) => {
     if (status === 'read') {
-      return <CheckCheck className="h-4 w-4 text-blue-500 ml-1" />; // Changed from text-blue-400
+      return <CheckCheck className="h-4 w-4 text-blue-200 ml-1" />; 
     } else if (status === 'delivered') {
-      return <CheckCheck className="h-4 w-4 text-gray-500 ml-1" />; // Changed from text-gray-300
+      return <CheckCheck className="h-4 w-4 text-gray-300 ml-1" />; 
     } else if (status === 'sent') {
-      return <Check className="h-4 w-4 text-gray-500 ml-1" />; // Changed from text-gray-300
+      return <Check className="h-4 w-4 text-gray-300 ml-1" />; 
     } else if (status === 'sending') {
       return <span className="ml-1 text-xs text-gray-400">...</span>;
     } else if (status === 'failed') {
@@ -930,8 +930,8 @@ const Inbox = () => {
                     className={cn(
                       "max-w-[80%] p-2 rounded-xl flex flex-col",
                       msg.direction === 'outgoing'
-                        ? 'bg-blue-100 dark:bg-blue-700 text-gray-800 dark:text-gray-100 rounded-br-none'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
+                        ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-br-none' // Updated outgoing message color
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none' // Incoming message color
                     )}
                   >
                     {/* Message content */}
