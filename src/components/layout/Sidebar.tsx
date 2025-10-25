@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom'; // Import useNavigate
 import {
   LayoutDashboard,
   Inbox,
@@ -11,6 +11,7 @@ import {
   Menu,
   Tag,
   FileText,
+  LogOut, // Import LogOut icon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const allNavItems = [
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const navigate = useNavigate(); // Initialize useNavigate
   const isMobile = useIsMobile();
   const { user: currentUser } = useSession();
   const [userRole, setUserRole] = useState<'user' | 'admin' | null>(null);
@@ -67,6 +69,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     userRole && item.roles.includes(userRole)
   );
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login'); // Redirect to login page after logout
+    if (isMobile) {
+      onClose(); // Close sidebar on mobile after logout
+    }
+  };
+
   const sidebarClasses = cn(
     "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-300 ease-in-out",
     {
@@ -89,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </Button>
         )}
       </div>
-      <nav className="flex-1 overflow-y-auto p-4">
+      <nav className="flex-1 overflow-y-auto p-4 flex flex-col justify-between"> {/* Added flex-col justify-between */}
         <ul className="space-y-1">
           {filteredNavItems.map((item) => (
             <li key={item.name}>
@@ -109,6 +119,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </li>
           ))}
         </ul>
+        {currentUser && ( // Only show logout if a user is logged in
+          <div className="mt-auto pt-4"> {/* Push logout to the bottom */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5 mr-3" />
+              Logout
+            </Button>
+          </div>
+        )}
       </nav>
     </aside>
   );
