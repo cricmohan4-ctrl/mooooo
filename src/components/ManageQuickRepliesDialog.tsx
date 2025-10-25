@@ -128,6 +128,12 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
       showError("You must be logged in to upload audio.");
       return null;
     }
+    // Normalize MIME type for M4A files to audio/mp4 for better WhatsApp compatibility
+    let normalizedFileType = file.type;
+    if (file.type === 'audio/x-m4a' || file.type === 'audio/aac') {
+      normalizedFileType = 'audio/mp4';
+    }
+
     const filePath = `${user.id}/quick-replies/audio-${Date.now()}-${file.name}`;
     try {
       const { data, error } = await supabase.storage
@@ -135,7 +141,7 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: file.type,
+          contentType: normalizedFileType, // Use normalized type for upload
         });
 
       if (error) throw error;

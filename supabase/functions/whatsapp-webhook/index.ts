@@ -162,14 +162,18 @@ serve(async (req) => {
 
                 if (mediaDownloadResponse.ok) {
                   const mediaBlob = await mediaDownloadResponse.blob();
-                  const contentType = mediaDownloadResponse.headers.get('Content-Type') || 'application/octet-stream';
+                  let contentType = mediaDownloadResponse.headers.get('Content-Type') || 'application/octet-stream';
+                  // Normalize MIME type for M4A files to audio/mp4 for better WhatsApp compatibility
+                  if (contentType === 'audio/x-m4a' || contentType === 'audio/aac') {
+                    contentType = 'audio/mp4';
+                  }
                   const fileExtension = contentType.split('/')[1] || 'bin';
                   const filePath = `whatsapp-incoming-media/${Date.now()}-${mediaId}.${fileExtension}`;
 
                   const { data: uploadData, error: uploadError } = await supabaseServiceRoleClient.storage
                     .from('whatsapp-media')
                     .upload(filePath, mediaBlob, {
-                      contentType: contentType,
+                      contentType: contentType, // Use normalized type for upload
                       upsert: false,
                     });
 
@@ -381,7 +385,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
+            confirmationMessage = "నమస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
