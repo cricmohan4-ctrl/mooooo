@@ -98,10 +98,11 @@ serve(async (req) => {
           link: mediaUrl,
         },
       };
-      if (mediaCaption) {
+      // Only add caption for image and video types, not audio
+      if (mediaCaption && (mediaType === 'image' || mediaType === 'video')) {
         messagePayload[mediaType].caption = mediaCaption;
       }
-      messageBodyToSave = `[${mediaType} message]${mediaCaption ? `: ${mediaCaption}` : ''}`;
+      messageBodyToSave = `[${mediaType} message]${mediaCaption && (mediaType === 'image' || mediaType === 'video') ? `: ${mediaCaption}` : ''}`;
     } else {
       messagePayload = {
         messaging_product: 'whatsapp',
@@ -151,7 +152,7 @@ serve(async (req) => {
         message_type: mediaType || 'text',
         direction: 'outgoing',
         media_url: mediaUrl || null,
-        media_caption: mediaCaption || null,
+        media_caption: mediaCaption && (mediaType === 'image' || mediaType === 'video') ? mediaCaption : null, // Only save caption if it was sent
         meta_message_id: metaMessageId, // Store Meta's message ID
         status: 'sent', // Set initial status to 'sent'
       });
