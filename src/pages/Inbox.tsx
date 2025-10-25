@@ -69,6 +69,7 @@ interface Conversation {
   whatsapp_account_name: string;
   unread_count: number;
   labels: (LabelItem & { applied_by_user_id: string })[];
+  profile_picture_url?: string | null; // Added profile_picture_url
 }
 
 interface Message {
@@ -215,6 +216,7 @@ const Inbox = () => {
         whatsapp_account_name: conv.whatsapp_account_name,
         unread_count: conv.unread_count,
         labels: labelsByConversationId[conv.id] || [],
+        profile_picture_url: conv.profile_picture_url, // Map the new column
       }));
       
       setConversations(formattedConversations);
@@ -879,7 +881,7 @@ const Inbox = () => {
                   />
                   <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
                     <Avatar className="h-10 w-10 mr-3">
-                      <AvatarImage src={undefined} alt={conv.contact_phone_number} />
+                      <AvatarImage src={conv.profile_picture_url || undefined} alt={conv.contact_phone_number} />
                       <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -925,7 +927,7 @@ const Inbox = () => {
               </Button>
               <div className="flex items-center">
                 <Avatar className="h-8 w-8 mr-3">
-                  <AvatarImage src={undefined} alt={selectedConversation?.contact_phone_number} />
+                  <AvatarImage src={selectedConversation?.profile_picture_url || undefined} alt={selectedConversation?.contact_phone_number} />
                   <AvatarFallback>{selectedConversation?.contact_phone_number}</AvatarFallback>
                 </Avatar>
                 <div>
