@@ -75,10 +75,34 @@ serve(async (req) => {
         console.log('Parsed whatsappBusinessAccountId:', whatsappBusinessAccountId);
         console.log('Parsed whatsappBusinessPhoneNumber:', whatsappBusinessPhoneNumber);
 
-        // Check for 'status' updates (e.g., message delivered, read) and ignore them for now
+        // --- Handle Status Updates (Delivered, Read) ---
         if (messageValue?.statuses) {
-          console.log('Received status update, ignoring for now:', JSON.stringify(messageValue.statuses));
-          return; // Exit async processing
+          const statusUpdate = messageValue.statuses[0];
+          const metaMessageId = statusUpdate.id;
+          let newStatus: 'delivered' | 'read' | null = null;
+
+          if (statusUpdate.status === 'delivered') {
+            newStatus = 'delivered';
+          } else if (statusUpdate.status === 'read') {
+            newStatus = 'read';
+          }
+
+          if (metaMessageId && newStatus) {
+            console.log(`Updating message status for Meta ID ${metaMessageId} to ${newStatus}`);
+            const { error: updateError } = await supabaseServiceRoleClient
+              .from('whatsapp_messages')
+              .update({ status: newStatus })
+              .eq('meta_message_id', metaMessageId);
+
+            if (updateError) {
+              console.error('Error updating message status:', updateError.message);
+            } else {
+              console.log('Message status updated successfully.');
+            }
+          } else {
+            console.log('Received status update, but no valid Meta message ID or new status. Ignoring:', JSON.stringify(statusUpdate));
+          }
+          return; // Exit async processing after handling status update
         }
 
         if (!incomingMessage || !whatsappBusinessAccountId || !whatsappBusinessPhoneNumber) {
@@ -166,7 +190,8 @@ serve(async (req) => {
             direction: 'incoming',
             media_url: mediaUrl,
             media_caption: mediaCaption,
-            is_read: false, // Explicitly set to false for incoming messages
+            meta_message_id: incomingMessage.id, // Store Meta's message ID for incoming messages too
+            status: 'delivered', // Incoming messages are considered 'delivered' upon arrival
           });
 
         if (insertIncomingError) {
@@ -246,7 +271,8 @@ serve(async (req) => {
               media_url: content.mediaUrl || null,
               media_caption: content.caption || null,
               direction: 'outgoing',
-              is_read: true, // Explicitly set to true for outgoing messages
+              meta_message_id: responseData.messages?.[0]?.id || null, // Store Meta's message ID
+              status: 'sent', // Set initial status to 'sent'
             });
 
           if (insertOutgoingError) {
@@ -306,7 +332,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
+            confirmationMessage = "నಮಸ್ಕారం! ಈಗ ನಾನು తెలుగులో సమాధానಂ ಇಸ್ತಾನು.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
@@ -631,7 +657,6 @@ serve(async (req) => {
         }
 
         // Final Fallback: If no response has been sent by any rule or flow
-        // Removed the default fallback message here.
         if (!responseSent) {
           console.log('No specific rule or flow matched. No automated response will be sent.');
         }

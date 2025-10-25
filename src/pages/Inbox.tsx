@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags } from 'lucide-react'; // Added ListFilter, MailOpen, SquareX, Tags
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck } from 'lucide-react'; // Added Check, CheckCheck
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -19,16 +19,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import AddNewContactDialog from '@/components/AddNewContactDialog';
-// import ManageLabelsDialog from '@/components/ManageLabelsDialog'; // Removed from here
 import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
 import LabelBadge from '@/components/LabelBadge';
 import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog';
-import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover'; // Import new component
-import AttachmentOptionsDialog from '@/components/AttachmentOptionsDialog'; // Import new component
+import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover';
+import AttachmentOptionsDialog from '@/components/AttachmentOptionsDialog';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
-import { useIsMobile } from '@/hooks/use-mobile'; // Import useIsMobile hook
+import { Checkbox } from '@/components/ui/checkbox';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WhatsappAccount {
   id: string;
@@ -58,7 +57,7 @@ interface Conversation {
   whatsapp_account_id: string;
   whatsapp_account_name: string;
   unread_count: number;
-  labels: (LabelItem & { applied_by_user_id: string })[]; // Added applied_by_user_id
+  labels: (LabelItem & { applied_by_user_id: string })[];
 }
 
 interface Message {
@@ -71,12 +70,12 @@ interface Message {
   message_type: string;
   media_url?: string | null;
   media_caption?: string | null;
-  is_read?: boolean;
+  status?: 'sent' | 'delivered' | 'read'; // Updated to use status enum
 }
 
 const Inbox = () => {
   const { user } = useSession();
-  const isMobile = useIsMobile(); // Use the hook
+  const isMobile = useIsMobile();
 
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsappAccount[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -92,9 +91,8 @@ const Inbox = () => {
   const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false);
   const [dynamicQuickReplies, setDynamicQuickReplies] = useState<QuickReplyItem[]>([]);
 
-  const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]); // New state for multi-select
+  const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]);
 
-  // Media states for audio recording (kept here as it's direct input)
   const [isRecording, setIsRecording] = useState(false);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -117,7 +115,6 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
         .select("id, account_name, phone_number_id");
-        // Removed .eq("user_id", user.id) to allow all authenticated users to see all accounts
 
       if (error) throw error;
       setWhatsappAccounts(data || []);
@@ -136,7 +133,6 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from('whatsapp_labels')
         .select('id, name, color')
-        // Removed .eq('user_id', user.id) to allow all authenticated users to see all labels
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -153,7 +149,6 @@ const Inbox = () => {
       const { data, error } = await supabase
         .from('whatsapp_quick_replies')
         .select('id, name, type, text_content, audio_url')
-        // Removed .eq('user_id', user.id) to allow all authenticated users to see all quick replies
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -172,7 +167,7 @@ const Inbox = () => {
     setIsLoadingConversations(true);
     try {
       const { data: convData, error: convError } = await supabase
-        .rpc('get_whatsapp_conversations_with_unread_count', { p_user_id: user.id }); // p_user_id is now ignored by the RPC function
+        .rpc('get_whatsapp_conversations_with_unread_count', { p_user_id: user.id });
 
       if (convError) throw convError;
 
@@ -182,9 +177,8 @@ const Inbox = () => {
       if (conversationIds.length > 0) {
         const { data: convLabelsData, error: convLabelsError } = await supabase
           .from('whatsapp_conversation_labels')
-          .select('conversation_id, label_id, user_id, whatsapp_labels(id, name, color)') // Fetch user_id
+          .select('conversation_id, label_id, user_id, whatsapp_labels(id, name, color)')
           .in('conversation_id', conversationIds);
-          // Removed .eq('user_id', user.id) to allow all authenticated users to see all conversation labels
 
         if (convLabelsError) throw convLabelsError;
 
@@ -194,7 +188,7 @@ const Inbox = () => {
             if (!acc[cl.conversation_id]) {
               acc[cl.conversation_id] = [];
             }
-            acc[cl.conversation_id].push({ ...label, applied_by_user_id: cl.user_id }); // Store applied_by_user_id
+            acc[cl.conversation_id].push({ ...label, applied_by_user_id: cl.user_id });
           }
           return acc;
         }, {} as Record<string, (LabelItem & { applied_by_user_id: string })[]>);
@@ -231,8 +225,7 @@ const Inbox = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages")
-        .select("*")
-        // Removed .eq("user_id", user.id) to allow all authenticated users to see all messages
+        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status") // Select new status column
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
@@ -254,12 +247,11 @@ const Inbox = () => {
     try {
       const { error } = await supabase
         .from('whatsapp_messages')
-        .update({ is_read: true })
-        // Removed .eq('user_id', user.id) to allow any authenticated user to mark messages as read
+        .update({ status: 'read' }) // Update status to 'read'
         .eq('whatsapp_account_id', conversation.whatsapp_account_id)
         .eq('from_phone_number', conversation.contact_phone_number)
         .eq('direction', 'incoming')
-        .eq('is_read', false);
+        .neq('status', 'read'); // Only update if not already read
 
       if (error) {
         console.error('Error marking messages as read in DB:', error.message);
@@ -316,31 +308,42 @@ const Inbox = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Channel for new messages
+    // Channel for new messages and status updates
     const messageChannel = supabase
-      .channel(`messages_for_all_users`) // Changed channel name to be generic
+      .channel(`messages_for_all_users`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen for INSERT and UPDATE
           schema: 'public',
           table: 'whatsapp_messages',
-          // Removed filter: `user_id=eq.${user.id}`, to listen to all messages
         },
         (payload) => {
-          const newMessage = payload.new as Message;
-          console.log('Realtime: New message received:', newMessage);
+          const updatedMessage = payload.new as Message;
+          console.log('Realtime: Message event received:', payload.eventType, updatedMessage);
           
-          const targetContact = newMessage.direction === 'incoming' ? newMessage.from_phone_number : newMessage.to_phone_number;
-          const targetWhatsappAccountId = newMessage.whatsapp_account_id;
+          const targetContact = updatedMessage.direction === 'incoming' ? updatedMessage.from_phone_number : updatedMessage.to_phone_number;
+          const targetWhatsappAccountId = updatedMessage.whatsapp_account_id;
 
           const isMessageForSelectedConversation = selectedConversation &&
             targetWhatsappAccountId === selectedConversation.whatsapp_account_id &&
             targetContact === selectedConversation.contact_phone_number;
 
           if (isMessageForSelectedConversation) {
-            setMessages((prevMessages) => [...prevMessages, newMessage]);
-            if (newMessage.direction === 'incoming' && !newMessage.is_read) {
+            setMessages((prevMessages) => {
+              const existingIndex = prevMessages.findIndex(msg => msg.id === updatedMessage.id);
+              if (existingIndex > -1) {
+                // Update existing message
+                const newMessages = [...prevMessages];
+                newMessages[existingIndex] = updatedMessage;
+                return newMessages;
+              } else if (payload.eventType === 'INSERT') {
+                // Add new message
+                return [...prevMessages, updatedMessage];
+              }
+              return prevMessages;
+            });
+            if (updatedMessage.direction === 'incoming' && updatedMessage.status !== 'read') {
               markMessagesAsRead(selectedConversation);
             }
           }
@@ -368,49 +371,43 @@ const Inbox = () => {
       .subscribe();
 
     const labelChannel = supabase
-      .channel(`conversation_labels_for_all_users`) // Changed channel name to be generic
+      .channel(`conversation_labels_for_all_users`)
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen for INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'whatsapp_conversation_labels',
-          // Removed filter: `conversation_id.in.(${conversations.map(c => c.id).join(',')})`, to listen to all labels
         },
         (payload) => {
-          // A label was added/removed from a conversation, or a label itself was updated
-          // Re-fetch conversations to update labels displayed
           fetchConversations();
         }
       )
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen for INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'whatsapp_labels',
-          // Removed filter: `user_id=eq.${user.id}`, to listen to all label definitions
         },
         (payload) => {
-          // A label definition was changed (name/color), re-fetch conversations to update display
           fetchConversations();
-          fetchAllLabels(); // Also re-fetch all labels for the filter popover
+          fetchAllLabels();
         }
       )
       .subscribe();
 
     const quickReplyChannel = supabase
-      .channel(`quick_replies_for_all_users`) // Changed channel name to be generic
+      .channel(`quick_replies_for_all_users`)
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen for INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'whatsapp_quick_replies',
-          // Removed filter: `user_id=eq.${user.id}`, to listen to all quick replies
         },
         (payload) => {
-          fetchDynamicQuickReplies(); // Re-fetch quick replies when changes occur
+          fetchDynamicQuickReplies();
         }
       )
       .subscribe();
@@ -418,7 +415,7 @@ const Inbox = () => {
 
     return () => {
       supabase.removeChannel(messageChannel);
-      supabase.removeChannel(conversationUpdateChannel); // Clean up new channel
+      supabase.removeChannel(conversationUpdateChannel);
       supabase.removeChannel(labelChannel);
       supabase.removeChannel(quickReplyChannel);
     };
@@ -426,7 +423,6 @@ const Inbox = () => {
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
-    // Use requestAnimationFrame to ensure DOM has rendered before scrolling
     requestAnimationFrame(() => {
       scrollToBottom();
     });
@@ -434,7 +430,7 @@ const Inbox = () => {
 
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
-    setSelectedConversationIds([]); // Clear multi-selection when opening a chat
+    setSelectedConversationIds([]);
   };
 
   const handleNewChatCreated = (conversation: {
@@ -506,7 +502,7 @@ const Inbox = () => {
           toPhoneNumber: selectedConversation.contact_phone_number,
           messageBody: messageBody,
           whatsappAccountId: selectedConversation.whatsapp_account_id,
-          userId: user.id, // Keep userId for the edge function to log/associate
+          userId: user.id,
           mediaUrl: mediaUrl,
           mediaType: mediaType,
           mediaCaption: mediaCaption,
@@ -530,14 +526,12 @@ const Inbox = () => {
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setAudioCaption("");
-      // No need to reset camera/gallery/attachment states here, as they are managed by their own dialogs
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
     }
   }, [user, selectedConversation, whatsappAccounts]);
 
-  // --- Audio Recording Logic ---
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -586,7 +580,6 @@ const Inbox = () => {
     }
   };
 
-  // --- Render Media Messages ---
   const renderMediaMessage = (message: Message) => {
     if (!message.media_url) return null;
 
@@ -629,13 +622,24 @@ const Inbox = () => {
     }
   };
 
+  const renderTickMarks = (status: Message['status']) => {
+    if (status === 'read') {
+      return <CheckCheck className="h-4 w-4 text-blue-400 ml-1" />;
+    } else if (status === 'delivered') {
+      return <CheckCheck className="h-4 w-4 text-gray-300 ml-1" />;
+    } else if (status === 'sent') {
+      return <Check className="h-4 w-4 text-gray-300 ml-1" />;
+    }
+    return null;
+  };
+
   const filteredConversations = conversations.filter(conv => {
     const matchesFilterType = filterType === 'all' || (filterType === 'unread' && conv.unread_count > 0);
     const matchesLabel = selectedLabelFilterId ? conv.labels.some(label => label.id === selectedLabelFilterId) : true;
     return matchesFilterType && matchesLabel;
   });
 
-  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter"; // Keep for popover content
+  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter";
 
   const handleToggleConversationSelection = (conversationId: string) => {
     setSelectedConversationIds(prev =>
@@ -655,10 +659,10 @@ const Inbox = () => {
         {/* Conversations List */}
         <div className={cn(
           "w-full flex-shrink-0 flex-col bg-white dark:bg-gray-800 overflow-y-auto",
-          "lg:w-96 lg:border-r lg:border-gray-200 dark:lg:border-gray-700", // Desktop fixed width and border
-          (isMobile && selectedConversation) ? "hidden" : "flex" // Mobile: hide if selected, show if not. Desktop: always flex.
+          "lg:w-96 lg:border-r lg:border-gray-200 dark:lg:border-gray-700",
+          (isMobile && selectedConversation) ? "hidden" : "flex"
         )}>
-          <div className="flex-shrink-0 p-4 sm:p-6 lg:p-4"> {/* Adjusted padding for consistency */}
+          <div className="flex-shrink-0 p-4 sm:p-6 lg:p-4">
             <div className="flex items-center justify-between mb-4">
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/dashboard">
@@ -823,11 +827,11 @@ const Inbox = () => {
         {/* Message Area */}
         <div className={cn(
           "relative flex-col flex-1 bg-gray-50 dark:bg-gray-900 h-full",
-          "bg-[radial-gradient(circle,var(--tw-gradient-stops))] from-gray-200/50 to-transparent bg-[size:20px_20px] dark:from-gray-700/50 dark:to-transparent", // WhatsApp-like background
-          (isMobile && !selectedConversation) ? "hidden" : "flex" // Mobile: hide if not selected, show if selected. Desktop: always flex.
+          "bg-[radial-gradient(circle,var(--tw-gradient-stops))] from-gray-200/50 to-transparent bg-[size:20px_20px] dark:from-gray-700/50 dark:to-transparent",
+          (isMobile && !selectedConversation) ? "hidden" : "flex"
         )}>
           {/* Header for Selected Conversation - Fixed at top */}
-          <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]"> {/* Increased z-index to z-20 */}
+          <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
             <div className="flex items-center">
               <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
                 <ArrowLeft className="h-5 w-5" />
@@ -857,7 +861,7 @@ const Inbox = () => {
           </div>
 
           {/* Messages - Scrollable area, takes remaining space */}
-          <div className="flex-1 overflow-y-auto space-y-4 pt-[72px] pb-[80px] px-4 sm:px-6 lg:px-8"> {/* Added horizontal padding */}
+          <div className="flex-1 overflow-y-auto space-y-4 pt-[72px] pb-[80px] px-4 sm:px-6 lg:px-8">
             {isLoadingMessages ? (
               <div className="text-center text-gray-500">Loading messages...</div>
             ) : messages.length === 0 ? (
@@ -887,9 +891,10 @@ const Inbox = () => {
                         {msg.message_body && <p className="text-sm pr-10">{msg.message_body}</p>}
                       </>
                     )}
-                    <span className="absolute bottom-1 right-2 text-xs opacity-75">
-                      {format(new Date(msg.created_at), 'HH:mm')}
-                    </span>
+                    <div className="absolute bottom-1 right-2 flex items-center text-xs opacity-75">
+                      <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
+                      {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
+                    </div>
                   </div>
                 </div>
               ))
@@ -898,7 +903,7 @@ const Inbox = () => {
           </div>
 
           {/* Input Area - Fixed at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 flex items-end bg-gray-50 dark:bg-gray-900 z-20 h-[80px]"> {/* Increased z-index to z-20 */}
+          <div className="absolute bottom-0 left-0 right-0 p-2 flex items-end bg-gray-50 dark:bg-gray-900 z-20 h-[80px]">
             <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
               <Input
                 type="text"
@@ -949,7 +954,7 @@ const Inbox = () => {
                             } else if (reply.type === 'audio' && reply.audio_url) {
                               handleSendMessage(null, reply.audio_url, 'audio', reply.name);
                             }
-                            setIsQuickRepliesPopoverOpen(false); // Close popover after selection
+                            setIsQuickRepliesPopoverOpen(false);
                           }}
                         >
                           {reply.type === 'text' ? (

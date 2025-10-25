@@ -122,6 +122,8 @@ serve(async (req) => {
 
     console.log('Message sent successfully via WhatsApp API:', responseData);
 
+    const metaMessageId = responseData.messages?.[0]?.id || null;
+
     // Save outgoing message to database using service role client
     const { error: insertOutgoingError } = await supabaseServiceRoleClient
       .from('whatsapp_messages')
@@ -135,7 +137,8 @@ serve(async (req) => {
         direction: 'outgoing',
         media_url: mediaUrl || null,
         media_caption: mediaCaption || null,
-        is_read: true, // Explicitly set to true for outgoing messages
+        meta_message_id: metaMessageId, // Store Meta's message ID
+        status: 'sent', // Set initial status to 'sent'
       });
 
     if (insertOutgoingError) {
