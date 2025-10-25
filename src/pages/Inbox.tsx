@@ -71,7 +71,7 @@ interface Message {
   media_url?: string | null;
   media_caption?: string | null;
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
-  user_id?: string;
+  user_id?: string; // Explicitly include user_id for clarity in optimistic updates
 }
 
 const Inbox = () => {
