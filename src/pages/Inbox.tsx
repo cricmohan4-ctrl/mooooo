@@ -638,13 +638,13 @@ const Inbox = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Explicitly request audio/ogg with Opus codec
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/ogg; codecs=opus' }); 
+      // Attempt to use audio/webm, which is widely supported for recording
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' }); 
       recorder.ondataavailable = (e) => {
         setAudioChunks((prev) => [...prev, e.data]);
       };
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' }); // Ensure blob type matches
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // Ensure blob type matches
         setRecordedAudioBlob(audioBlob);
         setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         setAudioChunks([]);
@@ -658,9 +658,9 @@ const Inbox = () => {
       setRecordedAudioUrl(null);
       setAudioCaption("");
       showSuccess("Recording started...");
-    } catch (err) {
+    } catch (err: any) { // Catch the error object to get more details
       console.error("Error accessing microphone:", err);
-      showError("Failed to start recording. Please check microphone permissions.");
+      showError(`Failed to start recording: ${err.name} - ${err.message}. Please check microphone permissions.`);
     }
   };
 
@@ -674,9 +674,9 @@ const Inbox = () => {
 
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
-      const fileName = `audio-${Date.now()}.ogg`;
+      const fileName = `audio-${Date.now()}.webm`; // Use .webm extension
       // For audio, we pass null for mediaCaption as WhatsApp API doesn't support it directly
-      const mediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, 'audio/ogg');
+      const mediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, 'audio/webm'); // Use audio/webm type
       if (mediaUrl) {
         await handleSendMessage(null, mediaUrl, 'audio', null); // Pass null for mediaCaption
       }
