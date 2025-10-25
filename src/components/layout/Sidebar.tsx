@@ -11,7 +11,6 @@ import {
   Menu,
   Tag,
   FileText,
-  Brain, // Import Brain icon for AI Integration
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,6 @@ const allNavItems = [
   { name: 'Chatbot Rules', href: '/chatbot-rules', icon: Bot, roles: ['admin'] },
   { name: 'Form Builder', href: '/form-builder', icon: FileText, roles: ['admin'] },
   { name: 'Label Management', href: '/label-management', icon: Tag, roles: ['admin'] },
-  { name: 'AI Integration', href: '/ai-integration', icon: Brain, roles: ['admin'] }, // New item
   { name: 'User Management', href: '/user-management', icon: Users, roles: ['admin'] },
 ];
 
