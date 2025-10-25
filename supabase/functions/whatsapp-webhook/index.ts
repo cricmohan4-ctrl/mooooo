@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
-// Inlined phone number normalization utility
+// Inlined utility function: normalizePhoneNumber
+// This function is included directly to avoid module import issues in Deno Edge Functions.
 const normalizePhoneNumber = (phoneNumber: string): string => {
   if (!phoneNumber) return '';
   // Remove all non-digit characters
@@ -379,7 +380,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ఇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
