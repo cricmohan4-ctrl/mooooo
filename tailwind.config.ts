@@ -70,6 +70,18 @@ export default {
           DEFAULT: "#ffc107", // A vibrant yellow/orange from the image
           foreground: "#ffffff",
         },
+        // WhatsApp-like colors
+        "whatsapp-outgoing": {
+          DEFAULT: "#dcf8c6", // Light green for outgoing messages
+          foreground: "#000000",
+        },
+        "whatsapp-incoming": {
+          DEFAULT: "#ffffff", // White for incoming messages
+          foreground: "#000000",
+        },
+        "whatsapp-read-tick": {
+          DEFAULT: "#34b7f1", // WhatsApp blue for read ticks
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
