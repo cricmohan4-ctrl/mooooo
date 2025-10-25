@@ -100,9 +100,13 @@ serve(async (req) => {
           link: mediaUrl,
         },
       };
-      // Only add caption for image and video types
+      // Only add caption for image and video types. Explicitly set to null for audio.
       if (mediaCaption && (mediaType === 'image' || mediaType === 'video')) {
         messagePayload[mediaType].caption = mediaCaption;
+      } else if (mediaType === 'audio') {
+        // Do not add caption for audio messages, as it's not supported by WhatsApp API
+        // Ensure messageBodyToSave reflects this
+        messageBodyToSave = `[audio message]`;
       }
       // Determine messageBodyToSave based on mediaType
       if (mediaType === 'image' || mediaType === 'video') {
