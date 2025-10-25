@@ -306,7 +306,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నమస్కారం! ಈಗ నేను తెలుగులో సమాధానం ఇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
@@ -631,10 +631,9 @@ serve(async (req) => {
         }
 
         // Final Fallback: If no response has been sent by any rule or flow
+        // Removed the default fallback message here.
         if (!responseSent) {
-          console.log('No specific rule or flow matched. Sending default fallback message.');
-          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I don't understand your request. Please try again or type 'help' for options." });
-          responseSent = true;
+          console.log('No specific rule or flow matched. No automated response will be sent.');
         }
 
       } catch (error: any) {
