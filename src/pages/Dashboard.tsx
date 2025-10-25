@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, FileText } from "lucide-react"; // Added FileText icon
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { showError } from "@/utils/toast";
-import { Link } from "react-router-dom"; // Keep Link for potential future dashboard links
+import { Link } from "react-router-dom";
 
 // Define interfaces if needed for other dashboard components,
 // but for now, we'll keep it minimal as Chatbot Rules are moved.
@@ -27,8 +27,8 @@ const Dashboard = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 mb-8">
-        <Card className="shadow-lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Card className="shadow-lg col-span-full"> {/* Make this card span full width for a prominent welcome */}
           <CardHeader>
             <CardTitle className="text-2xl font-medium">Welcome to your Dashboard!</CardTitle>
           </CardHeader>
@@ -46,10 +46,24 @@ const Dashboard = () => {
               <Link to="/chatbot-rules">
                 <Button variant="secondary">Manage Chatbot Rules</Button>
               </Link>
-              <Link to="/form-builder">
-                <Button variant="outline">Form Builder</Button>
-              </Link>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* New Card for Forms */}
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xl font-medium">
+              <FileText className="inline-block h-5 w-5 mr-2 text-orange-500" /> WhatsApp Flow Forms
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Create and manage custom forms that can be integrated into your chatbot flows to collect information from users.
+            </p>
+            <Link to="/form-builder">
+              <Button variant="outline" className="w-full">Go to Form Builder</Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
