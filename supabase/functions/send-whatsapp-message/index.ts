@@ -166,7 +166,9 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error('Error from WhatsApp API (response not OK):', responseData);
-      return new Response(JSON.stringify({ status: 'error', message: 'Failed to send message via WhatsApp API', details: responseData }), {
+      // Extract more specific error details if available
+      const errorDetails = responseData?.error?.message || responseData?.error?.details || 'Unknown error from WhatsApp API';
+      return new Response(JSON.stringify({ status: 'error', message: `Failed to send message via WhatsApp API: ${errorDetails}`, details: responseData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200, // Always return 200 for client to parse body
       });

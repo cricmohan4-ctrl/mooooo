@@ -508,6 +508,9 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
                   {newReplyAudioPreview && (
                     <audio controls src={newReplyAudioPreview} className="w-full mt-2"></audio>
                   )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Note: WhatsApp has strict requirements for audio files. If your audio fails to send, try converting it to a standard format like OGG (Opus codec) or MP4 (AAC codec) with a tool like Audacity or an online converter.
+                  </p>
                 </div>
               </div>
             )}
