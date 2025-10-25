@@ -1,8 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
-// Import the normalization utility from its local directory
-import { normalizePhoneNumber } from './phoneUtils.ts';
+// Inlined phone number normalization utility
+const normalizePhoneNumber = (phoneNumber: string): string => {
+  if (!phoneNumber) return '';
+  // Remove all non-digit characters
+  const digitsOnly = phoneNumber.replace(/\D/g, '');
+  // If it doesn't start with '+', prepend it. Assuming international format.
+  // For WhatsApp, numbers usually include country code.
+  if (!phoneNumber.startsWith('+')) {
+    return `+${digitsOnly}`;
+  }
+  return `+${digitsOnly}`;
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -369,7 +379,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానಂ ಇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
