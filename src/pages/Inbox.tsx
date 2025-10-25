@@ -289,6 +289,19 @@ const Inbox = () => {
     }
   }, [whatsappAccounts, user, fetchConversations]);
 
+  // Auto-reload conversations every 10 seconds
+  useEffect(() => {
+    if (user && whatsappAccounts.length > 0) {
+      const intervalId = setInterval(() => {
+        console.log('Auto-reloading conversations...');
+        fetchConversations();
+      }, 10000); // 10 seconds
+
+      return () => clearInterval(intervalId); // Cleanup on unmount
+    }
+  }, [user, whatsappAccounts, fetchConversations]);
+
+
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
