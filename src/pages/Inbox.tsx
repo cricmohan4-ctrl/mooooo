@@ -325,20 +325,31 @@ const Inbox = () => {
           const targetContact = updatedMessage.direction === 'incoming' ? updatedMessage.from_phone_number : updatedMessage.to_phone_number;
           const targetWhatsappAccountId = updatedMessage.whatsapp_account_id;
 
+          console.log('Realtime Debug: selectedConversation:', selectedConversation);
+          console.log('Realtime Debug: updatedMessage.whatsapp_account_id:', updatedMessage.whatsapp_account_id);
+          console.log('Realtime Debug: updatedMessage.from_phone_number (incoming):', updatedMessage.from_phone_number);
+          console.log('Realtime Debug: updatedMessage.to_phone_number (outgoing):', updatedMessage.to_phone_number);
+          console.log('Realtime Debug: targetContact:', targetContact);
+          console.log('Realtime Debug: targetWhatsappAccountId:', targetWhatsappAccountId);
+
           const isMessageForSelectedConversation = selectedConversation &&
             targetWhatsappAccountId === selectedConversation.whatsapp_account_id &&
             targetContact === selectedConversation.contact_phone_number;
+
+          console.log('Realtime Debug: isMessageForSelectedConversation:', isMessageForSelectedConversation);
 
           if (isMessageForSelectedConversation) {
             setMessages((prevMessages) => {
               const existingIndex = prevMessages.findIndex(msg => msg.id === updatedMessage.id);
               if (existingIndex > -1) {
                 // Update existing message
+                console.log('Realtime Debug: Updating existing message:', updatedMessage.id);
                 const newMessages = [...prevMessages];
                 newMessages[existingIndex] = updatedMessage;
                 return newMessages;
               } else if (payload.eventType === 'INSERT') {
                 // Add new message
+                console.log('Realtime Debug: Adding new message:', updatedMessage.id);
                 return [...prevMessages, updatedMessage];
               }
               return prevMessages;
