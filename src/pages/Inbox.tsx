@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2 } from 'lucide-react'; // Added Trash2 icon
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -28,6 +28,17 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface WhatsappAccount {
   id: string;
@@ -579,6 +590,31 @@ const Inbox = () => {
     }
   }, [user, selectedConversation, whatsappAccounts, uploadMediaToSupabase]);
 
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    if (!user) {
+      showError("You must be logged in to delete messages.");
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('user_id', user.id); // Ensure only the sender can delete their message
+
+      if (error) {
+        throw error;
+      }
+      showSuccess("Message deleted successfully!");
+      setMessages((prev) => prev.filter(msg => msg.id !== messageId));
+      // Optionally, re-fetch conversations to update last message if the deleted one was the last
+      fetchConversations();
+    } catch (error: any) {
+      console.error("Error deleting message:", error.message);
+      showError(`Failed to delete message: ${error.message}`);
+    }
+  }, [user, fetchConversations]);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -922,16 +958,16 @@ const Inbox = () => {
                 <div
                   key={msg.id}
                   className={cn(
-                    "flex",
+                    "flex group", // Added group for hover effect
                     msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
                   )}
                 >
                   <div
                     className={cn(
-                      "max-w-[80%] p-2 rounded-xl flex flex-col",
+                      "max-w-[80%] p-2 rounded-xl flex flex-col relative", // Added relative for positioning delete button
                       msg.direction === 'outgoing'
-                        ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-br-none' // Updated outgoing message color
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none' // Incoming message color
+                        ? 'bg-blue-500 dark:bg-blue-600 text-white rounded-br-none'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
                     )}
                   >
                     {/* Message content */}
@@ -948,6 +984,40 @@ const Inbox = () => {
                       <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
                       {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
                     </div>
+
+                    {/* Delete button for outgoing messages */}
+                    {msg.direction === 'outgoing' && msg.user_id === user?.id && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "absolute -top-2",
+                              msg.direction === 'outgoing' ? '-left-8' : '-right-8', // Position to the left of outgoing, right of incoming
+                              "h-6 w-6 p-0 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            )}
+                            title="Delete Message"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete this message.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteMessage(msg.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
                 </div>
               ))
