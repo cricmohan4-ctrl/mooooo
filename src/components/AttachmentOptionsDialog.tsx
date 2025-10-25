@@ -140,7 +140,7 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Note: WhatsApp has strict requirements for audio files. If your audio fails to send, try converting it to a standard format like OGG (Opus codec) or MP4 (AAC codec) with a tool like Audacity or an online converter.
+            Note: For best compatibility with WhatsApp, please upload audio files in **OGG (Opus codec)** or **MP4 (AAC codec)** format. If your audio fails to send, try converting it with a tool like Audacity or an online converter.
           </p>
         </DialogContent>
       </Dialog>

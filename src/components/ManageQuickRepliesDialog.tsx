@@ -92,6 +92,7 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
   const handleNewAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      // Allow any audio type for upload, but warn about compatibility
       if (!file.type.startsWith('audio/')) {
         showError("Please upload an audio file.");
         setNewReplyAudioFile(null);
@@ -109,6 +110,7 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
   const handleEditAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      // Allow any audio type for upload, but warn about compatibility
       if (!file.type.startsWith('audio/')) {
         showError("Please upload an audio file.");
         setEditingReplyAudioFile(null);
@@ -509,7 +511,7 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
                     <audio controls src={newReplyAudioPreview} className="w-full mt-2"></audio>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
-                    Note: WhatsApp has strict requirements for audio files. If your audio fails to send, try converting it to a standard format like OGG (Opus codec) or MP4 (AAC codec) with a tool like Audacity or an online converter.
+                    Note: For best compatibility with WhatsApp, please upload audio files in **OGG (Opus codec)** or **MP4 (AAC codec)** format. If your audio fails to send, try converting it with a tool like Audacity or an online converter.
                   </p>
                 </div>
               </div>
