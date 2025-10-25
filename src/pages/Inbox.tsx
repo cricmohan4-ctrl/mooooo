@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck } from 'lucide-react'; // Added Check, CheckCheck
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -70,8 +70,8 @@ interface Message {
   message_type: string;
   media_url?: string | null;
   media_caption?: string | null;
-  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'; // Added 'sending' and 'failed'
-  user_id?: string; // Added user_id
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+  user_id?: string;
 }
 
 const Inbox = () => {
@@ -226,7 +226,7 @@ const Inbox = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages")
-        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id") // Select new status column and user_id
+        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id")
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
@@ -248,11 +248,11 @@ const Inbox = () => {
     try {
       const { error } = await supabase
         .from('whatsapp_messages')
-        .update({ status: 'read' }) // Update status to 'read'
+        .update({ status: 'read' })
         .eq('whatsapp_account_id', conversation.whatsapp_account_id)
         .eq('from_phone_number', conversation.contact_phone_number)
         .eq('direction', 'incoming')
-        .neq('status', 'read'); // Only update if not already read
+        .neq('status', 'read');
 
       if (error) {
         console.error('Error marking messages as read in DB:', error.message);
@@ -516,12 +516,12 @@ const Inbox = () => {
       return;
     }
 
-    const tempId = `temp-${crypto.randomUUID()}`; // Generate a temporary client-side ID
+    const tempId = `temp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
 
     const optimisticMessage: Message = {
       id: tempId,
-      from_phone_number: whatsappAccount.phone_number_id, // The WA Business Account's phone number ID
+      from_phone_number: whatsappAccount.phone_number_id,
       to_phone_number: selectedConversation.contact_phone_number,
       message_body: messageBody || `[${mediaType} message]${mediaCaption ? `: ${mediaCaption}` : ''}`,
       direction: 'outgoing',
@@ -529,12 +529,13 @@ const Inbox = () => {
       message_type: mediaType || 'text',
       media_url: mediaUrl,
       media_caption: mediaCaption,
-      status: 'sending', // Set status to 'sending'
+      status: 'sending',
+      user_id: user.id, // Include user_id for optimistic message
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
     scrollToBottom();
-    setNewMessage(""); // Clear input immediately
+    setNewMessage("");
 
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('send-whatsapp-message', {
@@ -566,9 +567,6 @@ const Inbox = () => {
         );
         return;
       }
-
-      // The real-time listener will now pick up the actual message from the DB and update the optimistic one.
-      // No need to explicitly update status to 'sent' here.
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setAudioCaption("");
@@ -679,9 +677,9 @@ const Inbox = () => {
     } else if (status === 'sent') {
       return <Check className="h-4 w-4 text-gray-300 ml-1" />;
     } else if (status === 'sending') {
-      return <span className="ml-1 text-xs text-gray-400">...</span>; // Simple indicator for sending
+      return <span className="ml-1 text-xs text-gray-400">...</span>;
     } else if (status === 'failed') {
-      return <X className="h-4 w-4 text-red-500 ml-1" />; // Error indicator
+      return <X className="h-4 w-4 text-red-500 ml-1" />;
     }
     return null;
   };
@@ -930,7 +928,7 @@ const Inbox = () => {
                 >
                   <div
                     className={cn(
-                      "max-w-[80%] p-2 rounded-xl flex flex-col", // Removed 'relative'
+                      "max-w-[80%] p-2 rounded-xl flex flex-col",
                       msg.direction === 'outgoing'
                         ? 'bg-brand-green text-white rounded-br-none'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
@@ -938,15 +936,15 @@ const Inbox = () => {
                   >
                     {/* Message content */}
                     {msg.message_type === 'text' ? (
-                      <p className="text-sm break-words">{msg.message_body}</p> {/* Removed pr-12 */}
+                      <p className="text-sm break-words">{msg.message_body}</p>
                     ) : (
-                      <div> {/* Removed pr-12 */}
+                      <div>
                         {renderMediaMessage(msg)}
                         {msg.message_body && <p className="text-sm break-words">{msg.message_body}</p>}
                       </div>
                     )}
                     {/* Timestamp and ticks */}
-                    <div className="flex items-center text-xs opacity-75 mt-1 ml-auto"> {/* Added ml-auto */}
+                    <div className="flex items-center text-xs opacity-75 mt-1 ml-auto">
                       <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
                       {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
                     </div>
