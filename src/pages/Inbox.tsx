@@ -486,6 +486,12 @@ const Inbox = () => {
       return null;
     }
 
+    // Normalize MIME type for M4A files to audio/mp4 for better WhatsApp compatibility
+    let normalizedFileType = fileType;
+    if (fileType === 'audio/x-m4a' || fileType === 'audio/aac') {
+      normalizedFileType = 'audio/mp4';
+    }
+
     const filePath = `${user.id}/${Date.now()}-${fileName}`;
     try {
       const { data, error } = await supabase.storage
@@ -493,7 +499,7 @@ const Inbox = () => {
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: fileType,
+          contentType: normalizedFileType, // Use normalized type for upload
         });
 
       if (error) {
