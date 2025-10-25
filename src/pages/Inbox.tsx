@@ -884,11 +884,11 @@ const Inbox = () => {
                     )}
                   >
                     {msg.message_type === 'text' ? (
-                      <p className="text-sm pr-10">{msg.message_body}</p>
+                      <p className="text-sm pr-10 break-words">{msg.message_body}</p>
                     ) : (
                       <>
                         {renderMediaMessage(msg)}
-                        {msg.message_body && <p className="text-sm pr-10">{msg.message_body}</p>}
+                        {msg.message_body && <p className="text-sm pr-10 break-words">{msg.message_body}</p>}
                       </>
                     )}
                     <div className="absolute bottom-1 right-2 flex items-center text-xs opacity-75">
