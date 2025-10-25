@@ -709,7 +709,7 @@ const Inbox = () => {
 
   const renderTickMarks = (status: Message['status']) => {
     if (status === 'read') {
-      return <CheckCheck className="h-4 w-4 text-brand-green ml-1" />; 
+      return <CheckCheck className="h-4 w-4 text-white ml-1" />; 
     } else if (status === 'delivered') {
       return <CheckCheck className="h-4 w-4 text-gray-300 ml-1" />; 
     } else if (status === 'sent') {
