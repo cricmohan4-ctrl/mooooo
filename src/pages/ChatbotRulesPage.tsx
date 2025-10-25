@@ -31,11 +31,11 @@ interface ChatbotRule {
   id: string;
   whatsapp_account_id: string;
   trigger_value: string;
-  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE";
+  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH"; // Removed AI_RESPONSE
   response_message: string[];
   buttons?: ButtonConfig[] | null;
   flow_id?: string | null;
-  use_ai_response: boolean;
+  // Removed use_ai_response
   account_name?: string;
   flow_name?: string;
 }
@@ -80,8 +80,7 @@ const ChatbotRulesPage = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_rules")
-        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response, whatsapp_accounts(account_name), chatbot_flows(name)");
-        // Removed .eq("user_id", user.id) to allow all authenticated users to see all rules
+        .select("id, whatsapp_account_id, trigger_value, trigger_type, response_message, buttons, flow_id, whatsapp_accounts(account_name), chatbot_flows(name)"); // Removed use_ai_response
 
       if (error) {
         throw error;
@@ -182,11 +181,7 @@ const ChatbotRulesPage = () => {
                         Trigger: <span className="font-normal text-gray-700 dark:text-gray-300">[{rule.trigger_type}] "{rule.trigger_value}"</span>
                       </p>
                     </div>
-                    {rule.use_ai_response ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
-                        Response: <span className="font-medium text-purple-600 dark:text-purple-400">AI Generated</span>
-                      </p>
-                    ) : rule.flow_id ? (
+                    {rule.flow_id ? (
                       <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
                         Linked Flow: <span className="font-medium text-blue-600 dark:text-blue-400">{rule.flow_name || 'Unnamed Flow'}</span>
                       </p>

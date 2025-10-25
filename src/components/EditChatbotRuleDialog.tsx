@@ -40,11 +40,11 @@ interface ChatbotRule {
   id: string;
   whatsapp_account_id: string;
   trigger_value: string;
-  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE";
+  trigger_type: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH"; // Removed AI_RESPONSE
   response_message: string[];
   buttons?: ButtonConfig[] | null;
   flow_id?: string | null;
-  use_ai_response?: boolean;
+  // Removed use_ai_response
   account_name?: string; // For display purposes, not directly updated
 }
 
@@ -66,14 +66,13 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
   const { user } = useSession();
   const [selectedWhatsappAccountId, setSelectedWhatsappAccountId] = useState<string>(rule.whatsapp_account_id);
   const [triggerValue, setTriggerValue] = useState(rule.trigger_value);
-  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE">(rule.trigger_type);
+  const [triggerType, setTriggerType] = useState<"EXACT_MATCH" | "CONTAINS" | "STARTS_WITH">(rule.trigger_type); // Removed AI_RESPONSE
   const [responseMessage, setResponseMessage] = useState(rule.response_message.join('\n'));
   const [buttons, setButtons] = useState<ButtonConfig[]>(rule.buttons ? [...rule.buttons] : []);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(rule.flow_id || null);
   const [chatbotFlows, setChatbotFlows] = useState<ChatbotFlow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isAIResponseSelected = triggerType === "AI_RESPONSE";
   const hasWhatsappAccounts = whatsappAccounts.length > 0; // Although for editing, an account must exist
 
   // Update state when the rule prop changes (e.g., if a different rule is selected for editing)
@@ -129,17 +128,17 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
       showError("You must be logged in to edit a chatbot rule.");
       return;
     }
-    if (!selectedWhatsappAccountId || (!isAIResponseSelected && !triggerValue.trim())) {
+    if (!selectedWhatsappAccountId || !triggerValue.trim()) { // Trigger value is always required now
       showError("Please fill in all required fields (WhatsApp Account, Trigger Value).");
       return;
     }
 
-    if (!isAIResponseSelected && !selectedFlowId && !responseMessage.trim()) {
+    if (!selectedFlowId && !responseMessage.trim()) { // Response message or flow is required
       showError("Please provide a response message or select a chatbot flow.");
       return;
     }
 
-    if (!isAIResponseSelected && buttons.length > 0) {
+    if (buttons.length > 0) {
       const invalidButtons = buttons.some(btn => !btn.text.trim() || !btn.payload.trim());
       if (invalidButtons) {
         showError("Please ensure all button text and payload values are filled.");
@@ -149,7 +148,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
 
     setIsLoading(true);
     try {
-      const responseMessagesArray = (isAIResponseSelected || selectedFlowId) ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
+      const responseMessagesArray = selectedFlowId ? [] : responseMessage.split('\n').map(msg => msg.trim()).filter(msg => msg.length > 0);
 
       const { error } = await supabase
         .from("chatbot_rules")
@@ -158,9 +157,9 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
           trigger_value: triggerValue,
           trigger_type: triggerType,
           response_message: responseMessagesArray,
-          buttons: (isAIResponseSelected || selectedFlowId) ? null : (buttons.length > 0 ? buttons : null),
-          flow_id: isAIResponseSelected ? null : selectedFlowId,
-          use_ai_response: isAIResponseSelected,
+          buttons: selectedFlowId ? null : (buttons.length > 0 ? buttons : null),
+          flow_id: selectedFlowId,
+          // Removed use_ai_response
         })
         .eq("id", rule.id);
         // RLS will enforce that only admins can update
@@ -186,7 +185,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Edit Chatbot Rule</DialogTitle>
           <DialogDescription>
-            Modify the trigger and either the automated response, linked chatbot flow, or AI response for this rule.
+            Modify the trigger and either the automated response or linked chatbot flow for this rule.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -218,13 +217,8 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                 Trigger Type
               </Label>
               <Select
-                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH" | "AI_RESPONSE") => {
+                onValueChange={(value: "EXACT_MATCH" | "CONTAINS" | "STARTS_WITH") => { // Removed AI_RESPONSE
                   setTriggerType(value);
-                  if (value === "AI_RESPONSE") {
-                    setSelectedFlowId(null); // Clear flow selection if AI is chosen
-                    setResponseMessage(""); // Clear static response
-                    setButtons([]); // Clear buttons
-                  }
                   setTriggerValue(""); // Clear trigger value for other types
                 }}
                 value={triggerType}
@@ -237,7 +231,6 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                   <SelectItem value="EXACT_MATCH">Exact Match</SelectItem>
                   <SelectItem value="CONTAINS">Contains</SelectItem>
                   <SelectItem value="STARTS_WITH">Starts With</SelectItem>
-                  <SelectItem value="AI_RESPONSE">AI Response</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -250,8 +243,8 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                 value={triggerValue}
                 onChange={(e) => setTriggerValue(e.target.value)}
                 className="col-span-3"
-                placeholder={isAIResponseSelected ? "e.g., 'any message', 'ask AI'" : "e.g., 'hello', 'support', 'pricing'"}
-                required={!isAIResponseSelected}
+                placeholder="e.g., 'hello', 'support', 'pricing'"
+                required
                 disabled={false}
               />
             </div>
@@ -259,38 +252,36 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
             <Separator className="my-2" />
 
             {/* Flow Selection */}
-            {!isAIResponseSelected && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="chatbotFlow" className="text-right">
-                  Link to Flow (Optional)
-                </Label>
-                <Select
-                  onValueChange={(value) => {
-                    setSelectedFlowId(value === "none" ? null : value);
-                    if (value !== "none") {
-                      setResponseMessage(""); // Clear static response if flow is selected
-                      setButtons([]); // Clear buttons if flow is selected
-                    }
-                  }}
-                  value={selectedFlowId || "none"}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a chatbot flow" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Flow (Use static response)</SelectItem>
-                    {chatbotFlows.map((flow) => (
-                      <SelectItem key={flow.id} value={flow.id}>
-                        {flow.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="chatbotFlow" className="text-right">
+                Link to Flow (Optional)
+              </Label>
+              <Select
+                onValueChange={(value) => {
+                  setSelectedFlowId(value === "none" ? null : value);
+                  if (value !== "none") {
+                    setResponseMessage(""); // Clear static response if flow is selected
+                    setButtons([]); // Clear buttons if flow is selected
+                  }
+                }}
+                value={selectedFlowId || "none"}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a chatbot flow" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Flow (Use static response)</SelectItem>
+                  {chatbotFlows.map((flow) => (
+                    <SelectItem key={flow.id} value={flow.id}>
+                      {flow.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Conditional Response Message and Buttons */}
-            {!isAIResponseSelected && !selectedFlowId && (
+            {!selectedFlowId && (
               <>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="responseMessage" className="text-right">
@@ -302,7 +293,7 @@ const EditChatbotRuleDialog: React.FC<EditChatbotRuleDialogProps> = ({
                     onChange={(e) => setResponseMessage(e.target.value)}
                     className="col-span-3"
                     placeholder="Enter multiple messages, each on a new line.&#10;e.g., 'Hi there! How can I help you?'&#10;'Please choose an option below.'"
-                    required={!selectedFlowId && !isAIResponseSelected}
+                    required={!selectedFlowId}
                     rows={4}
                   />
                 </div>

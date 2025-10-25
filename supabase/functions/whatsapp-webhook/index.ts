@@ -306,7 +306,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నమస్కారం! ಈಗ ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
+            confirmationMessage = "నమస్కారం! ಈಗ నేను తెలుగులో సమాధానం ఇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
@@ -407,6 +407,31 @@ serve(async (req) => {
                     } else if (nextNode.type === 'incomingMessageNode') {
                       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: nextNode.data.prompt });
                       responseSent = true;
+                    } else if (nextNode.type === 'formNode') { // Handle FormNode
+                      const formId = nextNode.data.formId;
+                      if (formId) {
+                        // Fetch form definition and send it as an interactive message or structured text
+                        const { data: formData, error: formError } = await supabaseServiceRoleClient
+                          .from('forms')
+                          .select('name, form_definition')
+                          .eq('id', formId)
+                          .single();
+
+                        if (formError || !formData) {
+                          console.error('Error fetching form data for FormNode:', formError?.message);
+                          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't retrieve the form." });
+                        } else {
+                          const formFields = formData.form_definition;
+                          let formMessage = `Please fill out the "${formData.name}" form:\n`;
+                          formFields.forEach((field: any) => {
+                            formMessage += `\n* ${field.label}${field.required ? ' (Required)' : ''}: ${field.placeholder ? `(${field.placeholder})` : ''}`;
+                          });
+                          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: formMessage });
+                        }
+                      } else {
+                        await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, this form node is not configured correctly." });
+                      }
+                      responseSent = true;
                     }
                     await supabaseServiceRoleClient
                       .from('whatsapp_conversations')
@@ -443,7 +468,7 @@ serve(async (req) => {
         if (!responseSent) {
           const { data: rules, error: rulesError } = await supabaseServiceRoleClient
             .from('chatbot_rules')
-            .select('id, trigger_value, trigger_type, response_message, buttons, flow_id, use_ai_response')
+            .select('id, trigger_value, trigger_type, response_message, buttons, flow_id') // Removed use_ai_response
             .eq('whatsapp_account_id', whatsappAccountId);
 
           if (rulesError) {
@@ -469,12 +494,6 @@ serve(async (req) => {
               case 'STARTS_WITH':
                 match = lowerCaseIncomingText.startsWith(triggerValue);
                 break;
-              case 'AI_RESPONSE':
-                // If AI_RESPONSE has a trigger value, it's a specific AI trigger
-                if (triggerValue) {
-                  match = lowerCaseIncomingText.includes(triggerValue);
-                }
-                break;
               default:
                 break;
             }
@@ -486,53 +505,10 @@ serve(async (req) => {
             }
           }
 
-          // If still no specific rule matched, and there's an AI_RESPONSE rule with an empty trigger_value, use it as a general AI fallback
-          if (!matchedRule) {
-            const generalAIFallbackRule = (rules || []).find(rule => rule.trigger_type === 'AI_RESPONSE' && !rule.trigger_value);
-            if (generalAIFallbackRule) {
-              matchedRule = generalAIFallbackRule;
-              console.log('Matched general AI_RESPONSE fallback rule (empty trigger_value).');
-            }
-          }
-
           // Process the matched rule
           if (matchedRule) {
             console.log('Processing matched rule:', JSON.stringify(matchedRule));
-            if (matchedRule.use_ai_response) {
-              console.log('Chatbot rule matched for AI Response. Invoking Gemini chat function.');
-              let geminiPayload: any = {
-                message: incomingText,
-                whatsappAccountId: whatsappAccountId,
-                preferredLanguage: preferredLanguage
-              };
-
-              if (messageType === 'audio' && mediaUrl) {
-                geminiPayload.audioUrl = mediaUrl;
-              }
-
-              try {
-                const geminiResponse = await supabaseServiceRoleClient.functions.invoke('gemini-chat', {
-                  body: geminiPayload,
-                });
-
-                if (geminiResponse.error) {
-                  console.error('Error invoking Gemini chat function:', geminiResponse.error.message);
-                  await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment." });
-                  responseSent = true; 
-                } else if (geminiResponse.data.status === 'success') {
-                  await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
-                  responseSent = true;
-                } else {
-                  console.error('Gemini chat function returned an error status:', geminiResponse.data.message);
-                  await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response." });
-                  responseSent = true; 
-                }
-              } catch (aiInvokeError: any) {
-                console.error('Unexpected error during Gemini invocation:', aiInvokeError.message);
-                await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
-                responseSent = true; 
-              }
-            } else if (matchedRule.flow_id) {
+            if (matchedRule.flow_id) {
               console.log(`Chatbot rule matched to start flow: ${matchedRule.flow_id}`);
               const { data: flowData, error: flowError } = await supabaseServiceRoleClient
                 .from('chatbot_flows')
@@ -578,6 +554,29 @@ serve(async (req) => {
                   } else if (firstNodeToSend.type === 'incomingMessageNode') {
                     // If the first node is an incoming message node, send its prompt
                     await sendWhatsappMessage(fromPhoneNumber, 'text', { body: firstNodeToSend.data.prompt });
+                  } else if (firstNodeToSend.type === 'formNode') { // Handle FormNode
+                    const formId = firstNodeToSend.data.formId;
+                    if (formId) {
+                      const { data: formData, error: formError } = await supabaseServiceRoleClient
+                        .from('forms')
+                        .select('name, form_definition')
+                        .eq('id', formId)
+                        .single();
+
+                      if (formError || !formData) {
+                        console.error('Error fetching form data for FormNode:', formError?.message);
+                        await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't retrieve the form." });
+                      } else {
+                        const formFields = formData.form_definition;
+                        let formMessage = `Please fill out the "${formData.name}" form:\n`;
+                        formFields.forEach((field: any) => {
+                          formMessage += `\n* ${field.label}${field.required ? ' (Required)' : ''}: ${field.placeholder ? `(${field.placeholder})` : ''}`;
+                        });
+                        await sendWhatsappMessage(fromPhoneNumber, 'text', { body: formMessage });
+                      }
+                    } else {
+                      await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, this form node is not configured correctly." });
+                    }
                   }
                   const { error: upsertConvError } = await supabaseServiceRoleClient
                     .from('whatsapp_conversations')
@@ -631,39 +630,11 @@ serve(async (req) => {
           }
         }
 
-        // Final Fallback: If no response has been sent by any rule or flow, use AI
+        // Final Fallback: If no response has been sent by any rule or flow
         if (!responseSent) {
-          console.log('No specific rule or flow matched. Invoking Gemini chat function as a general fallback.');
-          let geminiPayload: any = {
-            message: incomingText,
-            whatsappAccountId: whatsappAccountId,
-            preferredLanguage: preferredLanguage
-          };
-
-          if (messageType === 'audio' && mediaUrl) {
-            geminiPayload.audioUrl = mediaUrl;
-          }
-
-          try {
-            const geminiResponse = await supabaseServiceRoleClient.functions.invoke('gemini-chat', {
-              body: geminiPayload,
-            });
-
-            if (geminiResponse.error) {
-              console.error('Error invoking Gemini chat function for fallback:', geminiResponse.error.message);
-              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I'm having trouble connecting to my AI at the moment. Please try again later." });
-            } else if (geminiResponse.data.status === 'success') {
-              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: geminiResponse.data.response });
-            } else {
-              console.error('Gemini chat function returned an error status for fallback:', geminiResponse.data.message);
-              await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I couldn't generate an AI response for that." });
-            }
-            responseSent = true;
-          } catch (aiFallbackError: any) {
-            console.error('Unexpected error during Gemini fallback invocation:', aiFallbackError.message);
-            await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, something went wrong while trying to get an AI response." });
-            responseSent = true;
-          }
+          console.log('No specific rule or flow matched. Sending default fallback message.');
+          await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "I'm sorry, I don't understand your request. Please try again or type 'help' for options." });
+          responseSent = true;
         }
 
       } catch (error: any) {
