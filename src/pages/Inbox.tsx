@@ -70,6 +70,7 @@ interface Conversation {
   unread_count: number;
   labels: (LabelItem & { applied_by_user_id: string })[];
   profile_picture_url?: string | null; // Added profile_picture_url
+  last_message_status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'; // Added last_message_status
 }
 
 interface Message {
@@ -217,6 +218,7 @@ const Inbox = () => {
         unread_count: conv.unread_count,
         labels: labelsByConversationId[conv.id] || [],
         profile_picture_url: conv.profile_picture_url, // Map the new column
+        last_message_status: conv.last_message_status, // Map the new column
       }));
       
       setConversations(formattedConversations);
@@ -900,7 +902,10 @@ const Inbox = () => {
                   </div>
                 </div>
                 <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
-                  <span>{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
+                  <div className="flex items-center"> {/* Wrapper for time and ticks */}
+                    {conv.last_message_status && renderTickMarks(conv.last_message_status)}
+                    <span className="ml-1">{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
+                  </div>
                   {conv.unread_count > 0 && (
                     <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
                       {conv.unread_count > 99 ? '99+' : totalUnreadCount}
