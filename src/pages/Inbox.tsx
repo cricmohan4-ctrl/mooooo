@@ -568,7 +568,7 @@ const Inbox = () => {
 
       // The real-time listener will now pick up the actual message from the DB and update the optimistic one.
       // No need to explicitly update status to 'sent' here.
-      showSuccess("Message sent successfully!");
+      // showSuccess("Message sent successfully!"); // Removed this line
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setAudioCaption("");
