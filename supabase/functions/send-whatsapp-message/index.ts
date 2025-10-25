@@ -98,11 +98,18 @@ serve(async (req) => {
           link: mediaUrl,
         },
       };
-      // Only add caption for image and video types, not audio
+      // Only add caption for image and video types
       if (mediaCaption && (mediaType === 'image' || mediaType === 'video')) {
         messagePayload[mediaType].caption = mediaCaption;
       }
-      messageBodyToSave = `[${mediaType} message]${mediaCaption && (mediaType === 'image' || mediaType === 'video') ? `: ${mediaCaption}` : ''}`;
+      // Determine messageBodyToSave based on mediaType
+      if (mediaType === 'image' || mediaType === 'video') {
+        messageBodyToSave = `[${mediaType} message]${mediaCaption ? `: ${mediaCaption}` : ''}`;
+      } else if (mediaType === 'audio') {
+        messageBodyToSave = `[audio message]`; // Audio messages don't have captions in Meta API
+      } else { // document or other types
+        messageBodyToSave = `[${mediaType} message]`;
+      }
     } else {
       messagePayload = {
         messaging_product: 'whatsapp',

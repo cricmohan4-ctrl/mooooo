@@ -279,7 +279,8 @@ serve(async (req) => {
             body.interactive = content;
           } else if (['image', 'audio', 'video', 'document'].includes(type)) {
             body[type] = { link: content.mediaUrl };
-            if (content.caption) {
+            // Only add caption for image and video types
+            if (content.caption && (type === 'image' || type === 'video')) {
               body[type].caption = content.caption;
             }
           }
@@ -380,7 +381,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ఇస్తాను.";
+            confirmationMessage = "నಮస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
