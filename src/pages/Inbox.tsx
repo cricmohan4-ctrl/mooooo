@@ -299,10 +299,11 @@ const Inbox = () => {
     }
   }, [selectedConversation, fetchMessages, markMessagesAsRead, fetchConversations]);
 
-  // Realtime subscription for messages and labels
+  // Realtime subscriptions for messages, conversations, labels, and quick replies
   useEffect(() => {
     if (!user) return;
 
+    // Channel for new messages
     const messageChannel = supabase
       .channel(`messages_for_all_users`) // Changed channel name to be generic
       .on(
@@ -315,9 +316,11 @@ const Inbox = () => {
         },
         (payload) => {
           const newMessage = payload.new as Message;
+          console.log('Realtime: New message received:', newMessage);
           
           const targetContact = newMessage.direction === 'incoming' ? newMessage.from_phone_number : newMessage.to_phone_number;
           const targetWhatsappAccountId = newMessage.whatsapp_account_id;
+
           const isMessageForSelectedConversation = selectedConversation &&
             targetWhatsappAccountId === selectedConversation.whatsapp_account_id &&
             targetContact === selectedConversation.contact_phone_number;
@@ -328,7 +331,25 @@ const Inbox = () => {
               markMessagesAsRead(selectedConversation);
             }
           }
-          fetchConversations(); // Re-fetch conversations to update unread counts and last message
+          // Always re-fetch conversations to update unread counts and last message for all conversations
+          fetchConversations(); 
+        }
+      )
+      .subscribe();
+
+    // Channel for conversation updates (e.g., last_message_at, last_message_body, unread_count)
+    const conversationUpdateChannel = supabase
+      .channel(`conversations_updates_for_all_users`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_conversations',
+        },
+        (payload) => {
+          console.log('Realtime: Conversation updated:', payload.new);
+          fetchConversations(); // Re-fetch all conversations to update the list
         }
       )
       .subscribe();
@@ -384,10 +405,11 @@ const Inbox = () => {
 
     return () => {
       supabase.removeChannel(messageChannel);
+      supabase.removeChannel(conversationUpdateChannel); // Clean up new channel
       supabase.removeChannel(labelChannel);
       supabase.removeChannel(quickReplyChannel);
     };
-  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, conversations, fetchAllLabels, fetchDynamicQuickReplies]);
+  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, fetchAllLabels, fetchDynamicQuickReplies]);
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
