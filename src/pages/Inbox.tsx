@@ -749,7 +749,7 @@ const Inbox = () => {
           "lg:w-96 lg:border-r lg:border-gray-200 dark:lg:border-gray-700",
           (isMobile && selectedConversation) ? "hidden" : "flex"
         )}>
-          <div className="flex-shrink-0 p-4 sm:p-6 lg:p-4">
+          <div className="flex-shrink-0 p-4"> {/* Adjusted padding */}
             <div className="flex items-center justify-between mb-4">
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/dashboard">
@@ -901,7 +901,7 @@ const Inbox = () => {
                   <span>{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
                   {conv.unread_count > 0 && (
                     <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                      {conv.unread_count > 99 ? '99+' : conv.unread_count}
+                      {conv.unread_count > 99 ? '99+' : totalUnreadCount}
                     </span>
                   )}
                 </div>
@@ -920,7 +920,7 @@ const Inbox = () => {
           {/* Header for Selected Conversation - Fixed at top */}
           <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
             <div className="flex items-center">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
+              <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden"> {/* Hide back button on larger screens */}
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center">
@@ -970,21 +970,6 @@ const Inbox = () => {
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
                     )}
                   >
-                    {/* Message content */}
-                    {msg.message_type === 'text' ? (
-                      <p className="text-sm break-words">{msg.message_body}</p>
-                    ) : (
-                      <div>
-                        {renderMediaMessage(msg)}
-                        {msg.message_body && <p className="text-sm break-words">{msg.message_body}</p>}
-                      </div>
-                    )}
-                    {/* Timestamp and ticks */}
-                    <div className="flex items-center text-xs opacity-75 mt-1 ml-auto">
-                      <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
-                      {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
-                    </div>
-
                     {/* Delete button for outgoing messages */}
                     {msg.direction === 'outgoing' && msg.user_id === user?.id && (
                       <AlertDialog>
@@ -992,11 +977,7 @@ const Inbox = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className={cn(
-                              "absolute -top-2",
-                              msg.direction === 'outgoing' ? '-left-8' : '-right-8', // Position to the left of outgoing, right of incoming
-                              "h-6 w-6 p-0 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            )}
+                            className="absolute top-1 right-1 h-6 w-6 p-0 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                             title="Delete Message"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1018,6 +999,20 @@ const Inbox = () => {
                         </AlertDialogContent>
                       </AlertDialog>
                     )}
+                    {/* Message content */}
+                    {msg.message_type === 'text' ? (
+                      <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>
+                    ) : (
+                      <div>
+                        {renderMediaMessage(msg)}
+                        {msg.message_body && <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>}
+                      </div>
+                    )}
+                    {/* Timestamp and ticks */}
+                    <div className="flex items-center text-xs opacity-75 mt-1 ml-auto">
+                      <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
+                      {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
+                    </div>
                   </div>
                 </div>
               ))
