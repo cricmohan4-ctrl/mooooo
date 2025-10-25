@@ -70,7 +70,7 @@ interface Message {
   message_type: string;
   media_url?: string | null;
   media_caption?: string | null;
-  status?: 'sent' | 'delivered' | 'read'; // Updated to use status enum
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'; // Added 'sending' and 'failed'
 }
 
 const Inbox = () => {
@@ -325,32 +325,40 @@ const Inbox = () => {
           const targetContact = updatedMessage.direction === 'incoming' ? updatedMessage.from_phone_number : updatedMessage.to_phone_number;
           const targetWhatsappAccountId = updatedMessage.whatsapp_account_id;
 
-          console.log('Realtime Debug: selectedConversation:', selectedConversation);
-          console.log('Realtime Debug: updatedMessage.whatsapp_account_id:', updatedMessage.whatsapp_account_id);
-          console.log('Realtime Debug: updatedMessage.from_phone_number (incoming):', updatedMessage.from_phone_number);
-          console.log('Realtime Debug: updatedMessage.to_phone_number (outgoing):', updatedMessage.to_phone_number);
-          console.log('Realtime Debug: targetContact:', targetContact);
-          console.log('Realtime Debug: targetWhatsappAccountId:', targetWhatsappAccountId);
-
           const isMessageForSelectedConversation = selectedConversation &&
             targetWhatsappAccountId === selectedConversation.whatsapp_account_id &&
             targetContact === selectedConversation.contact_phone_number;
 
-          console.log('Realtime Debug: isMessageForSelectedConversation:', isMessageForSelectedConversation);
-
           if (isMessageForSelectedConversation) {
             setMessages((prevMessages) => {
-              const existingIndex = prevMessages.findIndex(msg => msg.id === updatedMessage.id);
-              if (existingIndex > -1) {
-                // Update existing message
-                console.log('Realtime Debug: Updating existing message:', updatedMessage.id);
-                const newMessages = [...prevMessages];
-                newMessages[existingIndex] = updatedMessage;
-                return newMessages;
-              } else if (payload.eventType === 'INSERT') {
-                // Add new message
-                console.log('Realtime Debug: Adding new message:', updatedMessage.id);
+              if (payload.eventType === 'INSERT') {
+                if (updatedMessage.direction === 'outgoing' && updatedMessage.user_id === user.id) {
+                  // For outgoing messages, try to find and replace the optimistic message
+                  const existingIndex = prevMessages.findIndex(msg =>
+                    msg.status === 'sending' &&
+                    msg.message_body === updatedMessage.message_body &&
+                    msg.to_phone_number === updatedMessage.to_phone_number &&
+                    msg.whatsapp_account_id === updatedMessage.whatsapp_account_id
+                  );
+                  if (existingIndex > -1) {
+                    console.log('Realtime Debug: Replacing optimistic message with server-confirmed:', updatedMessage.id);
+                    const newMessages = [...prevMessages];
+                    newMessages[existingIndex] = updatedMessage;
+                    return newMessages;
+                  }
+                }
+                // If not an optimistic outgoing message, or no match found, just add it
+                console.log('Realtime Debug: Adding new message (incoming or unmatched outgoing):', updatedMessage.id);
                 return [...prevMessages, updatedMessage];
+              } else if (payload.eventType === 'UPDATE') {
+                // Update existing message (e.g., status change)
+                const existingIndex = prevMessages.findIndex(msg => msg.id === updatedMessage.id);
+                if (existingIndex > -1) {
+                  console.log('Realtime Debug: Updating existing message status:', updatedMessage.id);
+                  const newMessages = [...prevMessages];
+                  newMessages[existingIndex] = updatedMessage;
+                  return newMessages;
+                }
               }
               return prevMessages;
             });
@@ -507,6 +515,26 @@ const Inbox = () => {
       return;
     }
 
+    const tempId = `temp-${crypto.randomUUID()}`; // Generate a temporary client-side ID
+    const now = new Date().toISOString();
+
+    const optimisticMessage: Message = {
+      id: tempId,
+      from_phone_number: whatsappAccount.phone_number_id, // The WA Business Account's phone number ID
+      to_phone_number: selectedConversation.contact_phone_number,
+      message_body: messageBody || `[${mediaType} message]${mediaCaption ? `: ${mediaCaption}` : ''}`,
+      direction: 'outgoing',
+      created_at: now,
+      message_type: mediaType || 'text',
+      media_url: mediaUrl,
+      media_caption: mediaCaption,
+      status: 'sending', // Set status to 'sending'
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    scrollToBottom();
+    setNewMessage(""); // Clear input immediately
+
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('send-whatsapp-message', {
         body: {
@@ -523,25 +551,35 @@ const Inbox = () => {
       if (invokeError) {
         console.error("Supabase Function Invoke Error:", invokeError.message);
         showError(`Failed to send message: ${invokeError.message}`);
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
+        );
         return;
       }
 
       if (data.status === 'error') {
         console.error("Edge Function returned error status:", data.message, data.details);
         showError(`Failed to send message: ${data.message} ${data.details ? `(${JSON.stringify(data.details)})` : ''}`);
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
+        );
         return;
       }
 
+      // The real-time listener will now pick up the actual message from the DB and update the optimistic one.
+      // No need to explicitly update status to 'sent' here.
       showSuccess("Message sent successfully!");
-      setNewMessage("");
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setAudioCaption("");
     } catch (error: any) {
       console.error("Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
+      );
     }
-  }, [user, selectedConversation, whatsappAccounts]);
+  }, [user, selectedConversation, whatsappAccounts, uploadMediaToSupabase]);
 
   const startRecording = async () => {
     try {
@@ -640,6 +678,10 @@ const Inbox = () => {
       return <CheckCheck className="h-4 w-4 text-gray-300 ml-1" />;
     } else if (status === 'sent') {
       return <Check className="h-4 w-4 text-gray-300 ml-1" />;
+    } else if (status === 'sending') {
+      return <span className="ml-1 text-xs text-gray-400">...</span>; // Simple indicator for sending
+    } else if (status === 'failed') {
+      return <X className="h-4 w-4 text-red-500 ml-1" />; // Error indicator
     }
     return null;
   };
