@@ -116,9 +116,9 @@ serve(async (req) => {
         let mediaCaption: string | null = null;
 
         if (incomingMessage.type === 'text') {
-          incomingText = incomingMessage.text?.body ?? ""; // Use optional chaining and nullish coalescing
+          incomingText = incomingMessage.text?.body ?? "";
         } else if (incomingMessage.type === 'interactive' && incomingMessage.interactive.type === 'button_reply') {
-          incomingText = incomingMessage.interactive?.button_reply?.payload ?? ""; // Use optional chaining and nullish coalescing
+          incomingText = incomingMessage.interactive?.button_reply?.payload ?? "";
         } else if (['image', 'audio', 'video', 'document'].includes(incomingMessage.type)) {
           const mediaId = incomingMessage[incomingMessage.type]?.id;
           if (mediaId) {
@@ -131,28 +131,60 @@ serve(async (req) => {
             if (accountError || !accountData) {
               console.error('Error fetching WhatsApp account access token for media download:', accountError?.message);
             } else {
-              const mediaApiUrl = `https://graph.facebook.com/v19.0/${mediaId}`;
-              const mediaResponse = await fetch(mediaApiUrl, {
+              const metaMediaApiUrl = `https://graph.facebook.com/v19.0/${mediaId}`;
+              const metaMediaResponse = await fetch(metaMediaApiUrl, {
                 headers: {
                   'Authorization': `Bearer ${accountData.access_token}`,
                 },
               });
-              const mediaData = await mediaResponse.json();
-              if (mediaResponse.ok && mediaData.url) {
-                mediaUrl = mediaData.url;
-                mediaCaption = incomingMessage[incomingMessage.type]?.caption || null;
-                incomingText = `[${incomingMessage.type} message]${mediaCaption ? `: ${mediaCaption}` : ''}`; // Ensure incomingText is a string
+              const metaMediaData = await metaMediaResponse.json();
+
+              if (metaMediaResponse.ok && metaMediaData.url) {
+                const mediaDownloadResponse = await fetch(metaMediaData.url, {
+                  headers: {
+                    'Authorization': `Bearer ${accountData.access_token}`,
+                  },
+                });
+
+                if (mediaDownloadResponse.ok) {
+                  const mediaBlob = await mediaDownloadResponse.blob();
+                  const contentType = mediaDownloadResponse.headers.get('Content-Type') || 'application/octet-stream';
+                  const fileExtension = contentType.split('/')[1] || 'bin';
+                  const filePath = `whatsapp-incoming-media/${Date.now()}-${mediaId}.${fileExtension}`;
+
+                  const { data: uploadData, error: uploadError } = await supabaseServiceRoleClient.storage
+                    .from('whatsapp-media')
+                    .upload(filePath, mediaBlob, {
+                      contentType: contentType,
+                      upsert: false,
+                    });
+
+                  if (uploadError) {
+                    console.error('Error uploading media to Supabase Storage:', uploadError.message);
+                    incomingText = `[${incomingMessage.type} message]`;
+                  } else {
+                    const { data: publicUrlData } = supabaseServiceRoleClient.storage
+                      .from('whatsapp-media')
+                      .getPublicUrl(filePath);
+                    mediaUrl = publicUrlData.publicUrl;
+                    mediaCaption = incomingMessage[incomingMessage.type]?.caption || null;
+                    incomingText = `[${incomingMessage.type} message]${mediaCaption ? `: ${mediaCaption}` : ''}`;
+                  }
+                } else {
+                  console.error('Error downloading media from Meta URL:', mediaDownloadResponse.statusText);
+                  incomingText = `[${incomingMessage.type} message]`;
+                }
               } else {
-                console.error('Error fetching media URL from Meta API:', mediaData);
-                incomingText = `[${incomingMessage.type} message]`; // Ensure incomingText is a string even on error
+                console.error('Error fetching media URL from Meta API:', metaMediaData);
+                incomingText = `[${incomingMessage.type} message]`;
               }
             }
           } else {
-            incomingText = `[${incomingMessage.type} message]`; // Ensure incomingText is a string if mediaId is missing
+            incomingText = `[${incomingMessage.type} message]`;
           }
         } else {
           console.log(`Unhandled message type: ${incomingMessage.type}`);
-          incomingText = `[${incomingMessage.type} message]`; // Ensure incomingText is a string
+          incomingText = `[${incomingMessage.type} message]`;
         }
 
         const fromPhoneNumber = incomingMessage.from;
@@ -167,7 +199,7 @@ serve(async (req) => {
 
         if (accountError || !accountData) {
           console.error('Error fetching WhatsApp account or user_id:', accountError?.message);
-          return; // Exit async processing
+          return;
         }
 
         const userId = accountData.user_id;
@@ -188,10 +220,10 @@ serve(async (req) => {
             message_body: incomingText,
             message_type: messageType,
             direction: 'incoming',
-            media_url: mediaUrl,
+            media_url: mediaUrl, // This will now be the permanent Supabase Storage URL
             media_caption: mediaCaption,
-            meta_message_id: incomingMessage.id, // Store Meta's message ID for incoming messages too
-            status: 'delivered', // Incoming messages are considered 'delivered' upon arrival
+            meta_message_id: incomingMessage.id,
+            status: 'delivered',
           });
 
         if (insertIncomingError) {
@@ -271,8 +303,8 @@ serve(async (req) => {
               media_url: content.mediaUrl || null,
               media_caption: content.caption || null,
               direction: 'outgoing',
-              meta_message_id: responseData.messages?.[0]?.id || null, // Store Meta's message ID
-              status: 'sent', // Set initial status to 'sent'
+              meta_message_id: responseData.messages?.[0]?.id || null,
+              status: 'sent',
             });
 
           if (insertOutgoingError) {
@@ -322,7 +354,7 @@ serve(async (req) => {
         // Updated to match keywords without a period and include English
         if (lowerCaseIncomingText === 'hindi' || lowerCaseIncomingText === 'kannada' || lowerCaseIncomingText === 'telugu' || lowerCaseIncomingText === 'english') {
           let newPreferredLanguage = 'en';
-          let confirmationMessage = "Hello! I will now respond in English."; // Default
+          let confirmationMessage = "Hello! I will now respond in English.";
 
           if (lowerCaseIncomingText === 'hindi') {
             newPreferredLanguage = 'hi';
@@ -332,7 +364,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నಮಸ್ಕారం! ಈಗ ನಾನು తెలుగులో సమాధానಂ ಇಸ್ತಾನು.";
+            confirmationMessage = "నమస్కారం! ఇప్పుడు నేను తెలుగులో సమాధానం ఇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
@@ -349,19 +381,18 @@ serve(async (req) => {
                 whatsapp_account_id: whatsappAccountId,
                 contact_phone_number: fromPhoneNumber,
                 preferred_language: newPreferredLanguage,
-                last_message_at: new Date().toISOString(), // Update last message time
-                last_message_body: incomingText, // Update last message body
+                last_message_at: new Date().toISOString(),
+                last_message_body: incomingText,
               },
               { onConflict: 'whatsapp_account_id,contact_phone_number' }
             );
 
           if (upsertLangError) {
             console.error('Error upserting conversation for language change:', upsertLangError.message);
-            // Fallback to English confirmation if DB update fails
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: "Sorry, I couldn't update your language preference. Please try again." });
           } else {
             console.log('Conversation language preference updated successfully.');
-            preferredLanguage = newPreferredLanguage; // Update local variable for subsequent AI calls
+            preferredLanguage = newPreferredLanguage;
             await sendWhatsappMessage(fromPhoneNumber, 'text', { body: confirmationMessage });
             responseSent = true;
             console.log('Language change confirmation sent. ResponseSent set to true.');
@@ -398,7 +429,7 @@ serve(async (req) => {
 
               let inputMatchesExpectedType = false;
               if (expectedInputType === 'any') {
-                inputMatchesExpectedType = true; // Any input is fine
+                inputMatchesExpectedType = true;
               } else if (expectedInputType === 'text' && messageType === 'text') {
                 inputMatchesExpectedType = true;
               } else if (expectedInputType === 'image' && messageType === 'image') {
@@ -433,10 +464,9 @@ serve(async (req) => {
                     } else if (nextNode.type === 'incomingMessageNode') {
                       await sendWhatsappMessage(fromPhoneNumber, 'text', { body: nextNode.data.prompt });
                       responseSent = true;
-                    } else if (nextNode.type === 'formNode') { // Handle FormNode
+                    } else if (nextNode.type === 'formNode') {
                       const formId = nextNode.data.formId;
                       if (formId) {
-                        // Fetch form definition and send it as an interactive message or structured text
                         const { data: formData, error: formError } = await supabaseServiceRoleClient
                           .from('forms')
                           .select('name, form_definition')
@@ -465,7 +495,6 @@ serve(async (req) => {
                       .eq('id', currentConversation.id);
                   } else {
                     console.warn('Next node not found in flow:', outgoingEdge.target);
-                    // End flow if next node is not found
                     await supabaseServiceRoleClient
                       .from('whatsapp_conversations')
                       .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
@@ -473,7 +502,6 @@ serve(async (req) => {
                   }
                 } else {
                   console.warn('No outgoing edge from current incomingMessageNode:', currentNode.id);
-                  // End flow if no outgoing edge
                   await supabaseServiceRoleClient
                     .from('whatsapp_conversations')
                     .update({ current_flow_id: null, current_node_id: null, updated_at: new Date().toISOString() })
@@ -494,7 +522,7 @@ serve(async (req) => {
         if (!responseSent) {
           const { data: rules, error: rulesError } = await supabaseServiceRoleClient
             .from('chatbot_rules')
-            .select('id, trigger_value, trigger_type, response_message, buttons, flow_id') // Removed use_ai_response
+            .select('id, trigger_value, trigger_type, response_message, buttons, flow_id')
             .eq('whatsapp_account_id', whatsappAccountId);
 
           if (rulesError) {
@@ -578,9 +606,8 @@ serve(async (req) => {
                       action: { buttons: interactiveButtons },
                     });
                   } else if (firstNodeToSend.type === 'incomingMessageNode') {
-                    // If the first node is an incoming message node, send its prompt
                     await sendWhatsappMessage(fromPhoneNumber, 'text', { body: firstNodeToSend.data.prompt });
-                  } else if (firstNodeToSend.type === 'formNode') { // Handle FormNode
+                  } else if (firstNodeToSend.type === 'formNode') {
                     const formId = firstNodeToSend.data.formId;
                     if (formId) {
                       const { data: formData, error: formError } = await supabaseServiceRoleClient
@@ -663,14 +690,11 @@ serve(async (req) => {
 
       } catch (error: any) {
         console.error('Error during asynchronous webhook processing:', error.message);
-        // Log the error, but don't try to send a new HTTP response,
-        // as the initial 200 OK has already been sent.
       }
     })();
 
-    return initialResponse; // This returns the 200 OK immediately
+    return initialResponse;
   }
 
-  // Fallback for any other unhandled methods (shouldn't be reached for GET/POST)
   return new Response('Not Found', { status: 404 });
 });
