@@ -518,15 +518,21 @@ const Inbox = () => {
     mediaType: string | null = null,
     mediaCaption: string | null = null
   ) => {
-    if (!user || !selectedConversation) return;
+    if (!user || !selectedConversation) {
+      console.error("handleSendMessage: User not logged in or no conversation selected.");
+      showError("You must be logged in and select a conversation to send a message.");
+      return;
+    }
 
     if (!messageBody && !mediaUrl) {
+      console.error("handleSendMessage: Message body and media URL are both empty.");
       showError("Message cannot be empty.");
       return;
     }
 
     const whatsappAccount = whatsappAccounts.find(acc => acc.id === selectedConversation.whatsapp_account_id);
     if (!whatsappAccount) {
+      console.error("handleSendMessage: WhatsApp account not found for selected conversation ID:", selectedConversation.whatsapp_account_id);
       showError("WhatsApp account not found for sending message.");
       return;
     }
@@ -552,21 +558,25 @@ const Inbox = () => {
     scrollToBottom();
     setNewMessage("");
 
+    const invokePayload = {
+      toPhoneNumber: selectedConversation.contact_phone_number,
+      messageBody: messageBody,
+      whatsappAccountId: selectedConversation.whatsapp_account_id,
+      userId: user.id,
+      mediaUrl: mediaUrl,
+      mediaType: mediaType,
+      mediaCaption: mediaCaption,
+    };
+
+    console.log("handleSendMessage: Invoking 'send-whatsapp-message' with payload:", JSON.stringify(invokePayload, null, 2));
+
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('send-whatsapp-message', {
-        body: {
-          toPhoneNumber: selectedConversation.contact_phone_number,
-          messageBody: messageBody,
-          whatsappAccountId: selectedConversation.whatsapp_account_id,
-          userId: user.id,
-          mediaUrl: mediaUrl,
-          mediaType: mediaType,
-          mediaCaption: mediaCaption,
-        },
+        body: invokePayload,
       });
 
       if (invokeError) {
-        console.error("Supabase Function Invoke Error:", invokeError.message);
+        console.error("handleSendMessage: Supabase Function Invoke Error:", invokeError.message);
         showError(`Failed to send message: ${invokeError.message}`);
         setMessages((prev) =>
           prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
@@ -575,7 +585,7 @@ const Inbox = () => {
       }
 
       if (data.status === 'error') {
-        console.error("Edge Function returned error status:", data.message, data.details);
+        console.error("handleSendMessage: Edge Function returned error status:", data.message, data.details);
         showError(`Failed to send message: ${data.message} ${data.details ? `(${JSON.stringify(data.details)})` : ''}`);
         setMessages((prev) =>
           prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
@@ -586,7 +596,7 @@ const Inbox = () => {
       setRecordedAudioUrl(null);
       setAudioCaption("");
     } catch (error: any) {
-      console.error("Error sending message:", error.message);
+      console.error("handleSendMessage: Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
       setMessages((prev) =>
         prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
@@ -658,9 +668,10 @@ const Inbox = () => {
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
       const fileName = `audio-${Date.now()}.ogg`;
+      // For audio, we pass null for mediaCaption as WhatsApp API doesn't support it directly
       const mediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, 'audio/ogg');
       if (mediaUrl) {
-        await handleSendMessage(null, mediaUrl, 'audio', audioCaption);
+        await handleSendMessage(null, mediaUrl, 'audio', null); // Pass null for mediaCaption
       }
     } else {
       showError("No audio recorded to send.");
@@ -685,7 +696,7 @@ const Inbox = () => {
         return (
           <div className={commonClasses}>
             <audio controls src={message.media_url} className="w-full"></audio>
-            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
+            {/* Audio messages don't display captions in WhatsApp, so we won't render it here */}
           </div>
         );
       case 'video':
@@ -1077,7 +1088,8 @@ const Inbox = () => {
                             if (reply.type === 'text' && reply.text_content) {
                               setNewMessage(reply.text_content);
                             } else if (reply.type === 'audio' && reply.audio_url) {
-                              handleSendMessage(null, reply.audio_url, 'audio', reply.name);
+                              // When sending a quick audio reply, ensure mediaCaption is null
+                              handleSendMessage(null, reply.audio_url, 'audio', null); 
                             }
                             setIsQuickRepliesPopoverOpen(false);
                           }}
