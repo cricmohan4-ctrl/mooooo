@@ -95,7 +95,7 @@ const FlowsPage = () => {
       const { error } = await supabase
         .from("chatbot_flows")
         .insert({
-          // user_id: user.id, // RLS will handle user_id based on admin role
+          user_id: user.id, // RLS will handle user_id based on admin role
           name: newFlowName.trim(),
           description: newFlowDescription.trim() || null,
           flow_data: initialFlowData,

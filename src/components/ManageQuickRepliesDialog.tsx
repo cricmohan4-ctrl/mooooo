@@ -185,7 +185,7 @@ const ManageQuickRepliesDialog: React.FC<ManageQuickRepliesDialogProps> = ({ onQ
       const { error } = await supabase
         .from('whatsapp_quick_replies')
         .insert({
-          // user_id: user.id, // RLS will handle user_id based on admin role
+          user_id: user.id, // RLS will handle user_id based on admin role
           name: newReplyName.trim(),
           type: newReplyType,
           text_content: newReplyType === 'text' ? newReplyTextContent.trim() : null,

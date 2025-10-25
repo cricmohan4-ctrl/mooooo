@@ -138,7 +138,7 @@ const AddChatbotRuleDialog: React.FC<AddWhatsappAccountDialogProps> = ({ onRuleA
       const { error } = await supabase
         .from("chatbot_rules")
         .insert({
-          // user_id: user.id, // RLS will handle user_id based on admin role
+          user_id: user.id, // RLS will handle user_id based on admin role
           whatsapp_account_id: selectedWhatsappAccountId,
           trigger_value: triggerValue,
           trigger_type: triggerType,
