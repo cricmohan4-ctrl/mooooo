@@ -632,12 +632,13 @@ const Inbox = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      // Explicitly request audio/ogg with Opus codec
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/ogg; codecs=opus' }); 
       recorder.ondataavailable = (e) => {
         setAudioChunks((prev) => [...prev, e.data]);
       };
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' });
+        const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' }); // Ensure blob type matches
         setRecordedAudioBlob(audioBlob);
         setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         setAudioChunks([]);
@@ -952,7 +953,7 @@ const Inbox = () => {
                     {selectedConversation?.whatsapp_account_name}
                   </p>
                 </div>
-              </div>
+            </div>
             </div>
             <div className="flex space-x-2">
               {selectedConversation && user && (
