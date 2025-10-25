@@ -877,19 +877,19 @@ const Inbox = () => {
                 >
                   <div
                     className={cn(
-                      "max-w-[80%] p-2 rounded-xl flex flex-col relative pr-12", // Added pr-12 here
+                      "max-w-[80%] p-2 rounded-xl flex flex-col relative",
                       msg.direction === 'outgoing'
                         ? 'bg-brand-green text-white rounded-br-none'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
                     )}
                   >
                     {msg.message_type === 'text' ? (
-                      <p className="text-sm break-words">{msg.message_body}</p>
+                      <p className="text-sm break-words pr-12">{msg.message_body}</p>
                     ) : (
-                      <>
+                      <div className="pr-12">
                         {renderMediaMessage(msg)}
                         {msg.message_body && <p className="text-sm break-words">{msg.message_body}</p>}
-                      </>
+                      </div>
                     )}
                     <div className="absolute bottom-1 right-2 flex items-center text-xs opacity-75">
                       <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
