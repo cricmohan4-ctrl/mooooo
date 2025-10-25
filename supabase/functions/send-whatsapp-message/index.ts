@@ -123,22 +123,45 @@ serve(async (req) => {
 
     console.log(`Attempting to send message to ${toPhoneNumber} via WhatsApp API.`);
     console.log('WhatsApp API URL:', whatsappApiUrl);
-    console.log('Request Body:', JSON.stringify(messagePayload, null, 2)); // Added detailed request body logging
-    const response = await fetch(whatsappApiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${whatsappAccessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messagePayload),
-    });
+    console.log('Request Body:', JSON.stringify(messagePayload, null, 2));
 
-    const responseData = await response.json();
-    console.log('WhatsApp API Response Status:', response.status); // Added response status logging
-    console.log('WhatsApp API Response Data:', JSON.stringify(responseData, null, 2)); // Added detailed response data logging
+    let response;
+    let responseData;
+    try {
+      response = await fetch(whatsappApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${whatsappAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messagePayload),
+      });
+
+      console.log('WhatsApp API Raw Response Status:', response.status);
+      console.log('WhatsApp API Raw Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+
+      const responseText = await response.text(); // Read as text first
+      console.log('WhatsApp API Raw Response Text:', responseText);
+
+      try {
+        responseData = JSON.parse(responseText); // Then try to parse as JSON
+        console.log('WhatsApp API Parsed Response Data:', JSON.stringify(responseData, null, 2));
+      } catch (jsonParseError) {
+        console.error('Error parsing WhatsApp API response as JSON:', jsonParseError);
+        // If JSON parsing fails, responseData remains undefined or holds the raw text
+        responseData = { raw_response: responseText, parse_error: jsonParseError.message };
+      }
+
+    } catch (fetchError: any) {
+      console.error('Error during fetch to WhatsApp API:', fetchError.message);
+      return new Response(JSON.stringify({ status: 'error', message: 'Network or API connection error', details: fetchError.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
     if (!response.ok) {
-      console.error('Error from WhatsApp API:', responseData);
+      console.error('Error from WhatsApp API (response not OK):', responseData);
       return new Response(JSON.stringify({ status: 'error', message: 'Failed to send message via WhatsApp API', details: responseData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200, // Always return 200 for client to parse body
@@ -192,7 +215,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error('Error in send-whatsapp-message Edge Function:', error.message);
+    console.error('Unhandled error in send-whatsapp-message Edge Function:', error.message);
     return new Response(JSON.stringify({ status: 'error', message: 'Internal server error in Edge Function', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200, // Always return 200 for client to parse body
