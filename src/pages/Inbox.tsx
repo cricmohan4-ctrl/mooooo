@@ -861,7 +861,7 @@ const Inbox = () => {
           </div>
 
           {/* Messages - Scrollable area, takes remaining space */}
-          <div className="flex-1 overflow-y-auto space-y-4 pt-[72px] pb-[80px] px-4 sm:px-6 lg:px-8">
+          <div className="flex-1 overflow-y-auto space-y-4 pt-[80px] pb-[80px] px-4 sm:px-6 lg:px-8">
             {isLoadingMessages ? (
               <div className="text-center text-gray-500">Loading messages...</div>
             ) : messages.length === 0 ? (
