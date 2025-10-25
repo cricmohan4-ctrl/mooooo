@@ -43,6 +43,8 @@ serve(async (req) => {
     const { toPhoneNumber: rawToPhoneNumber, messageBody, whatsappAccountId, userId, mediaUrl, mediaType, mediaCaption } = payload;
     const toPhoneNumber = normalizePhoneNumber(rawToPhoneNumber); // Normalize the target phone number
 
+    console.log(`Debugging: mediaType=${mediaType}, mediaUrl=${mediaUrl}, mediaCaption=${mediaCaption}`);
+
     if (!toPhoneNumber || !whatsappAccountId || !userId) {
       return new Response(JSON.stringify({ status: 'error', message: 'Missing required parameters: toPhoneNumber, whatsappAccountId, userId' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
