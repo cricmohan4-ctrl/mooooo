@@ -71,6 +71,7 @@ interface Message {
   media_url?: string | null;
   media_caption?: string | null;
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'; // Added 'sending' and 'failed'
+  user_id?: string; // Added user_id
 }
 
 const Inbox = () => {
@@ -225,7 +226,7 @@ const Inbox = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages")
-        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status") // Select new status column
+        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id") // Select new status column and user_id
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
@@ -568,7 +569,6 @@ const Inbox = () => {
 
       // The real-time listener will now pick up the actual message from the DB and update the optimistic one.
       // No need to explicitly update status to 'sent' here.
-      // showSuccess("Message sent successfully!"); // Removed this line
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setAudioCaption("");
@@ -930,21 +930,23 @@ const Inbox = () => {
                 >
                   <div
                     className={cn(
-                      "max-w-[80%] p-2 rounded-xl flex flex-col relative",
+                      "max-w-[80%] p-2 rounded-xl flex flex-col", // Removed 'relative'
                       msg.direction === 'outgoing'
                         ? 'bg-brand-green text-white rounded-br-none'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none'
                     )}
                   >
+                    {/* Message content */}
                     {msg.message_type === 'text' ? (
-                      <p className="text-sm break-words pr-12">{msg.message_body}</p>
+                      <p className="text-sm break-words">{msg.message_body}</p> {/* Removed pr-12 */}
                     ) : (
-                      <div className="pr-12">
+                      <div> {/* Removed pr-12 */}
                         {renderMediaMessage(msg)}
                         {msg.message_body && <p className="text-sm break-words">{msg.message_body}</p>}
                       </div>
                     )}
-                    <div className="absolute bottom-1 right-2 flex items-center text-xs opacity-75">
+                    {/* Timestamp and ticks */}
+                    <div className="flex items-center text-xs opacity-75 mt-1 ml-auto"> {/* Added ml-auto */}
                       <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
                       {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
                     </div>
