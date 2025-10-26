@@ -15,16 +15,18 @@ serve(async (req) => {
   }
 
   try {
-    const { webmAudioUrl, userId } = await req.json();
+    // Destructure originalMediaType as well
+    const { webmAudioUrl, userId, originalMediaType } = await req.json(); 
 
-    if (!webmAudioUrl || !userId) {
-      return new Response(JSON.stringify({ status: 'error', message: 'Missing webmAudioUrl or userId' }), {
+    // Update the validation check to include originalMediaType
+    if (!webmAudioUrl || !userId || !originalMediaType) { 
+      return new Response(JSON.stringify({ status: 'error', message: 'Missing webmAudioUrl, userId, or originalMediaType' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    console.log(`Received WebM audio for transcoding (mock): ${webmAudioUrl} for user ${userId}`);
+    console.log(`Received WebM audio for transcoding (mock): ${webmAudioUrl} for user ${userId}, originalMediaType: ${originalMediaType}`);
 
     // --- MOCK TRANSCODING LOGIC ---
     // For this demonstration, we'll use a publicly available MP3 file

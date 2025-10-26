@@ -876,6 +876,7 @@ const Inbox = () => {
           body: {
             webmAudioUrl: webmMediaUrl,
             userId: user.id,
+            originalMediaType: recordedAudioBlob.type, // Pass the original media type
           },
         });
 
