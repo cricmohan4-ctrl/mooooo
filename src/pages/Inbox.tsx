@@ -863,7 +863,8 @@ const Inbox = () => {
           (isMobile && selectedConversation) ? "hidden" : "flex"
         )}>
           <div className="flex-shrink-0 p-4">
-            <div className="flex items-center gap-2"> {/* Removed mb-4 */}
+            {/* Combined top row: Back arrow, Search, Manage Quick Replies, Add New Contact */}
+            <div className="flex items-center gap-2 mb-4">
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/dashboard">
                   <ArrowLeft className="h-5 w-5" />
@@ -882,7 +883,8 @@ const Inbox = () => {
                 onNewChatCreated={handleNewChatCreated}
               />
             </div>
-            <div className="flex space-x-2 overflow-x-auto pb-2 mt-4"> {/* Added mt-4, this will now contain all filter buttons */}
+            {/* Second row: Filter buttons */}
+            <div className="flex space-x-2 overflow-x-auto pb-2">
               <Button
                 variant={filterType === 'all' ? 'default' : 'secondary'}
                 className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
@@ -973,7 +975,7 @@ const Inbox = () => {
                 <div
                   key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
                   className={cn(
-                    `flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700`, {/* Changed p-3 to p-2 */}
+                    `flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700`,
                     selectedConversation?.contact_phone_number === conv.contact_phone_number &&
                     selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
                       ? 'bg-blue-50 dark:bg-blue-900'
@@ -986,21 +988,21 @@ const Inbox = () => {
                   <Checkbox
                     checked={selectedConversationIds.includes(conv.id)}
                     onCheckedChange={() => handleToggleConversationSelection(conv.id)}
-                    className="mr-2 cursor-pointer" {/* Changed mr-3 to mr-2 */}
+                    className="mr-2 cursor-pointer"
                   />
                   <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
-                    <Avatar className="h-9 w-9 mr-2"> {/* Changed h-10 w-10 mr-3 to h-9 w-9 mr-2 */}
+                    <Avatar className="h-9 w-9 mr-2">
                       <AvatarImage src={conv.profile_picture_url || undefined} alt={conv.contact_phone_number} />
                       <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="font-medium text-sm">{conv.contact_phone_number}</p> {/* Added text-sm */}
-                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{conv.last_message_body}</p> {/* Changed line-clamp-2 to line-clamp-1, text-sm to text-xs */}
+                      <p className="font-medium text-sm">{conv.contact_phone_number}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{conv.last_message_body}</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">
                         {conv.whatsapp_account_name}
                       </p>
                       {conv.labels.length > 0 && (
-                        <div className="flex flex-wrap gap-0.5 mt-0.5"> {/* Changed gap-1 mt-1 to gap-0.5 mt-0.5 */}
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
                           {conv.labels.map(label => (
                             <LabelBadge key={label.id} name={label.name} color={label.color} />
                           ))}
@@ -1132,7 +1134,7 @@ const Inbox = () => {
                             <AlertDialogAction onClick={() => handleDeleteMessage(msg.id)}>
                               Delete
                             </AlertDialogAction>
-                          </AlertDialogFooter>
+                          </DialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                     )}
