@@ -490,7 +490,13 @@ const Inbox = () => {
     let normalizedFileType = fileType;
     if (fileType === 'audio/x-m4a' || fileType === 'audio/aac') {
       normalizedFileType = 'audio/mp4';
+    } else if (fileType === 'audio/ogg') { // Ensure OGG is handled correctly
+      normalizedFileType = 'audio/ogg';
+    } else if (fileType === 'audio/webm') { // Ensure WebM is handled correctly
+      normalizedFileType = 'audio/webm';
     }
+    // For MP3, if it somehow gets here (e.g., from a quick reply upload), it would be audio/mpeg
+    // WhatsApp API supports audio/mpeg, audio/mp4, audio/aac, audio/amr, audio/ogg (Opus)
 
     const filePath = `${user.id}/${Date.now()}-${fileName}`;
     try {
@@ -499,7 +505,7 @@ const Inbox = () => {
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: normalizedFileType, // Use normalized type for upload
+          contentType: normalizedFileType,
         });
 
       if (error) {
@@ -638,13 +644,26 @@ const Inbox = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Attempt to use audio/webm, which is widely supported for recording
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' }); 
+      let mimeType = 'audio/webm'; // Default fallback
+      
+      // Prioritize MP4 (AAC) if supported by the browser
+      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } 
+      // Then try OGG Opus if MP4 not supported but OGG Opus is
+      else if (MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')) {
+        mimeType = 'audio/ogg; codecs=opus';
+      }
+      // If neither, it will default to audio/webm
+
+      console.log(`Attempting to record with MIME type: ${mimeType}`);
+
+      const recorder = new MediaRecorder(stream, { mimeType }); 
       recorder.ondataavailable = (e) => {
         setAudioChunks((prev) => [...prev, e.data]);
       };
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // Ensure blob type matches
+        const audioBlob = new Blob(audioChunks, { type: mimeType.split(';')[0] }); // Use base mime type for blob
         setRecordedAudioBlob(audioBlob);
         setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         setAudioChunks([]);
@@ -674,9 +693,10 @@ const Inbox = () => {
 
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
-      const fileName = `audio-${Date.now()}.webm`; // Use .webm extension
+      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm'; // Get extension from blob type
+      const fileName = `audio-${Date.now()}.${fileExtension}`;
       // For audio, we pass null for mediaCaption as WhatsApp API doesn't support it directly
-      const mediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, 'audio/webm'); // Use audio/webm type
+      const mediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type); // Use actual blob type
       if (mediaUrl) {
         await handleSendMessage(null, mediaUrl, 'audio', null); // Pass null for mediaCaption
       }
