@@ -490,13 +490,7 @@ const Inbox = () => {
     let normalizedFileType = fileType;
     if (fileType === 'audio/x-m4a' || fileType === 'audio/aac') {
       normalizedFileType = 'audio/mp4';
-    } else if (fileType === 'audio/ogg') { // Ensure OGG is handled correctly
-      normalizedFileType = 'audio/ogg';
-    } else if (fileType === 'audio/webm') { // Ensure WebM is handled correctly
-      normalizedFileType = 'audio/webm';
     }
-    // For MP3, if it somehow gets here (e.g., from a quick reply upload), it would be audio/mpeg
-    // WhatsApp API supports audio/mpeg, audio/mp4, audio/aac, audio/amr, audio/ogg (Opus)
 
     const filePath = `${user.id}/${Date.now()}-${fileName}`;
     try {
@@ -505,7 +499,7 @@ const Inbox = () => {
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: normalizedFileType,
+          contentType: normalizedFileType, // Use normalized type for upload
         });
 
       if (error) {
@@ -644,18 +638,9 @@ const Inbox = () => {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      let mimeType = 'audio/webm'; // Default fallback
+      // Revert to audio/webm as it was the last format that allowed recording
+      const mimeType = 'audio/webm'; 
       
-      // Prioritize MP4 (AAC) if supported by the browser
-      if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-      } 
-      // Then try OGG Opus if MP4 not supported but OGG Opus is
-      else if (MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')) {
-        mimeType = 'audio/ogg; codecs=opus';
-      }
-      // If neither, it will default to audio/webm
-
       console.log(`Attempting to record with MIME type: ${mimeType}`);
 
       const recorder = new MediaRecorder(stream, { mimeType }); 
@@ -695,10 +680,49 @@ const Inbox = () => {
     if (recordedAudioBlob && user) {
       const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm'; // Get extension from blob type
       const fileName = `audio-${Date.now()}.${fileExtension}`;
-      // For audio, we pass null for mediaCaption as WhatsApp API doesn't support it directly
-      const mediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type); // Use actual blob type
-      if (mediaUrl) {
-        await handleSendMessage(null, mediaUrl, 'audio', null); // Pass null for mediaCaption
+      
+      // 1. Upload the WebM audio to Supabase Storage
+      const webmMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
+      
+      if (!webmMediaUrl) {
+        showError("Failed to upload recorded audio.");
+        return;
+      }
+
+      // 2. Call the transcode-audio Edge Function
+      try {
+        const { data: transcodeData, error: transcodeError } = await supabase.functions.invoke('transcode-audio', {
+          body: {
+            webmAudioUrl: webmMediaUrl,
+            userId: user.id,
+          },
+        });
+
+        if (transcodeError) {
+          console.error("Transcode Function Invoke Error:", transcodeError.message);
+          showError(`Failed to process audio: ${transcodeError.message}`);
+          return;
+        }
+
+        if (transcodeData.status === 'error') {
+          console.error("Transcode Edge Function returned error status:", transcodeData.message, transcodeData.details);
+          showError(`Failed to process audio: ${transcodeData.message}`);
+          return;
+        }
+
+        const finalMediaUrl = transcodeData.transcodedAudioUrl;
+        const finalMediaType = transcodeData.transcodedMediaType; // This will initially be 'audio/webm'
+
+        // 3. Send the message using the URL and type from the transcode function
+        await handleSendMessage(null, finalMediaUrl, finalMediaType, null); // Pass null for mediaCaption
+        
+      } catch (error: any) {
+        console.error("Error during audio transcoding process:", error.message);
+        showError(`Failed to process and send audio: ${error.message}`);
+      } finally {
+        setRecordedAudioBlob(null);
+        setRecordedAudioUrl(null);
+        setAudioCaption("");
       }
     } else {
       showError("No audio recorded to send.");
