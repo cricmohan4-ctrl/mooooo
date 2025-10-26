@@ -106,6 +106,7 @@ const Inbox = () => {
   const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false);
   const [dynamicQuickReplies, setDynamicQuickReplies] = useState<QuickReplyItem[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<'user' | 'admin' | null>(null);
+  const [searchQuery, setSearchQuery] = useState(""); // New state for search query
 
   const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]);
 
@@ -872,7 +873,10 @@ const Inbox = () => {
   const filteredConversations = conversations.filter(conv => {
     const matchesFilterType = filterType === 'all' || (filterType === 'unread' && conv.unread_count > 0);
     const matchesLabel = selectedLabelFilterId ? conv.labels.some(label => label.id === selectedLabelFilterId) : true;
-    return matchesFilterType && matchesLabel;
+    const matchesSearch = searchQuery.trim() === '' || 
+                          conv.contact_phone_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          conv.last_message_body.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilterType && matchesLabel && matchesSearch;
   });
 
   const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter";
@@ -925,6 +929,8 @@ const Inbox = () => {
                 <Input
                   placeholder="Search chats..."
                   className="pl-9 rounded-full bg-gray-100 dark:bg-gray-700 border-none"
+                  value={searchQuery} // Bind search query
+                  onChange={(e) => setSearchQuery(e.target.value)} // Update search query
                 />
               </div>
               <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
