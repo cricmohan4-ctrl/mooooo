@@ -1228,7 +1228,7 @@ const Inbox = () => {
                   </div>
                   {conv.unread_count > 0 && (
                     <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                      {conv.unread_count > 99 ? '99+' : totalUnreadCount}
+                      {conv.unread_count > 99 ? '99+' : conv.unread_count}
                     </span>
                   )}
                   {currentUserRole === 'admin' && (
