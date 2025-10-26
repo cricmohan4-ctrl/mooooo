@@ -996,7 +996,7 @@ const Inbox = () => {
 
   const renderTickMarks = (status: Message['status']) => {
     if (status === 'read') {
-      return <CheckCheck className="h-4 w-4 text-whatsapp-read-tick ml-1" />; 
+      return <CheckCheck className="h-5 w-5 text-whatsapp-read-tick ml-1" />; 
     } else if (status === 'delivered') {
       return <CheckCheck className="h-4 w-4 text-gray-500 ml-1" />; 
     } else if (status === 'sent') {
