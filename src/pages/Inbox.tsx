@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { EditProfilePictureDialog } from '@/components/EditProfilePictureDialog'; // Import new dialog
 
 interface WhatsappAccount {
   id: string;
@@ -114,6 +115,9 @@ const Inbox = () => {
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [audioCaption, setAudioCaption] = useState("");
+
+  const [isEditProfilePictureDialogOpen, setIsEditProfilePictureDialogOpen] = useState(false); // New state
+  const [selectedConversationForProfilePic, setSelectedConversationForProfilePic] = useState<Conversation | null>(null); // New state
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -423,6 +427,10 @@ const Inbox = () => {
         (payload) => {
           console.log('Realtime: Conversation updated:', payload.new);
           fetchConversations(); // Re-fetch all conversations to update the list
+          // If the currently selected conversation was updated, also update its local state
+          if (selectedConversation && payload.new.id === selectedConversation.id) {
+            setSelectedConversation(prev => ({ ...prev!, profile_picture_url: payload.new.profile_picture_url }));
+          }
         }
       )
       .subscribe();
@@ -853,6 +861,20 @@ const Inbox = () => {
     setSelectedConversationIds([]);
   };
 
+  const handleProfilePictureEditClick = (conversation: Conversation) => {
+    setSelectedConversationForProfilePic(conversation);
+    setIsEditProfilePictureDialogOpen(true);
+  };
+
+  const handleProfilePictureUpdated = (newUrl: string | null) => {
+    // Update the selected conversation's profile picture URL locally
+    if (selectedConversation) {
+      setSelectedConversation(prev => ({ ...prev!, profile_picture_url: newUrl }));
+    }
+    // Re-fetch conversations to ensure the list is updated
+    fetchConversations();
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full overflow-hidden">
       <div className="flex-1 flex rounded-lg shadow-lg h-full overflow-hidden">
@@ -1077,11 +1099,16 @@ const Inbox = () => {
             </div>
             <div className="flex space-x-2">
               {selectedConversation && user && (
-                <ApplyLabelsPopover
-                  conversationId={selectedConversation.id}
-                  currentLabels={selectedConversation.labels}
-                  onLabelsApplied={fetchConversations}
-                />
+                <>
+                  <Button variant="ghost" size="icon" onClick={() => handleProfilePictureEditClick(selectedConversation)} title="Edit Profile Picture">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <ApplyLabelsPopover
+                    conversationId={selectedConversation.id}
+                    currentLabels={selectedConversation.labels}
+                    onLabelsApplied={fetchConversations}
+                  />
+                </>
               )}
             </div>
           </div>
@@ -1275,6 +1302,19 @@ const Inbox = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Profile Picture Dialog */}
+      {selectedConversationForProfilePic && user && (
+        <EditProfilePictureDialog
+          isOpen={isEditProfilePictureDialogOpen}
+          onOpenChange={setIsEditProfilePictureDialogOpen}
+          conversationId={selectedConversationForProfilePic.id}
+          currentProfilePictureUrl={selectedConversationForProfilePic.profile_picture_url}
+          onProfilePictureUpdated={handleProfilePictureUpdated}
+          userId={user.id}
+          contactPhoneNumber={selectedConversationForProfilePic.contact_phone_number}
+        />
+      )}
     </div>
   );
 };
