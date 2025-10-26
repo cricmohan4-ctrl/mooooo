@@ -1013,10 +1013,19 @@ const Inbox = () => {
                     className="mr-2 cursor-pointer"
                   />
                   <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
-                    <Avatar className="h-9 w-9 mr-2">
-                      <AvatarImage src={conv.profile_picture_url || undefined} alt={conv.contact_phone_number} />
-                      <AvatarFallback>{conv.contact_phone_number}</AvatarFallback>
-                    </Avatar>
+                    {conv.labels.length > 0 ? (
+                      <div className="h-9 w-9 mr-2 flex items-center justify-center">
+                        <LabelBadge
+                          name={conv.labels[0].name.charAt(0).toUpperCase()}
+                          color={conv.labels[0].color}
+                          className="!h-full !w-full !flex !items-center !justify-center !text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-9 w-9 mr-2 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <MessageCircle className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                      </div>
+                    )}
                     <div className="flex-1">
                       <p className="font-medium text-sm">{conv.contact_phone_number}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{conv.last_message_body}</p>
