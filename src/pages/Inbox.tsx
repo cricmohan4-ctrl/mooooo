@@ -1,7 +1,7 @@
 "use client";
 // This comment is added to trigger a re-evaluation of the file.
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import * as React from 'react'; // Changed to namespace import
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Image } from 'lucide-react';
@@ -801,7 +801,7 @@ const Inbox = () => {
   };
 
   return (
-    <React.Fragment>
+    <> {/* Changed to shorthand fragment */}
       <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full overflow-hidden">
         <div className="flex-1 flex rounded-lg shadow-lg h-full overflow-hidden">
           {/* Conversations List */}
@@ -1335,7 +1335,7 @@ const Inbox = () => {
           imageUrl={imageToPreview?.url || null}
           imageCaption={imageToPreview?.caption || null}
         />
-    </React.Fragment>
+    </> // Changed to shorthand fragment
   );
 };
 
