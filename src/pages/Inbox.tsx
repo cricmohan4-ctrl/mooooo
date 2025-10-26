@@ -822,9 +822,12 @@ const Inbox = () => {
     switch (message.message_type) {
       case 'image':
         return (
-          <div className={commonClasses}>
+          <div className={cn(commonClasses, "flex flex-col items-start")}>
             <img src={message.media_url} alt={message.media_caption || "Image"} className="max-w-xs max-h-60 object-contain" />
             {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
+            <a href={message.media_url} download={message.media_url.split('/').pop() || 'image.jpg'} className="mt-2 flex items-center text-blue-500 hover:underline text-sm">
+              <Download className="h-4 w-4 mr-1" /> Download Image
+            </a>
           </div>
         );
       case 'audio':
