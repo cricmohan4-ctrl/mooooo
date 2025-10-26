@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video, Eye } from 'lucide-react'; // Added Eye icon
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -129,6 +129,10 @@ const Inbox = () => {
   const [selectedConversationForProfilePic, setSelectedConversationForProfilePic] = useState<Conversation | null>(null); // New state
 
   const [replyingTo, setReplyingTo] = useState<Message | null>(null); // New state for replying to a message
+
+  // New state for full-screen profile picture preview
+  const [isFullScreenProfilePicDialogOpen, setIsFullScreenProfilePicDialogOpen] = useState(false);
+  const [fullScreenProfilePicUrl, setFullScreenProfilePicUrl] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -954,6 +958,13 @@ const Inbox = () => {
     fetchConversations();
   };
 
+  const handleViewProfilePicture = () => {
+    if (selectedConversation?.profile_picture_url) {
+      setFullScreenProfilePicUrl(selectedConversation.profile_picture_url);
+      setIsFullScreenProfilePicDialogOpen(true);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full overflow-hidden">
       <div className="flex-1 flex rounded-lg shadow-lg h-full overflow-hidden">
@@ -1190,6 +1201,11 @@ const Inbox = () => {
             <div className="flex space-x-2">
               {selectedConversation && user && (
                 <>
+                  {selectedConversation.profile_picture_url && (
+                    <Button variant="ghost" size="icon" onClick={handleViewProfilePicture} title="View Profile Picture">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => handleProfilePictureEditClick(selectedConversation)} title="Edit Profile Picture">
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -1280,7 +1296,7 @@ const Inbox = () => {
                           {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}
                         </p>
                         {msg.replied_to_message_type === 'text' && (
-                          <p className="line-clamp-2">{msg.replied_to_message_body}</p>
+                          <p className="line-clamp-1">{msg.replied_to_message_body}</p>
                         )}
                         {['image', 'video', 'audio', 'document'].includes(msg.replied_to_message_type || '') && (
                           <div className="flex items-center mt-1">
@@ -1478,6 +1494,29 @@ const Inbox = () => {
           contactPhoneNumber={selectedConversationForProfilePic.contact_phone_number}
         />
       )}
+
+      {/* Full-screen Profile Picture Preview Dialog */}
+      <Dialog open={isFullScreenProfilePicDialogOpen} onOpenChange={setIsFullScreenProfilePicDialogOpen}>
+        <DialogContent className="max-w-full h-full flex items-center justify-center p-0 bg-transparent border-none shadow-none">
+          <div className="relative w-full h-full flex items-center justify-center">
+            {fullScreenImageUrl && (
+              <img
+                src={fullScreenImageUrl}
+                alt="Full Screen Profile Picture"
+                className="max-w-[90vw] max-h-[90vh] object-contain"
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 text-white hover:text-gray-200 bg-black/50 hover:bg-black/70 rounded-full"
+              onClick={() => setIsFullScreenProfilePicDialogOpen(false)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
