@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -86,6 +86,12 @@ interface Message {
   media_caption?: string | null;
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   user_id?: string;
+  // New fields for replies
+  replied_to_message_id?: string | null;
+  replied_to_message_body?: string | null;
+  replied_to_message_type?: string | null;
+  replied_to_media_url?: string | null;
+  replied_to_media_caption?: string | null;
 }
 
 const Inbox = () => {
@@ -119,6 +125,8 @@ const Inbox = () => {
 
   const [isEditProfilePictureDialogOpen, setIsEditProfilePictureDialogOpen] = useState(false); // New state
   const [selectedConversationForProfilePic, setSelectedConversationForProfilePic] = useState<Conversation | null>(null); // New state
+
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null); // New state for replying to a message
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -281,8 +289,8 @@ const Inbox = () => {
     setIsLoadingMessages(true);
     try {
       const { data, error } = await supabase
-        .from("whatsapp_messages")
-        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id")
+        .from("whatsapp_messages_with_replies") // Changed table to view
+        .select("*, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption") // Select all fields including reply data
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
@@ -525,6 +533,7 @@ const Inbox = () => {
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     setSelectedConversationIds([]);
+    setReplyingTo(null); // Clear any active reply when changing conversations
   };
 
   const handleNewChatCreated = (conversation: {
@@ -537,6 +546,7 @@ const Inbox = () => {
   }) => {
     fetchConversations(); 
     setSelectedConversation({ ...conversation, unread_count: 0, labels: [] });
+    setReplyingTo(null); // Clear any active reply
   };
 
   const uploadMediaToSupabase = useCallback(async (file: Blob, fileName: string, fileType: string) => {
@@ -617,11 +627,17 @@ const Inbox = () => {
       media_caption: mediaCaption,
       status: 'sending',
       user_id: user.id,
+      replied_to_message_id: replyingTo?.id || null, // Include replied_to_message_id
+      replied_to_message_body: replyingTo?.message_body || null,
+      replied_to_message_type: replyingTo?.message_type || null,
+      replied_to_media_url: replyingTo?.media_url || null,
+      replied_to_media_caption: replyingTo?.media_caption || null,
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
     scrollToBottom();
     setNewMessage("");
+    setReplyingTo(null); // Clear replyingTo state after sending
 
     const invokePayload = {
       toPhoneNumber: selectedConversation.contact_phone_number,
@@ -631,6 +647,7 @@ const Inbox = () => {
       mediaUrl: mediaUrl,
       mediaType: mediaType,
       mediaCaption: mediaCaption,
+      repliedToMessageId: replyingTo?.id || null, // Pass repliedToMessageId to Edge Function
     };
 
     console.log("handleSendMessage: Invoking 'send-whatsapp-message' with payload:", JSON.stringify(invokePayload, null, 2));
@@ -667,7 +684,7 @@ const Inbox = () => {
         prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
       );
     }
-  }, [user, selectedConversation, whatsappAccounts, uploadMediaToSupabase]);
+  }, [user, selectedConversation, whatsappAccounts, uploadMediaToSupabase, replyingTo]);
 
   const handleDeleteMessage = useCallback(async (messageId: string) => {
     if (!user) {
@@ -1182,6 +1199,20 @@ const Inbox = () => {
                         : 'bg-whatsapp-incoming text-whatsapp-incoming-foreground rounded-bl-none'
                     )}
                   >
+                    {/* Reply button on hover */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "absolute top-1 h-6 w-6 p-0 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                        msg.direction === 'outgoing' ? 'left-1' : 'right-1'
+                      )}
+                      onClick={() => setReplyingTo(msg)}
+                      title="Reply"
+                    >
+                      <Reply className="h-4 w-4" />
+                    </Button>
+
                     {/* Delete button for outgoing messages */}
                     {msg.direction === 'outgoing' && msg.user_id === user?.id && (
                       <AlertDialog>
@@ -1189,7 +1220,10 @@ const Inbox = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="absolute top-1 right-1 h-6 w-6 p-0 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            className={cn(
+                              "absolute top-1 h-6 w-6 p-0 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                              msg.direction === 'outgoing' ? 'right-1' : 'left-1'
+                            )}
                             title="Delete Message"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1211,13 +1245,37 @@ const Inbox = () => {
                         </AlertDialogContent>
                       </AlertDialog>
                     )}
+
+                    {/* Replied-to message preview */}
+                    {msg.replied_to_message_id && (
+                      <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-lg mb-2 border-l-4 border-blue-500 text-xs text-gray-700 dark:text-gray-300">
+                        <p className="font-semibold text-blue-600 dark:text-blue-400">
+                          {msg.direction === 'outgoing' ? 'You replied to:' : 'Replied to:'}
+                        </p>
+                        {msg.replied_to_message_type === 'text' && (
+                          <p className="line-clamp-2">{msg.replied_to_message_body}</p>
+                        )}
+                        {['image', 'video', 'audio', 'document'].includes(msg.replied_to_message_type || '') && (
+                          <div className="flex items-center mt-1">
+                            {msg.replied_to_message_type === 'image' && <Image className="h-4 w-4 mr-1" />}
+                            {msg.replied_to_message_type === 'video' && <Video className="h-4 w-4 mr-1" />}
+                            {msg.replied_to_message_type === 'audio' && <FileAudio className="h-4 w-4 mr-1" />}
+                            {msg.replied_to_message_type === 'document' && <FileText className="h-4 w-4 mr-1" />}
+                            <span className="italic text-gray-600 dark:text-gray-400 line-clamp-1">
+                              {msg.replied_to_media_caption || `[${msg.replied_to_message_type} message]`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Message content */}
                     {msg.message_type === 'text' ? (
-                      <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>
+                      <p className={cn("text-sm break-words", (msg.direction === 'outgoing' && msg.user_id === user?.id) || msg.replied_to_message_id ? "pr-6" : "")}>{msg.message_body}</p>
                     ) : (
                       <div>
                         {renderMediaMessage(msg)}
-                        {msg.message_body && <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>}
+                        {msg.message_body && <p className={cn("text-sm break-words", (msg.direction === 'outgoing' && msg.user_id === user?.id) || msg.replied_to_message_id ? "pr-6" : "")}>{msg.message_body}</p>}
                       </div>
                     )}
                     {/* Timestamp and ticks */}
@@ -1233,88 +1291,120 @@ const Inbox = () => {
           </div>
 
           {/* Input Area - Fixed at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 flex items-end bg-gray-50 dark:bg-gray-900 z-20 h-[80px]">
-            <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
-              <Input
-                type="text"
-                placeholder="Message"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newMessage.trim()) {
-                    handleSendMessage(newMessage);
-                  }
-                }}
-                className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
-              />
-              {selectedConversation && user && (
-                <AttachmentOptionsDialog
-                  onSendMessage={handleSendMessage}
-                  onUploadMedia={uploadMediaToSupabase}
-                  selectedConversationId={selectedConversation.id}
-                  whatsappAccountId={selectedConversation.whatsapp_account_id}
-                  userId={user.id}
-                />
-              )}
-
-              {/* Quick Replies Popover */}
-              <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
-                    <Zap className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-2">
-                  <div className="mb-2">
-                    <h4 className="font-semibold text-sm">Quick Replies</h4>
-                    <p className="text-xs text-gray-500">Select a predefined message.</p>
+          <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col bg-gray-50 dark:bg-gray-900 z-20">
+            {replyingTo && (
+              <div className="relative bg-gray-200 dark:bg-gray-700 p-2 rounded-t-lg mb-1 border-l-4 border-blue-500 text-xs text-gray-700 dark:text-gray-300">
+                <p className="font-semibold text-blue-600 dark:text-blue-400">
+                  Replying to {replyingTo.direction === 'outgoing' ? 'You' : selectedConversation?.contact_phone_number}:
+                </p>
+                {replyingTo.message_type === 'text' && (
+                  <p className="line-clamp-1">{replyingTo.message_body}</p>
+                )}
+                {['image', 'video', 'audio', 'document'].includes(replyingTo.message_type || '') && (
+                  <div className="flex items-center mt-1">
+                    {replyingTo.message_type === 'image' && <Image className="h-4 w-4 mr-1" />}
+                    {replyingTo.message_type === 'video' && <Video className="h-4 w-4 mr-1" />}
+                    {replyingTo.message_type === 'audio' && <FileAudio className="h-4 w-4 mr-1" />}
+                    {replyingTo.message_type === 'document' && <FileText className="h-4 w-4 mr-1" />}
+                    <span className="italic text-gray-600 dark:text-gray-400 line-clamp-1">
+                      {replyingTo.media_caption || `[${replyingTo.message_type} message]`}
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    {dynamicQuickReplies.length === 0 ? (
-                      <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
-                    ) : (
-                      dynamicQuickReplies.map((reply) => (
-                        <Button
-                          key={reply.id}
-                          variant="ghost"
-                          className="w-full justify-start text-sm h-auto py-1.5"
-                          onClick={() => {
-                            if (reply.type === 'text' && reply.text_content) {
-                              setNewMessage(reply.text_content);
-                            } else if (reply.type === 'audio' && reply.audio_url) {
-                              // When sending a quick audio reply, ensure mediaCaption is null
-                              handleSendMessage(null, reply.audio_url, 'audio', null); 
-                            }
-                            setIsQuickRepliesPopoverOpen(false);
-                          }}
-                        >
-                          {reply.type === 'text' ? (
-                            <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
-                          ) : (
-                            <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
-                          )}
-                          {reply.name}
-                        </Button>
-                      ))
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            {newMessage.trim() ? (
-              <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
-                <Send className="h-5 w-5 text-white" />
-              </Button>
-            ) : isRecording ? (
-              <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
-                <StopCircle className="h-5 w-5" />
-              </Button>
-            ) : (
-              <Button variant="ghost" size="icon" onClick={startRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white">
-                <Mic className="h-5 w-5" />
-              </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-1 right-1 h-6 w-6 p-0 text-gray-500 hover:text-gray-700"
+                  onClick={() => setReplyingTo(null)}
+                  title="Cancel Reply"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             )}
+            <div className="flex items-end bg-gray-50 dark:bg-gray-900 z-20">
+              <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
+                <Input
+                  type="text"
+                  placeholder="Message"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newMessage.trim()) {
+                      handleSendMessage(newMessage);
+                    }
+                  }}
+                  className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
+                />
+                {selectedConversation && user && (
+                  <AttachmentOptionsDialog
+                    onSendMessage={handleSendMessage}
+                    onUploadMedia={uploadMediaToSupabase}
+                    selectedConversationId={selectedConversation.id}
+                    whatsappAccountId={selectedConversation.whatsapp_account_id}
+                    userId={user.id}
+                  />
+                )}
+
+                {/* Quick Replies Popover */}
+                <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
+                      <Zap className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2">
+                    <div className="mb-2">
+                      <h4 className="font-semibold text-sm">Quick Replies</h4>
+                      <p className="text-xs text-gray-500">Select a predefined message.</p>
+                    </div>
+                    <div className="space-y-1">
+                      {dynamicQuickReplies.length === 0 ? (
+                        <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
+                      ) : (
+                        dynamicQuickReplies.map((reply) => (
+                          <Button
+                            key={reply.id}
+                            variant="ghost"
+                            className="w-full justify-start text-sm h-auto py-1.5"
+                            onClick={() => {
+                              if (reply.type === 'text' && reply.text_content) {
+                                setNewMessage(reply.text_content);
+                              } else if (reply.type === 'audio' && reply.audio_url) {
+                                // When sending a quick audio reply, ensure mediaCaption is null
+                                handleSendMessage(null, reply.audio_url, 'audio', null); 
+                              }
+                              setIsQuickRepliesPopoverOpen(false);
+                            }}
+                          >
+                            {reply.type === 'text' ? (
+                              <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
+                            ) : (
+                              <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
+                            )}
+                            {reply.name}
+                          </Button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              {newMessage.trim() ? (
+                <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
+                  <Send className="h-5 w-5 text-white" />
+                </Button>
+              ) : isRecording ? (
+                <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
+                  <StopCircle className="h-5 w-5" />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon" onClick={startRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white">
+                  <Mic className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

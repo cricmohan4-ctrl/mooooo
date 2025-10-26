@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 // Inlined utility function: normalizePhoneNumber
 // This function is included directly to avoid module import issues in Deno Edge Functions.
@@ -40,10 +40,10 @@ serve(async (req) => {
     const payload = await req.json();
     console.log('Received payload for sending message:', JSON.stringify(payload, null, 2));
 
-    const { toPhoneNumber: rawToPhoneNumber, messageBody, whatsappAccountId, userId, mediaUrl, mediaType, mediaCaption } = payload;
+    const { toPhoneNumber: rawToPhoneNumber, messageBody, whatsappAccountId, userId, mediaUrl, mediaType, mediaCaption, repliedToMessageId } = payload; // Added repliedToMessageId
     const toPhoneNumber = normalizePhoneNumber(rawToPhoneNumber); // Normalize the target phone number
 
-    console.log(`Debugging: mediaType=${mediaType}, mediaUrl=${mediaUrl}, mediaCaption=${mediaCaption}`);
+    console.log(`Debugging: mediaType=${mediaType}, mediaUrl=${mediaUrl}, mediaCaption=${mediaCaption}, repliedToMessageId=${repliedToMessageId}`);
 
     if (!toPhoneNumber || !whatsappAccountId || !userId) {
       return new Response(JSON.stringify({ status: 'error', message: 'Missing required parameters: toPhoneNumber, whatsappAccountId, userId' }), {
@@ -125,6 +125,14 @@ serve(async (req) => {
       };
     }
 
+    // Add context for replies if repliedToMessageId is provided
+    if (repliedToMessageId) {
+      messagePayload.context = {
+        message_id: repliedToMessageId,
+      };
+      console.log(`Adding context for reply to message ID: ${repliedToMessageId}`);
+    }
+
     console.log(`Attempting to send message to ${toPhoneNumber} via WhatsApp API.`);
     console.log('WhatsApp API URL:', whatsappApiUrl);
     console.log('Request Body:', JSON.stringify(messagePayload, null, 2));
@@ -193,6 +201,7 @@ serve(async (req) => {
         media_caption: mediaCaption && (mediaType === 'image' || mediaType === 'video') ? mediaCaption : null, // Only save caption if it was sent
         meta_message_id: metaMessageId, // Store Meta's message ID
         status: 'sent', // Set initial status to 'sent'
+        replied_to_message_id: repliedToMessageId, // Store the ID of the message being replied to
       });
 
     if (insertOutgoingError) {
