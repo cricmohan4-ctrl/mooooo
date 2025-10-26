@@ -33,8 +33,8 @@ export default {
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "0 84.2% 60.2%",
+          foreground: "210 40% 98%",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -80,7 +80,7 @@ export default {
           foreground: "#000000",
         },
         "whatsapp-read-tick": {
-          DEFAULT: "#34b7f1", // WhatsApp blue for read ticks
+          DEFAULT: "#007bff", // Darker blue for read ticks
         },
       },
       borderRadius: {
