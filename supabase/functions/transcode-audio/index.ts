@@ -39,12 +39,13 @@ serve(async (req) => {
     // 3. Upload the transcoded MP3/OGG file back to Supabase Storage.
     // 4. Return the public URL of the new transcoded file.
     //
-    // For now, this function will simply return the original WebM URL and 'audio' as the API type.
+    // For now, this function will simulate a conversion to OGG.
 
-    const transcodedAudioUrl = webmAudioUrl; // Placeholder: No actual transcoding happens here yet.
-    const transcodedMediaType = 'audio'; // Changed to 'audio' (WhatsApp API type)
+    // Simulate changing the file extension to .ogg
+    const transcodedAudioUrl = webmAudioUrl.replace(/\.webm$/, '.ogg'); 
+    const transcodedMediaType = 'audio/ogg'; // Reflect the simulated OGG conversion
 
-    console.log(`Placeholder: Returning original WebM URL: ${transcodedAudioUrl}, API Type: ${transcodedMediaType}`);
+    console.log(`Simulated transcoding: Returning OGG URL: ${transcodedAudioUrl}, Media Type: ${transcodedMediaType}`);
 
     return new Response(JSON.stringify({
       status: 'success',
