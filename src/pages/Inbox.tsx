@@ -943,7 +943,7 @@ const Inbox = () => {
       // Updated success message with instructions for mobile
       showSuccess(
         isMobile
-          ? `Image "${fileName}" downloaded! You might find it in your device's "Downloads" folder. From there, you can usually move or share it to your photo gallery.`
+          ? `Image "${fileName}" downloaded! It's saved to your device's "Downloads" folder. To add it to your photo gallery, you can usually long-press the image in the chat and select "Save Image" or "Add to Photos".`
           : `Image "${fileName}" downloaded successfully!`
       );
     } catch (error: any) {
