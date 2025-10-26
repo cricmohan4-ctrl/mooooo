@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video, Eye } from 'lucide-react'; // Added Eye icon
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video, Eye, Image } from 'lucide-react'; // Removed StopCircle, PlayCircle, PauseCircle
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -26,7 +26,6 @@ import AttachmentOptionsDialog from '@/components/AttachmentOptionsDialog';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,8 +37,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { EditProfilePictureDialog } from '@/components/EditProfilePictureDialog'; // Import new dialog
-import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover'; // Ensure this is imported
+import { EditProfilePictureDialog } from '@/components/EditProfilePictureDialog';
+import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover';
 
 interface WhatsappAccount {
   id: string;
@@ -92,13 +91,14 @@ interface Message {
   replied_to_message_type?: string | null;
   replied_to_media_url?: string | null;
   replied_to_media_caption?: string | null;
-  replied_to_user_id?: string | null; // New
-  replied_to_from_phone_number?: string | null; // New
+  replied_to_user_id?: string | null;
+  replied_to_from_phone_number?: string | null;
 }
 
 const Inbox = () => {
   const { user } = useSession();
-  const isMobile = useIsMobile();
+  // Removed useIsMobile as it's not directly used in this component's logic after removing recording
+  // const isMobile = useIsMobile();
 
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsappAccount[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -114,28 +114,27 @@ const Inbox = () => {
   const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false);
   const [dynamicQuickReplies, setDynamicQuickReplies] = useState<QuickReplyItem[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<'user' | 'admin' | null>(null);
-  const [searchQuery, setSearchQuery] = useState(""); // New state for search query
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]);
 
-  // Audio Recording States
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const audioChunksRef = useRef<Blob[]>([]); // Changed from useState to useRef
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
-  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
-  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null); // To hold the stream for cleanup
-  const [isPlayingRecordedAudio, setIsPlayingRecordedAudio] = useState(false);
-  const recordedAudioPlayerRef = useRef<HTMLAudioElement>(null);
+  // Removed all audio recording states:
+  // const [isRecording, setIsRecording] = useState(false);
+  // const [recordingDuration, setRecordingDuration] = useState(0);
+  // const audioChunksRef = useRef<Blob[]>([]);
+  // const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  // const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+  // const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  // const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // const mediaStreamRef = useRef<MediaStream | null>(null);
+  // const [isPlayingRecordedAudio, setIsPlayingRecordedAudio] = useState(false);
+  // const recordedAudioPlayerRef = useRef<HTMLAudioElement>(null);
 
-  const [isEditProfilePictureDialogOpen, setIsEditProfilePictureDialogOpen] = useState(false); // New state
-  const [selectedConversationForProfilePic, setSelectedConversationForProfilePic] = useState<Conversation | null>(null); // New state
+  const [isEditProfilePictureDialogOpen, setIsEditProfilePictureDialogOpen] = useState(false);
+  const [selectedConversationForProfilePic, setSelectedConversationForProfilePic] = useState<Conversation | null>(null);
 
-  const [replyingTo, setReplyingTo] = useState<Message | null>(null); // New state for replying to a message
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
-  // New state for full-screen profile picture preview
   const [isFullScreenProfilePicDialogOpen, setIsFullScreenProfilePicDialogOpen] = useState(false);
   const [fullScreenProfilePicUrl, setFullScreenProfilePicUrl] = useState<string | null>(null);
 
@@ -145,11 +144,7 @@ const Inbox = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  // Removed formatDuration utility function
 
   const fetchCurrentUserRole = useCallback(async () => {
     if (!user) {
@@ -306,8 +301,8 @@ const Inbox = () => {
     setIsLoadingMessages(true);
     try {
       const { data, error } = await supabase
-        .from("whatsapp_messages_with_replies") // Changed table to view
-        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption, replied_to_user_id, replied_to_from_phone_number") // Select all fields including reply data
+        .from("whatsapp_messages_with_replies")
+        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption, replied_to_user_id, replied_to_from_phone_number")
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
@@ -352,7 +347,6 @@ const Inbox = () => {
       fetchAllLabels();
       fetchDynamicQuickReplies();
     } else {
-      // If no user, ensure all loading states are false and data is cleared
       setIsLoadingConversations(false);
       setWhatsappAccounts([]);
       setConversations([]);
@@ -373,41 +367,38 @@ const Inbox = () => {
     }
   }, [whatsappAccounts, user, fetchConversations]);
 
-  // Auto-reload conversations every 10 seconds
   useEffect(() => {
     if (user && whatsappAccounts.length > 0) {
       const intervalId = setInterval(() => {
         console.log('Auto-reloading conversations...');
         fetchConversations();
-      }, 10000); // 10 seconds
+      }, 10000);
 
-      return () => clearInterval(intervalId); // Cleanup on unmount
+      return () => clearInterval(intervalId);
     }
   }, [user, whatsappAccounts, fetchConversations]);
 
 
   useEffect(() => {
-    if (selectedConversation && user) { // Added user check here
-      console.log('Debugging: fetchMessages in useEffect:', fetchMessages); // Added debug log
+    if (selectedConversation && user) {
+      console.log('Debugging: fetchMessages in useEffect:', fetchMessages);
       fetchMessages(selectedConversation);
       markMessagesAsRead(selectedConversation);
       fetchConversations();
     } else if (!selectedConversation) {
       setMessages([]);
     }
-  }, [selectedConversation, user, fetchMessages, markMessagesAsRead, fetchConversations]); // Added user to dependencies
+  }, [selectedConversation, user, fetchMessages, markMessagesAsRead, fetchConversations]);
 
-  // Realtime subscriptions for messages, conversations, labels, and quick replies
   useEffect(() => {
     if (!user) return;
 
-    // Channel for new messages and status updates
     const messageChannel = supabase
       .channel(`messages_for_all_users`)
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen for INSERT and UPDATE
+          event: '*',
           schema: 'public',
           table: 'whatsapp_messages',
         },
@@ -426,7 +417,6 @@ const Inbox = () => {
             setMessages((prevMessages) => {
               if (payload.eventType === 'INSERT') {
                 if (updatedMessage.direction === 'outgoing' && updatedMessage.user_id === user.id) {
-                  // For outgoing messages, try to find and replace the optimistic message
                   const existingIndex = prevMessages.findIndex(msg =>
                     msg.status === 'sending' &&
                     msg.message_body === updatedMessage.message_body &&
@@ -443,7 +433,6 @@ const Inbox = () => {
                 console.log(`Realtime: Adding new message (ID: ${updatedMessage.id}, Status: ${updatedMessage.status})`);
                 return [...prevMessages, updatedMessage];
               } else if (payload.eventType === 'UPDATE') {
-                // Update existing message (e.g., status change)
                 const existingIndex = prevMessages.findIndex(msg => msg.id === updatedMessage.id);
                 if (existingIndex > -1) {
                   console.log(`Realtime: Updating existing message ID ${updatedMessage.id} status from ${prevMessages[existingIndex].status} to ${updatedMessage.status}`);
@@ -452,7 +441,6 @@ const Inbox = () => {
                   return newMessages;
                 } else {
                   console.warn(`Realtime: Received UPDATE for message ID ${updatedMessage.id} but it was not found in current state. This might indicate a missed INSERT event or an issue with message IDs.`);
-                  // As a fallback, add the updated message if not found. This might cause duplicates if the INSERT was just delayed.
                   return [...prevMessages, updatedMessage];
                 }
               }
@@ -462,13 +450,11 @@ const Inbox = () => {
               markMessagesAsRead(selectedConversation);
             }
           }
-          // Always re-fetch conversations to update unread counts and last message for all conversations
           fetchConversations(); 
         }
       )
       .subscribe();
 
-    // Channel for conversation updates (e.g., last_message_at, last_message_body, unread_count)
     const conversationUpdateChannel = supabase
       .channel(`conversations_updates_for_all_users`)
       .on(
@@ -480,8 +466,7 @@ const Inbox = () => {
         },
         (payload) => {
           console.log('Realtime: Conversation updated:', payload.new);
-          fetchConversations(); // Re-fetch all conversations to update the list
-          // If the currently selected conversation was updated, also update its local state
+          fetchConversations();
           if (selectedConversation && payload.new.id === selectedConversation.id) {
             setSelectedConversation(prev => ({ ...prev!, profile_picture_url: payload.new.profile_picture_url }));
           }
@@ -540,7 +525,6 @@ const Inbox = () => {
     };
   }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, fetchAllLabels, fetchDynamicQuickReplies]);
 
-  // Auto-scroll to bottom on messages update
   useEffect(() => {
     requestAnimationFrame(() => {
       scrollToBottom();
@@ -550,7 +534,7 @@ const Inbox = () => {
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     setSelectedConversationIds([]);
-    setReplyingTo(null); // Clear any active reply when changing conversations
+    setReplyingTo(null);
   };
 
   const handleNewChatCreated = (conversation: {
@@ -563,7 +547,7 @@ const Inbox = () => {
   }) => {
     fetchConversations(); 
     setSelectedConversation({ ...conversation, unread_count: 0, labels: [] });
-    setReplyingTo(null); // Clear any active reply
+    setReplyingTo(null);
   };
 
   const uploadMediaToSupabase = useCallback(async (file: Blob, fileName: string, fileType: string) => {
@@ -572,7 +556,6 @@ const Inbox = () => {
       return null;
     }
 
-    // Normalize MIME type for M4A files to audio/mp4 for better WhatsApp compatibility
     let normalizedFileType = fileType;
     if (fileType === 'audio/x-m4a' || fileType === 'audio/aac') {
       normalizedFileType = 'audio/mp4';
@@ -585,7 +568,7 @@ const Inbox = () => {
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: normalizedFileType, // Use normalized type for upload
+          contentType: normalizedFileType,
         });
 
       if (error) {
@@ -644,19 +627,19 @@ const Inbox = () => {
       media_caption: mediaCaption,
       status: 'sending',
       user_id: user.id,
-      replied_to_message_id: replyingTo?.id || null, // Include replied_to_message_id
+      replied_to_message_id: replyingTo?.id || null,
       replied_to_message_body: replyingTo?.message_body || null,
       replied_to_message_type: replyingTo?.message_type || null,
       replied_to_media_url: replyingTo?.media_url || null,
       replied_to_media_caption: replyingTo?.media_caption || null,
-      replied_to_user_id: replyingTo?.user_id || null, // Include replied_to_user_id
-      replied_to_from_phone_number: replyingTo?.from_phone_number || null, // Include replied_to_from_phone_number
+      replied_to_user_id: replyingTo?.user_id || null,
+      replied_to_from_phone_number: replyingTo?.from_phone_number || null,
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
     scrollToBottom();
     setNewMessage("");
-    setReplyingTo(null); // Clear replyingTo state after sending
+    setReplyingTo(null);
 
     const invokePayload = {
       toPhoneNumber: selectedConversation.contact_phone_number,
@@ -666,7 +649,7 @@ const Inbox = () => {
       mediaUrl: mediaUrl,
       mediaType: mediaType,
       mediaCaption: mediaCaption,
-      repliedToMessageId: replyingTo?.id || null, // Pass repliedToMessageId to Edge Function
+      repliedToMessageId: replyingTo?.id || null,
     };
 
     console.log("handleSendMessage: Invoking 'send-whatsapp-message' with payload:", JSON.stringify(invokePayload, null, 2));
@@ -693,7 +676,6 @@ const Inbox = () => {
         );
         return;
       }
-      // No need to reset recorded audio states here, as it's handled by cancelRecording
     } catch (error: any) {
       console.error("handleSendMessage: Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
@@ -713,14 +695,13 @@ const Inbox = () => {
         .from('whatsapp_messages')
         .delete()
         .eq('id', messageId)
-        .eq('user_id', user.id); // Ensure only the sender can delete their message
+        .eq('user_id', user.id);
 
       if (error) {
         throw error;
       }
       showSuccess("Message deleted successfully!");
       setMessages((prev) => prev.filter(msg => msg.id !== messageId));
-      // Optionally, re-fetch conversations to update last message if the deleted one was the last
       fetchConversations();
     } catch (error: any) {
       console.error("Error deleting message:", error.message);
@@ -743,9 +724,9 @@ const Inbox = () => {
         throw error;
       }
       showSuccess(`Conversation with ${contactPhoneNumber} deleted successfully!`);
-      fetchConversations(); // Refresh the list
+      fetchConversations();
       if (selectedConversation?.id === conversationId) {
-        setSelectedConversation(null); // Clear chat panel if current conversation was deleted
+        setSelectedConversation(null);
       }
     } catch (error: any) {
       console.error("Error deleting conversation:", error.message);
@@ -753,177 +734,7 @@ const Inbox = () => {
     }
   }, [user, currentUserRole, selectedConversation, fetchConversations]);
 
-  const resetAudioRecordingStates = useCallback(() => {
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = null;
-    }
-    setIsRecording(false);
-    setRecordingDuration(0);
-    audioChunksRef.current = []; // Reset ref
-    setRecordedAudioBlob(null);
-    if (recordedAudioUrl) { // Revoke URL *before* setting to null
-      URL.revokeObjectURL(recordedAudioUrl);
-    }
-    setRecordedAudioUrl(null);
-    setIsPlayingRecordedAudio(false);
-    if (recordedAudioPlayerRef.current) {
-      recordedAudioPlayerRef.current.pause();
-      recordedAudioPlayerRef.current.currentTime = 0;
-    }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-  }, [recordedAudioUrl]); // Dependency for useCallback
-
-  const startRecording = async () => {
-    if (!selectedConversation) {
-      showError("Please select a conversation to record audio.");
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream; // Store stream in ref
-      const mimeType = 'audio/webm';
-      
-      console.log(`Attempting to record with MIME type: ${mimeType}`);
-
-      const recorder = new MediaRecorder(stream, { mimeType }); 
-      recorder.ondataavailable = (e) => {
-        audioChunksRef.current.push(e.data); // Push to ref
-      };
-      recorder.onstop = () => {
-        console.log('recorder.onstop: Audio chunks collected:', audioChunksRef.current.length);
-        const currentStream = mediaStreamRef.current; // Capture stream from ref
-        
-        // Always stop the stream when recording stops
-        currentStream?.getTracks().forEach(track => track.stop());
-        mediaStreamRef.current = null; // Clear stream ref
-
-        if (audioChunksRef.current.length === 0) {
-          console.warn('recorder.onstop: No audio chunks were recorded. Resetting states.');
-          resetAudioRecordingStates(); // This will clear all states including recordedAudioUrl
-          return;
-        }
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType.split(';')[0] });
-        console.log('recorder.onstop: audioBlob created:', audioBlob);
-        setRecordedAudioBlob(audioBlob);
-        setRecordedAudioUrl(URL.createObjectURL(audioBlob));
-        audioChunksRef.current = []; // Reset ref after creating blob
-        setIsRecording(false); // Recording stopped, but UI remains for review
-        console.log('recorder.onstop: recordedAudioBlob set to:', audioBlob);
-        console.log('recorder.onstop: recordedAudioUrl set to:', URL.createObjectURL(audioBlob));
-      };
-      recorder.start();
-      setIsRecording(true);
-      setMediaRecorder(recorder);
-      audioChunksRef.current = []; // Ensure ref is empty at start
-      setRecordedAudioBlob(null);
-      setRecordedAudioUrl(null);
-      setRecordingDuration(0);
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-      showSuccess("Recording started...");
-    } catch (err: any) {
-      console.error("Error accessing microphone:", err);
-      showError(`Failed to start recording: ${err.name} - ${err.message}. Please check microphone permissions.`);
-      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop(); // This will trigger onstop
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = null;
-      }
-      // setIsRecording is set to false in recorder.onstop
-      showSuccess("Recording stopped. Ready to send."); // This toast is fine here, as it's a user action
-    }
-  };
-
-  const cancelRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop(); // This will trigger onstop, which will then call resetAudioRecordingStates if no chunks, or set recordedAudioBlob/Url
-    }
-    // In either case (recording stopped by user, or already in review mode),
-    // we want to fully reset the states.
-    resetAudioRecordingStates();
-    showSuccess("Recording cancelled."); // Show success only for explicit user cancellation
-  };
-
-  const sendRecordedAudio = async () => {
-    if (recordedAudioBlob && user) {
-      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm';
-      const fileName = `audio-${Date.now()}.${fileExtension}`;
-      
-      const webmMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
-      
-      if (!webmMediaUrl) {
-        showError("Failed to upload recorded audio.");
-        return;
-      }
-
-      try {
-        const { data: transcodeData, error: transcodeError } = await supabase.functions.invoke('transcode-audio', {
-          body: {
-            webmAudioUrl: webmMediaUrl,
-            userId: user.id,
-          },
-        });
-
-        if (transcodeError) {
-          console.error("Transcode Function Invoke Error:", transcodeError.message);
-          showError(`Failed to process audio: ${transcodeError.message}`);
-          return;
-        }
-
-        if (transcodeData.status === 'error') {
-          console.error("Transcode Edge Function returned error status:", transcodeData.message, transcodeData.details);
-          showError(`Failed to process audio: ${transcodeData.message}`);
-          return;
-        }
-
-        const finalMediaUrl = transcodeData.transcodedAudioUrl;
-        const finalMediaType = transcodeData.transcodedMediaType;
-
-        await handleSendMessage(null, finalMediaUrl, finalMediaType, null);
-        
-      } catch (error: any) {
-        console.error("Error during audio transcoding process:", error.message);
-        showError(`Failed to process and send audio: ${error.message}`);
-      } finally {
-        resetAudioRecordingStates(); // Reset all recording states after sending
-      }
-    } else {
-      showError("No audio recorded to send.");
-    }
-  };
-
-  const togglePlayRecordedAudio = () => {
-    if (recordedAudioPlayerRef.current) {
-      if (isPlayingRecordedAudio) {
-        recordedAudioPlayerRef.current.pause();
-      } else {
-        recordedAudioPlayerRef.current.play();
-      }
-      setIsPlayingRecordedAudio(!isPlayingRecordedAudio);
-    }
-  };
-
-  const handleAudioPlayerEnded = () => {
-    setIsPlayingRecordedAudio(false);
-    if (recordedAudioPlayerRef.current) {
-      recordedAudioPlayerRef.current.currentTime = 0;
-    }
-  };
+  // Removed resetAudioRecordingStates, startRecording, stopRecording, cancelRecording, sendRecordedAudio, togglePlayRecordedAudio, handleAudioPlayerEnded
 
   const handleImageDownload = async (mediaUrl: string, fileName: string) => {
     try {
@@ -969,7 +780,6 @@ const Inbox = () => {
         return (
           <div className={commonClasses}>
             <audio controls src={message.media_url} className="w-full"></audio>
-            {/* Audio messages don't display captions in WhatsApp, so we won't render it here */}
           </div>
         );
       case 'video':
@@ -1037,11 +847,9 @@ const Inbox = () => {
   };
 
   const handleProfilePictureUpdated = (newUrl: string | null) => {
-    // Update the selected conversation's profile picture URL locally
     if (selectedConversation) {
       setSelectedConversation(prev => ({ ...prev!, profile_picture_url: newUrl }));
     }
-    // Re-fetch conversations to ensure the list is updated
     fetchConversations();
   };
 
@@ -1059,10 +867,9 @@ const Inbox = () => {
         <div className={cn(
           "w-full flex-shrink-0 flex-col bg-white dark:bg-gray-800 overflow-y-auto",
           "lg:w-96 lg:border-r lg:border-gray-200 dark:lg:border-gray-700",
-          (isMobile && selectedConversation) ? "hidden" : "flex"
+          // (isMobile && selectedConversation) ? "hidden" : "flex" // Removed isMobile check
         )}>
           <div className="flex-shrink-0 p-4">
-            {/* Combined top row: Back arrow, Search, Manage Quick Replies, Add New Contact */}
             <div className="flex items-center gap-2 mb-4">
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/dashboard">
@@ -1074,8 +881,8 @@ const Inbox = () => {
                 <Input
                   placeholder="Search chats..."
                   className="pl-9 rounded-full bg-gray-100 dark:bg-gray-700 border-none"
-                  value={searchQuery} // Bind search query
-                  onChange={(e) => setSearchQuery(e.target.value)} // Update search query
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
@@ -1084,7 +891,6 @@ const Inbox = () => {
                 onNewChatCreated={handleNewChatCreated}
               />
             </div>
-            {/* Second row: Filter buttons */}
             <div className="flex space-x-2 overflow-x-auto pb-2">
               <Button
                 variant={filterType === 'all' ? 'default' : 'secondary'}
@@ -1264,12 +1070,13 @@ const Inbox = () => {
         <div className={cn(
           "relative flex-col flex-1 bg-gray-50 dark:bg-gray-900 h-full",
           "bg-[radial-gradient(circle,var(--tw-gradient-stops))] from-gray-200/50 to-transparent bg-[size:20px_20px] dark:from-gray-700/50 dark:to-transparent",
-          (isMobile && !selectedConversation) ? "hidden" : "flex"
+          // (isMobile && !selectedConversation) ? "hidden" : "flex" // Removed isMobile check
         )}>
           {/* Header for Selected Conversation - Fixed at top */}
           <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
             <div className="flex items-center">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden">
+              {/* <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden"> // Removed isMobile check */}
+              <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center">
@@ -1334,7 +1141,7 @@ const Inbox = () => {
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "absolute top-1 h-6 w-6 p-0 text-gray-400 hover:text-gray-600 transition-opacity duration-200", // Removed opacity-0 group-hover:opacity-100
+                        "absolute top-1 h-6 w-6 p-0 text-gray-400 hover:text-gray-600 transition-opacity duration-200",
                         msg.direction === 'outgoing' ? 'left-1' : 'right-1'
                       )}
                       onClick={() => setReplyingTo(msg)}
@@ -1380,7 +1187,7 @@ const Inbox = () => {
                     {msg.replied_to_message_id && (
                       <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-lg mb-2 border-l-4 border-blue-500 text-xs text-gray-700 dark:text-gray-300">
                         <p className="font-semibold text-blue-600 dark:text-blue-400">
-                          {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}
+                          Replying to {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}:
                         </p>
                         {msg.replied_to_message_type === 'text' && (
                           <p className="line-clamp-1">{msg.replied_to_message_body}</p>
@@ -1453,128 +1260,90 @@ const Inbox = () => {
               </div>
             )}
 
-            {/* Conditional Input/Recording UI */}
-            {isRecording || recordedAudioUrl ? (
-              // Recording/Review UI
-              <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-full px-4 py-2 shadow-sm">
-                <Button variant="ghost" onClick={cancelRecording} className="text-red-500 hover:text-red-700 px-3 py-1 rounded-full">
-                  <X className="h-4 w-4 mr-1" /> Cancel
-                </Button>
-                <div className="flex items-center space-x-2 flex-1 justify-center">
-                  {recordedAudioUrl ? (
-                    <>
-                      <audio ref={recordedAudioPlayerRef} src={recordedAudioUrl} onEnded={handleAudioPlayerEnded} className="hidden"></audio>
-                      <Button variant="ghost" size="icon" onClick={togglePlayRecordedAudio}>
-                        {isPlayingRecordedAudio ? <PauseCircle className="h-6 w-6" /> : <PlayCircle className="h-6 w-6" />}
-                      </Button>
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        {formatDuration(recordedAudioPlayerRef.current?.currentTime || 0)} / {formatDuration(recordedAudioPlayerRef.current?.duration || recordingDuration)}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="h-6 w-6 text-red-500 animate-pulse" />
-                      <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                        {formatDuration(recordingDuration)}
-                      </span>
-                    </>
-                  )}
-                </div>
-                <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
+            {/* Normal Input UI (always visible now) */}
+            <div className="flex items-end bg-gray-50 dark:bg-gray-900 z-20">
+              <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
+                <Input
+                  type="text"
+                  placeholder="Message"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newMessage.trim()) {
+                      handleSendMessage(newMessage);
+                    }
+                  }}
+                  className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
+                />
+                {selectedConversation && user && (
+                  <AttachmentOptionsDialog
+                    onSendMessage={handleSendMessage}
+                    onUploadMedia={uploadMediaToSupabase}
+                    selectedConversationId={selectedConversation.id}
+                    whatsappAccountId={selectedConversation.whatsapp_account_id}
+                    userId={user.id}
+                  />
+                )}
+
+                {/* Quick Replies Popover */}
+                <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
+                      <Zap className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2">
+                    <div className="mb-2">
+                      <h4 className="font-semibold text-sm">Quick Replies</h4>
+                      <p className="text-xs text-gray-500">Select a predefined message.</p>
+                    </div>
+                    <div className="space-y-1">
+                      {dynamicQuickReplies.length === 0 ? (
+                        <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
+                      ) : (
+                        dynamicQuickReplies.map((reply) => (
+                          <Button
+                            key={reply.id}
+                            variant="ghost"
+                            className="w-full justify-start text-sm h-auto py-1.5"
+                            onClick={() => {
+                              if (reply.type === 'text' && reply.text_content) {
+                                setNewMessage(reply.text_content);
+                              } else if (reply.type === 'audio' && reply.audio_url) {
+                                handleSendMessage(null, reply.audio_url, 'audio', null); 
+                              }
+                              setIsQuickRepliesPopoverOpen(false);
+                            }}
+                          >
+                            {reply.type === 'text' ? (
+                              <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
+                            ) : (
+                              <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
+                            )}
+                            {reply.name}
+                          </Button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              {newMessage.trim() ? (
+                <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
                   <Send className="h-5 w-5 text-white" />
                 </Button>
-              </div>
-            ) : (
-              // Normal Input UI
-              <div className="flex items-end bg-gray-50 dark:bg-gray-900 z-20">
-                <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
-                  <Input
-                    type="text"
-                    placeholder="Message"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && newMessage.trim()) {
-                        handleSendMessage(newMessage);
-                      }
-                    }}
-                    className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
-                  />
-                  {selectedConversation && user && (
-                    <AttachmentOptionsDialog
-                      onSendMessage={handleSendMessage}
-                      onUploadMedia={uploadMediaToSupabase}
-                      selectedConversationId={selectedConversation.id}
-                      whatsappAccountId={selectedConversation.whatsapp_account_id}
-                      userId={user.id}
-                    />
-                  )}
-
-                  {/* Quick Replies Popover */}
-                  <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
-                        <Zap className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-2">
-                      <div className="mb-2">
-                        <h4 className="font-semibold text-sm">Quick Replies</h4>
-                        <p className="text-xs text-gray-500">Select a predefined message.</p>
-                      </div>
-                      <div className="space-y-1">
-                        {dynamicQuickReplies.length === 0 ? (
-                          <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
-                        ) : (
-                          dynamicQuickReplies.map((reply) => (
-                            <Button
-                              key={reply.id}
-                              variant="ghost"
-                              className="w-full justify-start text-sm h-auto py-1.5"
-                              onClick={() => {
-                                if (reply.type === 'text' && reply.text_content) {
-                                  setNewMessage(reply.text_content);
-                                } else if (reply.type === 'audio' && reply.audio_url) {
-                                  // When sending a quick audio reply, ensure mediaCaption is null
-                                  handleSendMessage(null, reply.audio_url, 'audio', null); 
-                                }
-                                setIsQuickRepliesPopoverOpen(false);
-                              }}
-                            >
-                              {reply.type === 'text' ? (
-                                <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
-                              ) : (
-                                <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
-                              )}
-                              {reply.name}
-                            </Button>
-                          ))
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                
-                {newMessage.trim() ? (
-                  <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
-                    <Send className="h-5 w-5 text-white" />
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onMouseDown={startRecording}
-                    onMouseUp={stopRecording}
-                    onTouchStart={startRecording}
-                    onTouchEnd={stopRecording}
-                    className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white"
-                    disabled={!selectedConversation}
-                  >
-                    <Mic className="h-5 w-5" />
-                  </Button>
-                )}
-              </div>
-            )}
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                  disabled={true} // Always disabled if no message
+                >
+                  <Mic className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

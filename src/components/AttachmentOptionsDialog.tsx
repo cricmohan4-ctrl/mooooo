@@ -35,9 +35,9 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
 
   const galleryFileInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden file input for images/videos
-  const audioFileInputRef = useRef<HTMLInputElement>(null); // Ref for the hidden file input for audio
+  // Removed audioFileInputRef
 
-  const handleOptionClick = (option: 'camera' | 'gallery' | 'audio' | 'location') => {
+  const handleOptionClick = (option: 'camera' | 'gallery' | 'location') => { // Removed 'audio'
     setIsMainDialogOpen(false); // Close main dialog
     switch (option) {
       case 'camera':
@@ -46,9 +46,7 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
       case 'gallery':
         galleryFileInputRef.current?.click(); // Directly trigger the hidden file input
         break;
-      case 'audio':
-        audioFileInputRef.current?.click(); // Directly trigger the hidden audio file input
-        break;
+      // Removed 'audio' case
       case 'location':
         setIsLocationDialogOpen(true);
         break;
@@ -81,37 +79,14 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
     }
   };
 
-  const handleAudioFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      if (!file.type.startsWith('audio/')) {
-        showError("Please select an audio file.");
-        if (audioFileInputRef.current) audioFileInputRef.current.value = '';
-        return;
-      }
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `audio-${Date.now()}.${fileExtension}`;
-      const mediaUrl = await onUploadMedia(file, fileName, file.type);
-
-      if (mediaUrl) {
-        await onSendMessage(null, mediaUrl, 'audio', null); // No caption for direct audio upload for now
-        showSuccess("Audio sent successfully!");
-      }
-    } else {
-      showError("No audio file selected.");
-    }
-    // Reset the input value to allow selecting the same file again if needed
-    if (audioFileInputRef.current) {
-      audioFileInputRef.current.value = '';
-    }
-  };
+  // Removed handleAudioFileChange
 
   return (
     <>
       <Dialog open={isMainDialogOpen} onOpenChange={setIsMainDialogOpen}>
         <DialogTrigger asChild>
           <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
-            <Image className="h-4 w-4" /> {/* Changed to Image icon for general attachments */}
+            <Image className="h-4 w-4" />
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[320px]">
@@ -130,10 +105,7 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
               <Image className="h-6 w-6 mb-1" />
               Gallery
             </Button>
-            <Button variant="outline" className="flex flex-col h-24" onClick={() => handleOptionClick('audio')}>
-              <FileAudio className="h-6 w-6 mb-1" />
-              Audio
-            </Button>
+            {/* Removed Audio button */}
             <Button variant="outline" className="flex flex-col h-24" onClick={() => handleOptionClick('location')}>
               <MapPin className="h-6 w-6 mb-1" />
               Location
@@ -154,14 +126,7 @@ const AttachmentOptionsDialog: React.FC<AttachmentOptionsDialogProps> = ({
         style={{ display: 'none' }}
       />
 
-      {/* Hidden file input for direct audio access */}
-      <input
-        type="file"
-        accept="audio/*"
-        ref={audioFileInputRef}
-        onChange={handleAudioFileChange}
-        style={{ display: 'none' }}
-      />
+      {/* Removed hidden file input for direct audio access */}
 
       {/* Sub-dialogs for each attachment type */}
       <CameraDialog
