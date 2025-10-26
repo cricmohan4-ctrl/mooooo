@@ -1090,17 +1090,17 @@ const Inbox = () => {
               <Button
                 variant={filterType === 'all' ? 'default' : 'secondary'}
                 className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
-                onClick={() => { setFilterType('all'); setSelectedLabelFilterId(null); }}
                 size="icon"
+                onClick={() => { setFilterType('all'); setSelectedLabelFilterId(null); }}
                 title="All Conversations"
               >
                 <ListFilter className="h-4 w-4" />
               </Button>
               <Button
                 variant={filterType === 'unread' ? 'default' : 'secondary'}
-                className={cn("rounded-full px-4 py-2 text-sm", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
+                className={cn("rounded-full px-4 py-2 text-sm flex items-center", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
                 onClick={() => { setFilterType('unread'); setSelectedLabelFilterId(null); }}
-                size="icon"
+                // Removed size="icon" from here
                 title="Unread Conversations"
               >
                 <MailOpen className="h-4 w-4" />
