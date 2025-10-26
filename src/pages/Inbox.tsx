@@ -596,7 +596,6 @@ const Inbox = () => {
         .from('whatsapp-media')
         .getPublicUrl(filePath);
 
-      console.log("Uploaded media public URL:", publicUrlData.publicUrl); // Log the public URL
       return publicUrlData.publicUrl;
     } catch (error: any) {
       console.error("Error uploading media:", error.message);
@@ -786,11 +785,7 @@ const Inbox = () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream; // Store stream in ref
-      
-      // Prioritize OGG (Opus) for WhatsApp compatibility
-      const mimeType = MediaRecorder.isTypeSupported('audio/ogg; codecs=opus') ? 'audio/ogg; codecs=opus' :
-                       MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' :
-                       'audio/webm'; // Fallback to webm if ogg is not supported
+      const mimeType = 'audio/webm';
       
       console.log(`Attempting to record with MIME type: ${mimeType}`);
 
@@ -866,26 +861,22 @@ const Inbox = () => {
 
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
-      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'bin'; // Use 'bin' as a generic fallback
+      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm';
       const fileName = `audio-${Date.now()}.${fileExtension}`;
       
-      const uploadedMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
+      const webmMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
       
-      if (!uploadedMediaUrl) {
+      if (!webmMediaUrl) {
         showError("Failed to upload recorded audio.");
         return;
       }
 
       try {
-        const invokePayload = {
-          webmAudioUrl: uploadedMediaUrl, // This is now the URL of the client-recorded file
-          userId: user.id,
-          originalMediaType: recordedAudioBlob.type, // Pass the actual MIME type recorded by the client
-        };
-        console.log("Sending to transcode-audio Edge Function with payload:", JSON.stringify(invokePayload, null, 2)); // ADDED LOG
-
         const { data: transcodeData, error: transcodeError } = await supabase.functions.invoke('transcode-audio', {
-          body: invokePayload,
+          body: {
+            webmAudioUrl: webmMediaUrl,
+            userId: user.id,
+          },
         });
 
         if (transcodeError) {

@@ -9,34 +9,33 @@ const corsHeaders = {
 serve(async (req) => {
   console.log('--- Transcode Audio Function received request ---');
   console.log('Method:', req.method);
-  console.log('URL:', req.url);
-  console.log('Headers:', JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2)); // Log all headers
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const requestBody = await req.json(); // Parse the JSON body
-    console.log('Transcode Audio Function received request body:', JSON.stringify(requestBody, null, 2)); // Log the entire body
+    const { webmAudioUrl, userId } = await req.json();
 
-    const { webmAudioUrl, userId, originalMediaType } = requestBody; // Destructure from the parsed body
-
-    if (!webmAudioUrl || !userId || !originalMediaType) {
-      console.error('Validation failed: Missing webmAudioUrl, userId, or originalMediaType in received body.');
-      return new Response(JSON.stringify({ status: 'error', message: 'Missing webmAudioUrl, userId, or originalMediaType' }), {
+    if (!webmAudioUrl || !userId) {
+      return new Response(JSON.stringify({ status: 'error', message: 'Missing webmAudioUrl or userId' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    console.log(`Received audio for processing: ${webmAudioUrl} (Type: ${originalMediaType}) for user ${userId}`);
+    console.log(`Received WebM audio for transcoding (mock): ${webmAudioUrl} for user ${userId}`);
 
-    // --- PASSTHROUGH LOGIC ---
-    const transcodedAudioUrl = webmAudioUrl;
-    const transcodedMediaType = originalMediaType;
+    // --- MOCK TRANSCODING LOGIC ---
+    // For this demonstration, we'll use a publicly available MP3 file
+    // that is known to be WhatsApp compatible. This helps confirm if the
+    // audio format is the root cause of delivery issues.
+    const knownGoodMp3AudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
 
-    console.log(`Returning audio URL: ${transcodedAudioUrl}, Type: ${transcodedMediaType}`);
+    const transcodedAudioUrl = knownGoodMp3AudioUrl;
+    const transcodedMediaType = 'audio/mp3'; // WhatsApp compatible type (often, though OGG Opus is preferred)
+
+    console.log(`Returning mock transcoded audio: ${transcodedAudioUrl}, Type: ${transcodedMediaType}`);
 
     return new Response(JSON.stringify({
       status: 'success',
