@@ -1,8 +1,7 @@
-/** @jsxImportSource react */
 "use client";
 // This comment is added to trigger a re-evaluation of the file.
 
-import React, { useEffect, useState, useCallback, useRef } from 'react'; // Changed back to direct import
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Image } from 'lucide-react';
@@ -647,7 +646,7 @@ const Inbox = () => {
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
       const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm'; // Get extension from blob type
-      const fileName = `audio-${Date.now()}.${fileExtension}`;
+      const fileName = `audio-${Date.Now()}.${fileExtension}`;
       
       // 1. Upload the WebM audio to Supabase Storage
       const webmMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
@@ -802,7 +801,7 @@ const Inbox = () => {
   };
 
   return (
-    <React.Fragment>
+    <>
       <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full overflow-hidden">
         <div className="flex-1 flex rounded-lg shadow-lg h-full overflow-hidden">
           {/* Conversations List */}
@@ -1336,7 +1335,7 @@ const Inbox = () => {
           imageUrl={imageToPreview?.url || null}
           imageCaption={imageToPreview?.caption || null}
         />
-    </React.Fragment>
+    </>
   );
 };
 
