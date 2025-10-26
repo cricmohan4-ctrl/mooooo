@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2 } from 'lucide-react'; // Added Trash2 icon
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -69,8 +69,8 @@ interface Conversation {
   whatsapp_account_name: string;
   unread_count: number;
   labels: (LabelItem & { applied_by_user_id: string })[];
-  profile_picture_url?: string | null; // Added profile_picture_url
-  last_message_status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'; // Added last_message_status
+  profile_picture_url?: string | null;
+  last_message_status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 }
 
 interface Message {
@@ -84,7 +84,7 @@ interface Message {
   media_url?: string | null;
   media_caption?: string | null;
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
-  user_id?: string; // Explicitly include user_id for clarity in optimistic updates
+  user_id?: string;
 }
 
 const Inbox = () => {
@@ -104,6 +104,7 @@ const Inbox = () => {
   const [selectedLabelFilterId, setSelectedLabelFilterId] = useState<string | null>(null);
   const [isQuickRepliesPopoverOpen, setIsQuickRepliesPopoverOpen] = useState(false);
   const [dynamicQuickReplies, setDynamicQuickReplies] = useState<QuickReplyItem[]>([]);
+  const [currentUserRole, setCurrentUserRole] = useState<'user' | 'admin' | null>(null); // State for user role
 
   const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]);
 
@@ -119,6 +120,26 @@ const Inbox = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const fetchCurrentUserRole = useCallback(async () => {
+    if (!user) {
+      setCurrentUserRole(null);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      setCurrentUserRole(data?.role || 'user');
+    } catch (error: any) {
+      console.error("Error fetching current user role for Inbox:", error.message);
+      setCurrentUserRole('user'); // Default to user role on error
+    }
+  }, [user]);
 
   const fetchWhatsappAccounts = useCallback(async () => {
     if (!user) {
@@ -217,8 +238,8 @@ const Inbox = () => {
         whatsapp_account_name: conv.whatsapp_account_name,
         unread_count: conv.unread_count,
         labels: labelsByConversationId[conv.id] || [],
-        profile_picture_url: conv.profile_picture_url, // Map the new column
-        last_message_status: conv.last_message_status, // Map the new column
+        profile_picture_url: conv.profile_picture_url,
+        last_message_status: conv.last_message_status,
       }));
       
       setConversations(formattedConversations);
@@ -281,13 +302,14 @@ const Inbox = () => {
 
   useEffect(() => {
     if (user) {
+      fetchCurrentUserRole(); // Fetch user role on component mount
       fetchWhatsappAccounts();
       fetchAllLabels();
       fetchDynamicQuickReplies();
     } else {
       setIsLoadingConversations(false);
     }
-  }, [user, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]);
+  }, [user, fetchCurrentUserRole, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]);
 
   useEffect(() => {
     if (user && whatsappAccounts.length > 0) {
@@ -557,7 +579,7 @@ const Inbox = () => {
       media_url: mediaUrl,
       media_caption: mediaCaption,
       status: 'sending',
-      user_id: user.id, // Include user_id for optimistic message
+      user_id: user.id,
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
@@ -634,6 +656,31 @@ const Inbox = () => {
       showError(`Failed to delete message: ${error.message}`);
     }
   }, [user, fetchConversations]);
+
+  const handleDeleteConversation = useCallback(async (conversationId: string, contactPhoneNumber: string) => {
+    if (!user || currentUserRole !== 'admin') {
+      showError("You do not have permission to delete conversations.");
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) {
+        throw error;
+      }
+      showSuccess(`Conversation with ${contactPhoneNumber} deleted successfully!`);
+      fetchConversations(); // Refresh the list
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(null); // Clear chat panel if current conversation was deleted
+      }
+    } catch (error: any) {
+      console.error("Error deleting conversation:", error.message);
+      showError(`Failed to delete conversation: ${error.message}`);
+    }
+  }, [user, currentUserRole, selectedConversation, fetchConversations]);
 
   const startRecording = async () => {
     try {
@@ -815,7 +862,7 @@ const Inbox = () => {
           "lg:w-96 lg:border-r lg:border-gray-200 dark:lg:border-gray-700",
           (isMobile && selectedConversation) ? "hidden" : "flex"
         )}>
-          <div className="flex-shrink-0 p-4"> {/* Adjusted padding */}
+          <div className="flex-shrink-0 p-4">
             <div className="flex items-center justify-between mb-4">
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/dashboard">
@@ -964,7 +1011,7 @@ const Inbox = () => {
                   </div>
                 </div>
                 <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
-                  <div className="flex items-center"> {/* Wrapper for time and ticks */}
+                  <div className="flex items-center">
                     {conv.last_message_status && renderTickMarks(conv.last_message_status)}
                     <span className="ml-1">{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
                   </div>
@@ -972,6 +1019,29 @@ const Inbox = () => {
                     <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
                       {conv.unread_count > 99 ? '99+' : totalUnreadCount}
                     </span>
+                  )}
+                  {currentUserRole === 'admin' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 mt-1" title="Delete Conversation">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the conversation with "{conv.contact_phone_number}" and all its associated messages.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteConversation(conv.id, conv.contact_phone_number)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               </div>
@@ -989,7 +1059,7 @@ const Inbox = () => {
           {/* Header for Selected Conversation - Fixed at top */}
           <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
             <div className="flex items-center">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden"> {/* Hide back button on larger screens */}
+              <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center">
@@ -1027,13 +1097,13 @@ const Inbox = () => {
                 <div
                   key={msg.id}
                   className={cn(
-                    "flex group", // Added group for hover effect
+                    "flex group",
                     msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
                   )}
                 >
                   <div
                     className={cn(
-                      "max-w-[80%] p-2 rounded-xl flex flex-col relative", // Added relative for positioning delete button
+                      "max-w-[80%] p-2 rounded-xl flex flex-col relative",
                       msg.direction === 'outgoing'
                         ? 'bg-whatsapp-outgoing text-whatsapp-outgoing-foreground rounded-br-none'
                         : 'bg-whatsapp-incoming text-whatsapp-incoming-foreground rounded-bl-none'
