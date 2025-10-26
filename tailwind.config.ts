@@ -80,7 +80,7 @@ export default {
           foreground: "#000000",
         },
         "whatsapp-read-tick": {
-          DEFAULT: "#00ff00", // VERY BRIGHT GREEN for testing visibility
+          DEFAULT: "#4fc3f7", // WhatsApp blue for read ticks
         },
       },
       borderRadius: {
