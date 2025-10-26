@@ -92,6 +92,8 @@ interface Message {
   replied_to_message_type?: string | null;
   replied_to_media_url?: string | null;
   replied_to_media_caption?: string | null;
+  replied_to_user_id?: string | null; // New
+  replied_to_from_phone_number?: string | null; // New
 }
 
 const Inbox = () => {
@@ -290,7 +292,7 @@ const Inbox = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages_with_replies") // Changed table to view
-        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption") // Select all fields including reply data
+        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption, replied_to_user_id, replied_to_from_phone_number") // Select all fields including reply data
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
@@ -632,6 +634,8 @@ const Inbox = () => {
       replied_to_message_type: replyingTo?.message_type || null,
       replied_to_media_url: replyingTo?.media_url || null,
       replied_to_media_caption: replyingTo?.media_caption || null,
+      replied_to_user_id: replyingTo?.user_id || null, // Include replied_to_user_id
+      replied_to_from_phone_number: replyingTo?.from_phone_number || null, // Include replied_to_from_phone_number
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
@@ -1250,7 +1254,7 @@ const Inbox = () => {
                     {msg.replied_to_message_id && (
                       <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-lg mb-2 border-l-4 border-blue-500 text-xs text-gray-700 dark:text-gray-300">
                         <p className="font-semibold text-blue-600 dark:text-blue-400">
-                          {msg.direction === 'outgoing' ? 'You replied to:' : 'Replied to:'}
+                          {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}
                         </p>
                         {msg.replied_to_message_type === 'text' && (
                           <p className="line-clamp-2">{msg.replied_to_message_body}</p>
@@ -1295,7 +1299,7 @@ const Inbox = () => {
             {replyingTo && (
               <div className="relative bg-gray-200 dark:bg-gray-700 p-2 rounded-t-lg mb-1 border-l-4 border-blue-500 text-xs text-gray-700 dark:text-gray-300">
                 <p className="font-semibold text-blue-600 dark:text-blue-400">
-                  Replying to {replyingTo.direction === 'outgoing' ? 'You' : selectedConversation?.contact_phone_number}:
+                  Replying to {replyingTo.replied_to_user_id === user?.id ? 'You' : replyingTo.replied_to_from_phone_number}:
                 </p>
                 {replyingTo.message_type === 'text' && (
                   <p className="line-clamp-1">{replyingTo.message_body}</p>
