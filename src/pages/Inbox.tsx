@@ -297,11 +297,12 @@ const Inbox = () => {
         .order("created_at", { ascending: true });
 
       if (error) {
+        console.error("Supabase error fetching messages:", error); // Log the full error object
         throw error;
       }
       setMessages(data || []);
     } catch (error: any) {
-      console.error("Error fetching messages:", error.message);
+      console.error("Caught error fetching messages:", error); // Log the full caught error
       showError("Failed to load messages.");
     } finally {
       setIsLoadingMessages(false);
