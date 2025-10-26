@@ -15,11 +15,6 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseServiceRoleClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { webmAudioUrl, userId } = await req.json();
 
     if (!webmAudioUrl || !userId) {
@@ -29,23 +24,23 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Received WebM audio for transcoding: ${webmAudioUrl} for user ${userId}`);
+    console.log(`Received WebM audio for transcoding (mock): ${webmAudioUrl} for user ${userId}`);
 
-    // --- IMPORTANT: PLACEHOLDER FOR ACTUAL TRANSCODING LOGIC ---
-    // In a real implementation, you would:
-    // 1. Download the webmAudioUrl.
-    // 2. Use an audio processing library (e.g., a Deno-native one, or call an external service like Cloudinary or AWS Lambda with FFmpeg)
-    //    to convert the WebM audio to a WhatsApp-compatible format (OGG with Opus codec, or MP4 with AAC codec).
-    // 3. Upload the transcoded OGG/MP4 file back to Supabase Storage.
-    // 4. Return the public URL of the new transcoded file and its correct MIME type.
+    // --- MOCK TRANSCODING LOGIC ---
+    // In a real implementation, you would download the WebM audio, transcode it
+    // to OGG (Opus) or MP4 (AAC) using an external service (e.g., Cloudinary, AWS Lambda with FFmpeg),
+    // upload the transcoded file back to Supabase Storage, and return its public URL.
     //
-    // For now, this function simply passes through the original WebM URL and its actual MIME type.
-    // This will likely result in WhatsApp rejecting the message, but the error message will be more informative.
+    // For this demonstration, we'll use a placeholder URL for a pre-transcoded OGG file.
+    // YOU MUST REPLACE THIS PLACEHOLDER URL with the public URL of an OGG (Opus) audio file
+    // that you have uploaded to your Supabase 'whatsapp-media' storage bucket.
+    // Example: https://bfnglcwayknwzcoelofy.supabase.co/storage/v1/object/public/whatsapp-media/path/to/your/audio.ogg
+    const hardcodedOggAudioUrl = "https://bfnglcwayknwzcoelofy.supabase.co/storage/v1/object/public/whatsapp-media/sample-audio.ogg"; // REPLACE THIS WITH YOUR OGG FILE'S PUBLIC URL!
 
-    const transcodedAudioUrl = webmAudioUrl; // Pass the original URL
-    const transcodedMediaType = 'audio/webm'; // Return the actual MIME type
+    const transcodedAudioUrl = hardcodedOggAudioUrl;
+    const transcodedMediaType = 'audio/ogg'; // WhatsApp compatible type
 
-    console.log(`Returning original WebM URL: ${transcodedAudioUrl}, Actual Media Type: ${transcodedMediaType}`);
+    console.log(`Returning mock transcoded audio: ${transcodedAudioUrl}, Type: ${transcodedMediaType}`);
 
     return new Response(JSON.stringify({
       status: 'success',
