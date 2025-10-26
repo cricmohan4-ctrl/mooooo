@@ -275,7 +275,8 @@ const Inbox = () => {
     }
   }, [user, whatsappAccounts]);
 
-  const fetchMessages = useCallback(async (conversation: Conversation) => {
+  // Removed useCallback for diagnostic purposes
+  const fetchMessages = async (conversation: Conversation) => {
     if (!user) return;
     setIsLoadingMessages(true);
     try {
@@ -296,9 +297,10 @@ const Inbox = () => {
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [user]);
+  };
 
-  const markMessagesAsRead = useCallback(async (conversation: Conversation) => {
+  // Removed useCallback for diagnostic purposes
+  const markMessagesAsRead = async (conversation: Conversation) => {
     if (!user) return;
     try {
       const { error } = await supabase
@@ -317,7 +319,7 @@ const Inbox = () => {
     } catch (error: any) {
       console.error('Error marking messages as read:', error.message);
     }
-  }, [user]);
+  };
 
   useEffect(() => {
     if (user) {
