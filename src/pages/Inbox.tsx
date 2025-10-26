@@ -383,23 +383,26 @@ const Inbox = () => {
                     msg.whatsapp_account_id === updatedMessage.whatsapp_account_id
                   );
                   if (existingIndex > -1) {
-                    console.log('Realtime Debug: Replacing optimistic message with server-confirmed:', updatedMessage.id);
+                    console.log(`Realtime: Replacing optimistic message (tempId: ${prevMessages[existingIndex].id}) with server-confirmed message (ID: ${updatedMessage.id}, Status: ${updatedMessage.status})`);
                     const newMessages = [...prevMessages];
                     newMessages[existingIndex] = updatedMessage;
                     return newMessages;
                   }
                 }
-                // If not an optimistic outgoing message, or no match found, just add it
-                console.log('Realtime Debug: Adding new message (incoming or unmatched outgoing):', updatedMessage.id);
+                console.log(`Realtime: Adding new message (ID: ${updatedMessage.id}, Status: ${updatedMessage.status})`);
                 return [...prevMessages, updatedMessage];
               } else if (payload.eventType === 'UPDATE') {
                 // Update existing message (e.g., status change)
                 const existingIndex = prevMessages.findIndex(msg => msg.id === updatedMessage.id);
                 if (existingIndex > -1) {
-                  console.log('Realtime Debug: Updating existing message status:', updatedMessage.id);
+                  console.log(`Realtime: Updating existing message ID ${updatedMessage.id} status from ${prevMessages[existingIndex].status} to ${updatedMessage.status}`);
                   const newMessages = [...prevMessages];
                   newMessages[existingIndex] = updatedMessage;
                   return newMessages;
+                } else {
+                  console.warn(`Realtime: Received UPDATE for message ID ${updatedMessage.id} but it was not found in current state. This might indicate a missed INSERT event or an issue with message IDs.`);
+                  // As a fallback, add the updated message if not found. This might cause duplicates if the INSERT was just delayed.
+                  return [...prevMessages, updatedMessage];
                 }
               }
               return prevMessages;

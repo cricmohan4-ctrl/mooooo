@@ -25,6 +25,7 @@ serve(async (req) => {
   console.log('Method:', req.method);
   console.log('URL:', req.url);
   console.log('Headers:', JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
+  console.log('Webhook received request. Body (before parsing):', await req.clone().text()); // Log raw body for debugging
 
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -66,7 +67,7 @@ serve(async (req) => {
     (async () => {
       try {
         // Use service role client for all database operations within the webhook
-        // as it's a backend process and not directly tied to an authenticated user session.
+        // as it's a backend process and not directly tied to an an authenticated user session.
         const supabaseServiceRoleClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -92,6 +93,7 @@ serve(async (req) => {
         // --- Handle Status Updates (Delivered, Read) ---
         if (messageValue?.statuses) {
           const statusUpdate = messageValue.statuses[0];
+          console.log('Received status update from Meta:', JSON.stringify(statusUpdate));
           const metaMessageId = statusUpdate.id;
           let newStatus: 'delivered' | 'read' | null = null;
 
@@ -102,16 +104,16 @@ serve(async (req) => {
           }
 
           if (metaMessageId && newStatus) {
-            console.log(`Updating message status for Meta ID ${metaMessageId} to ${newStatus}`);
+            console.log(`Attempting to update message status for Meta ID ${metaMessageId} to ${newStatus}`);
             const { error: updateError } = await supabaseServiceRoleClient
               .from('whatsapp_messages')
               .update({ status: newStatus })
               .eq('meta_message_id', metaMessageId);
 
             if (updateError) {
-              console.error('Error updating message status:', updateError.message);
+              console.error('Error updating message status in DB:', updateError.message);
             } else {
-              console.log('Message status updated successfully.');
+              console.log(`Successfully updated message status for Meta ID ${metaMessageId} to ${newStatus}.`);
             }
           } else {
             console.log('Received status update, but no valid Meta message ID or new status. Ignoring:', JSON.stringify(statusUpdate));
@@ -369,7 +371,7 @@ serve(async (req) => {
         let responseSent = false;
 
         // Check for language change keywords
-        const lowerCaseIncomingText = incomingText.trim().toLowerCase();
+        const lowerCaseIncomingText = incomingMessage.type === 'text' ? incomingText.trim().toLowerCase() : ''; // Only check text messages for language change
         console.log(`Normalized incoming text for language detection: "${lowerCaseIncomingText}"`);
 
         // Updated to match keywords without a period and include English
@@ -385,7 +387,7 @@ serve(async (req) => {
             confirmationMessage = "ನಮಸ್ಕಾರ! ಈಗ ನಾನು ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇನೆ.";
           } else if (lowerCaseIncomingText === 'telugu') {
             newPreferredLanguage = 'te';
-            confirmationMessage = "నమస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ಇస్తాను.";
+            confirmationMessage = "నమస్కారం! ఇప్పుడు ನಾನು తెలుగులో సమాధానం ఇస్తాను.";
           } else if (lowerCaseIncomingText === 'english') {
             newPreferredLanguage = 'en';
             confirmationMessage = "Hello! I will now respond in English.";
