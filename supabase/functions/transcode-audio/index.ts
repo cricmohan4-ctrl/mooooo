@@ -27,18 +27,13 @@ serve(async (req) => {
     console.log(`Received WebM audio for transcoding (mock): ${webmAudioUrl} for user ${userId}`);
 
     // --- MOCK TRANSCODING LOGIC ---
-    // In a real implementation, you would download the WebM audio, transcode it
-    // to OGG (Opus) or MP4 (AAC) using an external service (e.g., Cloudinary, AWS Lambda with FFmpeg),
-    // upload the transcoded file back to Supabase Storage, and return its public URL.
-    //
-    // For this demonstration, we'll use a placeholder URL for a pre-transcoded OGG file.
-    // YOU MUST REPLACE THIS PLACEHOLDER URL with the public URL of an OGG (Opus) audio file
-    // that you have uploaded to your Supabase 'whatsapp-media' storage bucket.
-    // Example: https://bfnglcwayknwzcoelofy.supabase.co/storage/v1/object/public/whatsapp-media/path/to/your/audio.ogg
-    const hardcodedOggAudioUrl = "https://bfnglcwayknwzcoelofy.supabase.co/storage/v1/object/public/whatsapp-media/sample-audio.ogg"; // REPLACE THIS WITH YOUR OGG FILE'S PUBLIC URL!
+    // For this demonstration, we'll use a publicly available MP3 file
+    // that is known to be WhatsApp compatible. This helps confirm if the
+    // audio format is the root cause of delivery issues.
+    const knownGoodMp3AudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
 
-    const transcodedAudioUrl = hardcodedOggAudioUrl;
-    const transcodedMediaType = 'audio/ogg'; // WhatsApp compatible type
+    const transcodedAudioUrl = knownGoodMp3AudioUrl;
+    const transcodedMediaType = 'audio/mp3'; // WhatsApp compatible type (often, though OGG Opus is preferred)
 
     console.log(`Returning mock transcoded audio: ${transcodedAudioUrl}, Type: ${transcodedMediaType}`);
 
