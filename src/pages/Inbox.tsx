@@ -785,7 +785,11 @@ const Inbox = () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream; // Store stream in ref
-      const mimeType = 'audio/webm';
+      
+      // Prioritize OGG (Opus) for WhatsApp compatibility
+      const mimeType = MediaRecorder.isTypeSupported('audio/ogg; codecs=opus') ? 'audio/ogg; codecs=opus' :
+                       MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' :
+                       'audio/webm'; // Fallback to webm if ogg is not supported
       
       console.log(`Attempting to record with MIME type: ${mimeType}`);
 
@@ -861,21 +865,23 @@ const Inbox = () => {
 
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
-      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm';
+      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'bin'; // Use 'bin' as a generic fallback
       const fileName = `audio-${Date.now()}.${fileExtension}`;
       
-      const webmMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
+      const uploadedMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
       
-      if (!webmMediaUrl) {
+      if (!uploadedMediaUrl) {
         showError("Failed to upload recorded audio.");
         return;
       }
 
       try {
+        // Pass the original media type to the transcode-audio function
         const { data: transcodeData, error: transcodeError } = await supabase.functions.invoke('transcode-audio', {
           body: {
-            webmAudioUrl: webmMediaUrl,
+            webmAudioUrl: uploadedMediaUrl, // This is now the URL of the client-recorded file
             userId: user.id,
+            originalMediaType: recordedAudioBlob.type, // Pass the actual MIME type recorded by the client
           },
         });
 

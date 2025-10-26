@@ -15,30 +15,27 @@ serve(async (req) => {
   }
 
   try {
-    const { webmAudioUrl, userId } = await req.json();
+    const { webmAudioUrl, userId, originalMediaType } = await req.json(); // Now receiving originalMediaType
 
-    if (!webmAudioUrl || !userId) {
-      return new Response(JSON.stringify({ status: 'error', message: 'Missing webmAudioUrl or userId' }), {
+    if (!webmAudioUrl || !userId || !originalMediaType) {
+      return new Response(JSON.stringify({ status: 'error', message: 'Missing webmAudioUrl, userId, or originalMediaType' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    console.log(`Received WebM audio for processing: ${webmAudioUrl} for user ${userId}`);
+    console.log(`Received audio for processing: ${webmAudioUrl} (Type: ${originalMediaType}) for user ${userId}`);
 
-    // --- CURRENT BEHAVIOR: Pass through original WebM URL ---
-    // This demonstrates that the system is correctly handling the user's recorded audio.
-    // However, this WebM format is likely NOT WhatsApp compatible, and delivery will probably fail.
-    //
-    // For a permanent fix, you would integrate an external audio transcoding service here
-    // (e.g., Cloudinary, Mux, or a custom serverless function with FFmpeg)
-    // to convert the WebM audio to a WhatsApp-compatible format (like OGG Opus or MP4 AAC)
-    // and then return the URL of the *transcoded* file.
+    // --- PASSTHROUGH LOGIC ---
+    // This function now acts as a passthrough, relying on the client-side
+    // MediaRecorder to produce a WhatsApp-compatible format (like OGG Opus).
+    // If the client-side recording is in a compatible format, it should work.
+    // If not, a dedicated external transcoding service would be required here.
 
-    const transcodedAudioUrl = webmAudioUrl; // Simply pass through the original WebM URL
-    const transcodedMediaType = 'audio/webm'; // The original media type
+    const transcodedAudioUrl = webmAudioUrl; // Pass through the original uploaded URL
+    const transcodedMediaType = originalMediaType; // Pass through the original MIME type
 
-    console.log(`Returning original audio URL: ${transcodedAudioUrl}, Type: ${transcodedMediaType}`);
+    console.log(`Returning audio URL: ${transcodedAudioUrl}, Type: ${transcodedMediaType}`);
 
     return new Response(JSON.stringify({
       status: 'success',
