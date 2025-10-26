@@ -294,15 +294,16 @@ const Inbox = () => {
         .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption")
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
+        .eq('user_id', user.id) // Explicitly filter by user_id
         .order("created_at", { ascending: true });
 
       if (error) {
-        console.error("Supabase error fetching messages:", error); // Log the full error object
+        console.error("Supabase error fetching messages:", error.message, error.details, error.hint, error.code); // Log all error details
         throw error;
       }
       setMessages(data || []);
     } catch (error: any) {
-      console.error("Caught error fetching messages:", error); // Log the full caught error
+      console.error("Caught error fetching messages:", error.message || error); // Log the full caught error
       showError("Failed to load messages.");
     } finally {
       setIsLoadingMessages(false);
