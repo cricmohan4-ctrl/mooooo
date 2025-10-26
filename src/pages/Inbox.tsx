@@ -801,540 +801,541 @@ const Inbox = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full overflow-hidden">
-      <div className="flex-1 flex rounded-lg shadow-lg h-full overflow-hidden">
-        {/* Conversations List */}
-        <div className={cn(
-          "w-full flex-shrink-0 flex-col bg-white dark:bg-gray-800 overflow-y-auto",
-          "lg:w-96 lg:border-r lg:border-gray-200 dark:lg:border-gray-700",
-          (isMobile && selectedConversation) ? "hidden" : "flex"
-        )}>
-          <div className="flex-shrink-0 p-4">
-            {/* Combined top row: Back arrow, Search, Manage Quick Replies, Add New Contact */}
-            <div className="flex items-center gap-2 mb-4">
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/dashboard">
-                  <ArrowLeft className="h-5 w-5" />
-                </Link>
-              </Button>
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input
-                  placeholder="Search chats..."
-                  className="pl-9 rounded-full bg-gray-100 dark:bg-gray-700 border-none"
+    <React.Fragment>
+      <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full overflow-hidden">
+        <div className="flex-1 flex rounded-lg shadow-lg h-full overflow-hidden">
+          {/* Conversations List */}
+          <div className={cn(
+            "w-full flex-shrink-0 flex-col bg-white dark:bg-gray-800 overflow-y-auto",
+            "lg:w-96 lg:border-r lg:border-gray-200 dark:lg:border-gray-700",
+            (isMobile && selectedConversation) ? "hidden" : "flex"
+          )}>
+            <div className="flex-shrink-0 p-4">
+              {/* Combined top row: Back arrow, Search, Manage Quick Replies, Add New Contact */}
+              <div className="flex items-center gap-2 mb-4">
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/dashboard">
+                    <ArrowLeft className="h-5 w-5" />
+                  </Link>
+                </Button>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Input
+                    placeholder="Search chats..."
+                    className="pl-9 rounded-full bg-gray-100 dark:bg-gray-700 border-none"
+                  />
+                </div>
+                <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
+                <AddNewContactDialog
+                  whatsappAccounts={whatsappAccounts}
+                  onNewChatCreated={handleNewChatCreated}
                 />
               </div>
-              <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
-              <AddNewContactDialog
-                whatsappAccounts={whatsappAccounts}
-                onNewChatCreated={handleNewChatCreated}
-              />
-            </div>
-            {/* Second row: Filter buttons */}
-            <div className="flex space-x-2 overflow-x-auto pb-2">
-              <Button
-                variant={filterType === 'all' ? 'default' : 'secondary'}
-                className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
-                onClick={() => { setFilterType('all'); setSelectedLabelFilterId(null); }}
-                size="icon"
-                title="All Conversations"
-              >
-                <ListFilter className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={filterType === 'unread' ? 'default' : 'secondary'}
-                className={cn("rounded-full px-4 py-2 text-sm", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
-                onClick={() => { setFilterType('unread'); setSelectedLabelFilterId(null); }}
-                size="icon"
-                title="Unread Conversations"
-              >
-                <MailOpen className="h-4 w-4" />
-                {totalUnreadCount > 0 && (
-                  <span className="ml-2 bg-white text-brand-green rounded-full px-2">
-                    {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
-                  </span>
-                )}
-              </Button>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={selectedLabelFilterId ? 'default' : 'secondary'}
-                    className={cn("rounded-full px-4 py-2 text-sm", selectedLabelFilterId ? 'bg-brand-green text-white' : '')}
-                    size="icon"
-                    title={selectedLabelFilterId ? `Filter: ${selectedLabelName}` : "Filter by Label"}
-                  >
-                    <Tag className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 p-2">
-                  <div className="mb-2">
-                    <h4 className="font-semibold text-sm">Filter by Label</h4>
-                    <p className="text-xs text-gray-500">Select labels to filter conversations.</p>
-                  </div>
-                  <div className="space-y-1">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-sm"
-                      onClick={() => { setSelectedLabelFilterId(null); setFilterType('all'); }}
-                    >
-                      All Labels
-                    </Button>
-                    <Separator />
-                    {allLabels.map((label) => (
-                      <Button
-                        key={label.id}
-                        variant="ghost"
-                        className="w-full justify-start text-sm"
-                        onClick={() => { setSelectedLabelFilterId(label.id); setFilterType('all'); }}
-                      >
-                        <LabelBadge name={label.name} color={label.color} />
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              {selectedConversationIds.length > 0 && (
-                <>
-                  <BulkApplyLabelsPopover
-                    conversationIds={selectedConversationIds}
-                    onLabelsApplied={() => {
-                      fetchConversations();
-                      handleClearSelection();
-                    }}
-                  />
-                  <Button variant="outline" size="icon" onClick={handleClearSelection} title={`Clear Selection (${selectedConversationIds.length})`}>
-                    <SquareX className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-          <Separator />
-          <div className="flex-1 overflow-y-auto">
-            {isLoadingConversations ? (
-              <div className="p-4 text-center text-gray-500">Loading conversations...</div>
-            ) : filteredConversations.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
-                {filterType === 'unread' ? 'No unread conversations.' : 'No conversations yet.'}
-              </div>
-            ) : (
-              filteredConversations.map((conv) => (
-                <div
-                  key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
-                  className={cn(
-                    `flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700`,
-                    selectedConversation?.contact_phone_number === conv.contact_phone_number &&
-                    selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
-                      ? 'bg-blue-50 dark:bg-blue-900'
-                      : '',
-                    selectedConversationIds.includes(conv.id)
-                      ? 'bg-yellow-100 dark:bg-yellow-900 border-l-4 border-brand-yellow'
-                      : ''
-                  )}
+              {/* Second row: Filter buttons */}
+              <div className="flex space-x-2 overflow-x-auto pb-2">
+                <Button
+                  variant={filterType === 'all' ? 'default' : 'secondary'}
+                  className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
+                  onClick={() => { setFilterType('all'); setSelectedLabelFilterId(null); }}
+                  size="icon"
+                  title="All Conversations"
                 >
-                  <Checkbox
-                    checked={selectedConversationIds.includes(conv.id)}
-                    onCheckedChange={() => handleToggleConversationSelection(conv.id)}
-                    className="mr-2 cursor-pointer"
-                  />
-                  <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
-                    {conv.labels.length > 0 ? (
-                      <div className="h-9 w-9 mr-2 flex items-center justify-center">
-                        <LabelBadge
-                          name={conv.labels[0].name.charAt(0).toUpperCase()}
-                          color={conv.labels[0].color}
-                          className="!h-full !w-full !flex !items-center !justify-center !text-sm"
-                        />
-                      </div>
-                    ) : (
-                      <div className="h-9 w-9 mr-2 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <MessageCircle className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{conv.contact_phone_number}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{conv.last_message_body}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        {conv.whatsapp_account_name}
-                      </p>
-                      {conv.labels.length > 0 && (
-                        <div className="flex flex-wrap gap-0.5 mt-0.5">
-                          {conv.labels.map(label => (
-                            <LabelBadge key={label.id} name={label.name} color={label.color} />
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
-                  <div className="flex items-center">
-                    {conv.last_message_status && renderTickMarks(conv.last_message_status)}
-                    <span className="ml-1">{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
-                  </div>
-                  {conv.unread_count > 0 && (
-                    <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                      {conv.unread_count > 99 ? '99+' : totalUnreadCount}
+                  <ListFilter className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={filterType === 'unread' ? 'default' : 'secondary'}
+                  className={cn("rounded-full px-4 py-2 text-sm", filterType === 'unread' ? 'bg-brand-green text-white' : '')}
+                  onClick={() => { setFilterType('unread'); setSelectedLabelFilterId(null); }}
+                  size="icon"
+                  title="Unread Conversations"
+                >
+                  <MailOpen className="h-4 w-4" />
+                  {totalUnreadCount > 0 && (
+                    <span className="ml-2 bg-white text-brand-green rounded-full px-2">
+                      {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                     </span>
                   )}
-                  {currentUserRole === 'admin' && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 mt-1" title="Delete Conversation">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the conversation with "{conv.contact_phone_number}" and all its associated messages.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteConversation(conv.id, conv.contact_phone_number)}>
-                            Delete
-                          </AlertDialogAction>
-                        </DialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-          </div>
-        </div>
-
-        {/* Message Area */}
-        <div className={cn(
-          "relative flex-col flex-1 bg-gray-50 dark:bg-gray-900 h-full",
-          "bg-[radial-gradient(circle,var(--tw-gradient-stops))] from-gray-200/50 to-transparent bg-[size:20px_20px] dark:from-gray-700/50 dark:to-transparent",
-          (isMobile && !selectedConversation) ? "hidden" : "flex"
-        )}>
-          {/* Header for Selected Conversation - Fixed at top */}
-          <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
-            <div className="flex items-center">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center">
-                <Avatar className="h-8 w-8 mr-3">
-                  <AvatarImage src={selectedConversation?.profile_picture_url || undefined} alt={selectedConversation?.contact_phone_number} />
-                  <AvatarFallback>{selectedConversation?.contact_phone_number}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h1 className="text-lg font-bold">{selectedConversation?.contact_phone_number}</h1>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {selectedConversation?.whatsapp_account_name}
-                  </p>
-                </div>
-            </div>
-            </div>
-            <div className="flex space-x-2">
-              {selectedConversation && user && (
-                <>
-                  <Button variant="ghost" size="icon" onClick={() => handleProfilePictureEditClick(selectedConversation)} title="Edit Profile Picture">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <ApplyLabelsPopover
-                    conversationId={selectedConversation.id}
-                    currentLabels={selectedConversation.labels}
-                    onLabelsApplied={fetchConversations}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Messages - Scrollable area, takes remaining space */}
-          <div className="flex-1 overflow-y-auto space-y-4 pt-[90px] pb-[80px] px-4 sm:px-6 lg:px-8">
-            {isLoadingMessages ? (
-              <div className="text-center text-gray-500">Loading messages...</div>
-            ) : messages.length === 0 ? (
-              <div className="text-center text-gray-500">No messages in this conversation.</div>
-            ) : (
-              messages.map((msg) => {
-                const handlers = useSwipeable({
-                  onSwipedLeft: () => setSwipedMessageId(msg.id),
-                  onSwipedRight: () => setSwipedMessageId(msg.id),
-                  onTap: () => setSwipedMessageId(null), // Clear swipe on tap
-                  preventScrollOnSwipe: true,
-                  trackMouse: true,
-                });
-
-                return (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex group relative",
-                      msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
-                    )}
-                    {...handlers}
-                  >
-                    {/* Reply button on swipe */}
-                    {swipedMessageId === msg.id && (
-                      <div className={cn(
-                        "absolute top-1/2 -translate-y-1/2 z-10",
-                        msg.direction === 'outgoing' ? 'left-0 -ml-10' : 'right-0 -mr-10'
-                      )}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReplyClick(msg)}
-                          className="text-gray-500 hover:text-blue-500"
-                          title="Reply"
-                        >
-                          <Reply className="h-5 w-5" />
-                        </Button>
-                      </div>
-                    )}
-
-                    <div
-                      className={cn(
-                        "max-w-[80%] p-2 rounded-xl flex flex-col relative",
-                        msg.direction === 'outgoing'
-                          ? 'bg-whatsapp-outgoing text-whatsapp-outgoing-foreground rounded-br-none'
-                          : 'bg-whatsapp-incoming text-whatsapp-incoming-foreground rounded-bl-none'
-                      )}
-                    >
-                      {/* Display replied-to message content */}
-                      {msg.replied_to_message_id && (
-                        <div className={cn(
-                          "border-l-4 pl-2 mb-2 rounded-sm",
-                          msg.direction === 'outgoing' ? 'border-blue-400' : 'border-green-400'
-                        )}>
-                          <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold">
-                            {msg.direction === 'outgoing' ? 'You replied to:' : 'Replied to:'}
-                          </p>
-                          {msg.replied_to_media_url ? (
-                            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                              {msg.replied_to_message_type === 'image' && <Image className="h-3 w-3 mr-1" />}
-                              {msg.replied_to_message_type === 'audio' && <FileAudio className="h-3 w-3 mr-1" />}
-                              {msg.replied_to_message_type === 'video' && <Camera className="h-3 w-3 mr-1" />}
-                              {msg.replied_to_message_type === 'document' && <Paperclip className="h-3 w-3 mr-1" />}
-                              {msg.replied_to_media_caption || `[${msg.replied_to_message_type} message]`}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                              {msg.replied_to_message_body}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Delete button for outgoing messages */}
-                      {msg.direction === 'outgoing' && msg.user_id === user?.id && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="absolute top-1 right-1 h-6 w-6 p-0 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                              title="Delete Message"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete this message.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteMessage(msg.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </DialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                      {/* Message content */}
-                      {msg.message_type === 'text' ? (
-                        <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>
-                      ) : (
-                        <div>
-                          {renderMediaContent(msg)}
-                          {msg.message_body && <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>}
-                        </div>
-                      )}
-                      {/* Timestamp and ticks */}
-                      <div className="flex items-center text-xs opacity-75 mt-1 ml-auto">
-                        <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
-                        {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area - Fixed at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 flex bg-gray-50 dark:bg-gray-900 z-20">
-            {selectedMessageToReplyTo && (
-              <div className="flex items-center justify-between p-2 bg-gray-200 dark:bg-gray-700 rounded-t-lg mb-1 w-full">
-                <div className="flex-1 border-l-4 border-blue-500 pl-2">
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Replying to:</p>
-                  {selectedMessageToReplyTo.media_url ? (
-                    <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
-                      {selectedMessageToReplyTo.message_type === 'image' && <Image className="h-3 w-3 mr-1" />}
-                      {selectedMessageToReplyTo.message_type === 'audio' && <FileAudio className="h-3 w-3 mr-1" />}
-                      {selectedMessageToReplyTo.message_type === 'video' && <Camera className="h-3 w-3 mr-1" />}
-                      {selectedMessageToReplyTo.message_type === 'document' && <Paperclip className="h-3 w-3 mr-1" />}
-                      {selectedMessageToReplyTo.media_caption || `[${selectedMessageToReplyTo.message_type} message]`}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-1">
-                      {selectedMessageToReplyTo.message_body}
-                    </p>
-                  )}
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setSelectedMessageToReplyTo(null)} title="Cancel Reply">
-                  <X className="h-4 w-4 text-gray-500" />
                 </Button>
-              </div>
-            )}
-            <div className="flex items-end bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm flex-1">
-              <Input
-                type="text"
-                placeholder="Message"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newMessage.trim()) {
-                    handleSendMessage(newMessage);
-                  }
-                }}
-                className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
-              />
-              {selectedConversation && user && (
-                <AttachmentOptionsDialog
-                  onSendMessage={handleSendMessage}
-                  onUploadMedia={uploadMediaToSupabase}
-                  selectedConversationId={selectedConversation.id}
-                  whatsappAccountId={selectedConversation.whatsapp_account_id}
-                  userId={user.id}
-                />
-              )}
-
-              {/* Quick Replies Popover */}
-              <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
-                    <Zap className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-2">
-                  <div className="mb-2">
-                    <h4 className="font-semibold text-sm">Quick Replies</h4>
-                    <p className="text-xs text-gray-500">Select a predefined message.</p>
-                  </div>
-                  <div className="space-y-1">
-                    {dynamicQuickReplies.length === 0 ? (
-                      <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
-                    ) : (
-                      dynamicQuickReplies.map((reply) => (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={selectedLabelFilterId ? 'default' : 'secondary'}
+                      className={cn("rounded-full px-4 py-2 text-sm", selectedLabelFilterId ? 'bg-brand-green text-white' : '')}
+                      size="icon"
+                      title={selectedLabelFilterId ? `Filter: ${selectedLabelName}` : "Filter by Label"}
+                    >
+                      <Tag className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2">
+                    <div className="mb-2">
+                      <h4 className="font-semibold text-sm">Filter by Label</h4>
+                      <p className="text-xs text-gray-500">Select labels to filter conversations.</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-sm"
+                        onClick={() => { setSelectedLabelFilterId(null); setFilterType('all'); }}
+                      >
+                        All Labels
+                      </Button>
+                      <Separator />
+                      {allLabels.map((label) => (
                         <Button
-                          key={reply.id}
+                          key={label.id}
                           variant="ghost"
-                          className="w-full justify-start text-sm h-auto py-1.5"
-                          onClick={() => {
-                            if (reply.type === 'text' && reply.text_content) {
-                              setNewMessage(reply.text_content);
-                            } else if (reply.type === 'audio' && reply.audio_url) {
-                              // When sending a quick audio reply, ensure mediaCaption is null
-                              handleSendMessage(null, reply.audio_url, 'audio', null); 
-                            }
-                            setIsQuickRepliesPopoverOpen(false);
-                          }}
+                          className="w-full justify-start text-sm"
+                          onClick={() => { setSelectedLabelFilterId(label.id); setFilterType('all'); }}
                         >
-                          {reply.type === 'text' ? (
-                            <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
-                          ) : (
-                            <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
-                          )}
-                          {reply.name}
+                          <LabelBadge name={label.name} color={label.color} />
                         </Button>
-                      ))
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {selectedConversationIds.length > 0 && (
+                  <>
+                    <BulkApplyLabelsPopover
+                      conversationIds={selectedConversationIds}
+                      onLabelsApplied={() => {
+                        fetchConversations();
+                        handleClearSelection();
+                      }}
+                    />
+                    <Button variant="outline" size="icon" onClick={handleClearSelection} title={`Clear Selection (${selectedConversationIds.length})`}>
+                      <SquareX className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            <Separator />
+            <div className="flex-1 overflow-y-auto">
+              {isLoadingConversations ? (
+                <div className="p-4 text-center text-gray-500">Loading conversations...</div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  {filterType === 'unread' ? 'No unread conversations.' : 'No conversations yet.'}
+                </div>
+              ) : (
+                filteredConversations.map((conv) => (
+                  <div
+                    key={`${conv.whatsapp_account_id}-${conv.contact_phone_number}`}
+                    className={cn(
+                      `flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700`,
+                      selectedConversation?.contact_phone_number === conv.contact_phone_number &&
+                      selectedConversation?.whatsapp_account_id === conv.whatsapp_account_id
+                        ? 'bg-blue-50 dark:bg-blue-900'
+                        : '',
+                      selectedConversationIds.includes(conv.id)
+                        ? 'bg-yellow-100 dark:bg-yellow-900 border-l-4 border-brand-yellow'
+                        : ''
+                    )}
+                  >
+                    <Checkbox
+                      checked={selectedConversationIds.includes(conv.id)}
+                      onCheckedChange={() => handleToggleConversationSelection(conv.id)}
+                      className="mr-2 cursor-pointer"
+                    />
+                    <div className="flex-1 flex items-center cursor-pointer" onClick={() => handleConversationSelect(conv)}>
+                      {conv.labels.length > 0 ? (
+                        <div className="h-9 w-9 mr-2 flex items-center justify-center">
+                          <LabelBadge
+                            name={conv.labels[0].name.charAt(0).toUpperCase()}
+                            color={conv.labels[0].color}
+                            className="!h-full !w-full !flex !items-center !justify-center !text-sm"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-9 w-9 mr-2 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          <MessageCircle className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{conv.contact_phone_number}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{conv.last_message_body}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          {conv.whatsapp_account_name}
+                        </p>
+                        {conv.labels.length > 0 && (
+                          <div className="flex flex-wrap gap-0.5 mt-0.5">
+                            {conv.labels.map(label => (
+                              <LabelBadge key={label.id} name={label.name} color={label.color} />
+                            ))}
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end text-xs text-gray-400 dark:text-gray-500">
+                    <div className="flex items-center">
+                      {conv.last_message_status && renderTickMarks(conv.last_message_status)}
+                      <span className="ml-1">{format(new Date(conv.last_message_time), 'MMM d, HH:mm')}</span>
+                    </div>
+                    {conv.unread_count > 0 && (
+                      <span className="mt-1 bg-brand-green text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                        {conv.unread_count > 99 ? '99+' : totalUnreadCount}
+                      </span>
+                    )}
+                    {currentUserRole === 'admin' && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 mt-1" title="Delete Conversation">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the conversation with "{conv.contact_phone_number}" and all its associated messages.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteConversation(conv.id, conv.contact_phone_number)}>
+                              Delete
+                            </AlertDialogAction>
+                          </DialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            {newMessage.trim() ? (
-              <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
-                <Send className="h-5 w-5 text-white" />
-              </Button>
-            ) : isRecording ? (
-              <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
-                <StopCircle className="h-5 w-5" />
-              </Button>
-            ) : (
-              <Button variant="ghost" size="icon" onClick={startRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white">
-                <Mic className="h-5 w-5" />
-              </Button>
+                </div>
+              ))
             )}
+            </div>
+          </div>
+
+          {/* Message Area */}
+          <div className={cn(
+            "relative flex-col flex-1 bg-gray-50 dark:bg-gray-900 h-full",
+            "bg-[radial-gradient(circle,var(--tw-gradient-stops))] from-gray-200/50 to-transparent bg-[size:20px_20px] dark:from-gray-700/50 dark:to-transparent",
+            (isMobile && !selectedConversation) ? "hidden" : "flex"
+          )}>
+            {/* Header for Selected Conversation - Fixed at top */}
+            <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
+              <div className="flex items-center">
+                <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="flex items-center">
+                  <Avatar className="h-8 w-8 mr-3">
+                    <AvatarImage src={selectedConversation?.profile_picture_url || undefined} alt={selectedConversation?.contact_phone_number} />
+                    <AvatarFallback>{selectedConversation?.contact_phone_number}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h1 className="text-lg font-bold">{selectedConversation?.contact_phone_number}</h1>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {selectedConversation?.whatsapp_account_name}
+                    </p>
+                  </div>
+              </div>
+              </div>
+              <div className="flex space-x-2">
+                {selectedConversation && user && (
+                  <>
+                    <Button variant="ghost" size="icon" onClick={() => handleProfilePictureEditClick(selectedConversation)} title="Edit Profile Picture">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <ApplyLabelsPopover
+                      conversationId={selectedConversation.id}
+                      currentLabels={selectedConversation.labels}
+                      onLabelsApplied={fetchConversations}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Messages - Scrollable area, takes remaining space */}
+            <div className="flex-1 overflow-y-auto space-y-4 pt-[90px] pb-[80px] px-4 sm:px-6 lg:px-8">
+              {isLoadingMessages ? (
+                <div className="text-center text-gray-500">Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-gray-500">No messages in this conversation.</div>
+              ) : (
+                messages.map((msg) => {
+                  const handlers = useSwipeable({
+                    onSwipedLeft: () => setSwipedMessageId(msg.id),
+                    onSwipedRight: () => setSwipedMessageId(msg.id),
+                    onTap: () => setSwipedMessageId(null), // Clear swipe on tap
+                    preventScrollOnSwipe: true,
+                    trackMouse: true,
+                  });
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={cn(
+                        "flex group relative",
+                        msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'
+                      )}
+                      {...handlers}
+                    >
+                      {/* Reply button on swipe */}
+                      {swipedMessageId === msg.id && (
+                        <div className={cn(
+                          "absolute top-1/2 -translate-y-1/2 z-10",
+                          msg.direction === 'outgoing' ? 'left-0 -ml-10' : 'right-0 -mr-10'
+                        )}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleReplyClick(msg)}
+                            className="text-gray-500 hover:text-blue-500"
+                            title="Reply"
+                          >
+                            <Reply className="h-5 w-5" />
+                          </Button>
+                        </div>
+                      )}
+
+                      <div
+                        className={cn(
+                          "max-w-[80%] p-2 rounded-xl flex flex-col relative",
+                          msg.direction === 'outgoing'
+                            ? 'bg-whatsapp-outgoing text-whatsapp-outgoing-foreground rounded-br-none'
+                            : 'bg-whatsapp-incoming text-whatsapp-incoming-foreground rounded-bl-none'
+                        )}
+                      >
+                        {/* Display replied-to message content */}
+                        {msg.replied_to_message_id && (
+                          <div className={cn(
+                            "border-l-4 pl-2 mb-2 rounded-sm",
+                            msg.direction === 'outgoing' ? 'border-blue-400' : 'border-green-400'
+                          )}>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 font-semibold">
+                              {msg.direction === 'outgoing' ? 'You replied to:' : 'Replied to:'}
+                            </p>
+                            {msg.replied_to_media_url ? (
+                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                {msg.replied_to_message_type === 'image' && <Image className="h-3 w-3 mr-1" />}
+                                {msg.replied_to_message_type === 'audio' && <FileAudio className="h-3 w-3 mr-1" />}
+                                {msg.replied_to_message_type === 'video' && <Camera className="h-3 w-3 mr-1" />}
+                                {msg.replied_to_message_type === 'document' && <Paperclip className="h-3 w-3 mr-1" />}
+                                {msg.replied_to_media_caption || `[${msg.replied_to_message_type} message]`}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                                {msg.replied_to_message_body}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Delete button for outgoing messages */}
+                        {msg.direction === 'outgoing' && msg.user_id === user?.id && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute top-1 right-1 h-6 w-6 p-0 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                title="Delete Message"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete this message.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteMessage(msg.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </DialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                        {/* Message content */}
+                        {msg.message_type === 'text' ? (
+                          <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>
+                        ) : (
+                          <div>
+                            {renderMediaContent(msg)}
+                            {msg.message_body && <p className={cn("text-sm break-words", msg.direction === 'outgoing' && msg.user_id === user?.id ? "pr-6" : "")}>{msg.message_body}</p>}
+                          </div>
+                        )}
+                        {/* Timestamp and ticks */}
+                        <div className="flex items-center text-xs opacity-75 mt-1 ml-auto">
+                          <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
+                          {msg.direction === 'outgoing' && renderTickMarks(msg.status)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area - Fixed at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-2 flex bg-gray-50 dark:bg-gray-900 z-20">
+              {selectedMessageToReplyTo && (
+                <div className="flex items-center justify-between p-2 bg-gray-200 dark:bg-gray-700 rounded-t-lg mb-1 w-full">
+                  <div className="flex-1 border-l-4 border-blue-500 pl-2">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Replying to:</p>
+                    {selectedMessageToReplyTo.media_url ? (
+                      <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                        {selectedMessageToReplyTo.message_type === 'image' && <Image className="h-3 w-3 mr-1" />}
+                        {selectedMessageToReplyTo.message_type === 'audio' && <FileAudio className="h-3 w-3 mr-1" />}
+                        {selectedMessageToReplyTo.message_type === 'video' && <Camera className="h-3 w-3 mr-1" />}
+                        {selectedMessageToReplyTo.message_type === 'document' && <Paperclip className="h-3 w-3 mr-1" />}
+                        {selectedMessageToReplyTo.media_caption || `[${selectedMessageToReplyTo.message_type} message]`}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-1">
+                        {selectedMessageToReplyTo.message_body}
+                      </p>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedMessageToReplyTo(null)} title="Cancel Reply">
+                    <X className="h-4 w-4 text-gray-500" />
+                  </Button>
+                </div>
+              )}
+              <div className="flex items-end bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm flex-1">
+                <Input
+                  type="text"
+                  placeholder="Message"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newMessage.trim()) {
+                      handleSendMessage(newMessage);
+                    }
+                  }}
+                  className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
+                />
+                {selectedConversation && user && (
+                  <AttachmentOptionsDialog
+                    onSendMessage={handleSendMessage}
+                    onUploadMedia={uploadMediaToSupabase}
+                    selectedConversationId={selectedConversation.id}
+                    whatsappAccountId={selectedConversation.whatsapp_account_id}
+                    userId={user.id}
+                  />
+                )}
+
+                {/* Quick Replies Popover */}
+                <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
+                      <Zap className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2">
+                    <div className="mb-2">
+                      <h4 className="font-semibold text-sm">Quick Replies</h4>
+                      <p className="text-xs text-gray-500">Select a predefined message.</p>
+                    </div>
+                    <div className="space-y-1">
+                      {dynamicQuickReplies.length === 0 ? (
+                        <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
+                      ) : (
+                        dynamicQuickReplies.map((reply) => (
+                          <Button
+                            key={reply.id}
+                            variant="ghost"
+                            className="w-full justify-start text-sm h-auto py-1.5"
+                            onClick={() => {
+                              if (reply.type === 'text' && reply.text_content) {
+                                setNewMessage(reply.text_content);
+                              } else if (reply.type === 'audio' && reply.audio_url) {
+                                // When sending a quick audio reply, ensure mediaCaption is null
+                                handleSendMessage(null, reply.audio_url, 'audio', null); 
+                              }
+                              setIsQuickRepliesPopoverOpen(false);
+                            }}
+                          >
+                            {reply.type === 'text' ? (
+                              <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
+                            ) : (
+                              <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
+                            )}
+                            {reply.name}
+                          </Button>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              {newMessage.trim() ? (
+                <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
+                  <Send className="h-5 w-5 text-white" />
+                </Button>
+              ) : isRecording ? (
+                <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
+                  <StopCircle className="h-5 w-5" />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon" onClick={startRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white">
+                  <Mic className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Audio Recording Dialog (for direct mic recording) */}
-      <Dialog open={!!recordedAudioUrl} onOpenChange={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Recorded Audio Message</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {recordedAudioUrl && (
-              <audio controls src={recordedAudioUrl} className="w-full"></audio>
-            )}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="audioCaption" className="text-right">
-                Caption (Optional)
-              </Label>
-              <Input
-                id="audioCaption"
-                value={audioCaption}
-                onChange={(e) => setAudioCaption(e.target.value)}
-                className="col-span-3"
-                placeholder="Add a caption to your audio"
-              />
+        {/* Audio Recording Dialog (for direct mic recording) */}
+        <Dialog open={!!recordedAudioUrl} onOpenChange={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send Recorded Audio Message</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {recordedAudioUrl && (
+                <audio controls src={recordedAudioUrl} className="w-full"></audio>
+              )}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="audioCaption" className="text-right">
+                  Caption (Optional)
+                </Label>
+                <Input
+                  id="audioCaption"
+                  value={audioCaption}
+                  onChange={(e) => setAudioCaption(e.target.value)}
+                  className="col-span-3"
+                  placeholder="Add a caption to your audio"
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>Cancel</Button>
-            <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob}>Send Audio</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>Cancel</Button>
+              <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob}>Send Audio</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Edit Profile Picture Dialog */}
-      {selectedConversationForProfilePic && user && (
-        <EditProfilePictureDialog
-          isOpen={isEditProfilePictureDialogOpen}
-          onOpenChange={setIsEditProfilePictureDialogOpen}
-          conversationId={selectedConversationForProfilePic.id}
-          currentProfilePictureUrl={selectedConversationForProfilePic.profile_picture_url}
-          onProfilePictureUpdated={handleProfilePictureUpdated}
-          userId={user.id}
-          contactPhoneNumber={selectedConversationForProfilePic.contact_phone_number}
+        {/* Edit Profile Picture Dialog */}
+        {selectedConversationForProfilePic && user && (
+          <EditProfilePictureDialog
+            isOpen={isEditProfilePictureDialogOpen}
+            onOpenChange={setIsEditProfilePictureDialogOpen}
+            conversationId={selectedConversationForProfilePic.id}
+            currentProfilePictureUrl={selectedConversationForProfilePic.profile_picture_url}
+            onProfilePictureUpdated={handleProfilePictureUpdated}
+            userId={user.id}
+            contactPhoneNumber={selectedConversationForProfilePic.contact_phone_number}
+          />
+        )}
+
+        {/* Image Preview Dialog */}
+        <ImagePreviewDialog
+          isOpen={isImagePreviewOpen}
+          onOpenChange={setIsImagePreviewOpen}
+          imageUrl={imageToPreview?.url || null}
+          imageCaption={imageToPreview?.caption || null}
         />
-      )}
-
-      {/* Image Preview Dialog */}
-      <ImagePreviewDialog
-        isOpen={isImagePreviewOpen}
-        onOpenChange={setIsImagePreviewOpen}
-        imageUrl={imageToPreview?.url || null}
-        imageCaption={imageToPreview?.caption || null}
-      />
-    </div>
+    </React.Fragment>
   );
 };
 
