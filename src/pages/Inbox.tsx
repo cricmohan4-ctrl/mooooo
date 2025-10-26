@@ -768,12 +768,21 @@ const Inbox = () => {
         setAudioChunks((prev) => [...prev, e.data]);
       };
       recorder.onstop = () => {
+        console.log('recorder.onstop: Audio chunks collected:', audioChunks.length);
+        if (audioChunks.length === 0) {
+          console.warn('recorder.onstop: No audio chunks were recorded. Cancelling recording.');
+          cancelRecording(); // Effectively cancel if no data
+          return;
+        }
         const audioBlob = new Blob(audioChunks, { type: mimeType.split(';')[0] }); // Use base mime type for blob
+        console.log('recorder.onstop: audioBlob created:', audioBlob);
         setRecordedAudioBlob(audioBlob);
         setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         setAudioChunks([]);
         stream.getTracks().forEach(track => track.stop());
         setIsRecording(false); // Recording stopped, but UI remains for review
+        console.log('recorder.onstop: recordedAudioBlob set to:', audioBlob);
+        console.log('recorder.onstop: recordedAudioUrl set to:', URL.createObjectURL(audioBlob));
       };
       recorder.start();
       setIsRecording(true);
@@ -1429,8 +1438,8 @@ const Inbox = () => {
             {isRecording || recordedAudioUrl ? (
               // Recording/Review UI
               <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-full px-4 py-2 shadow-sm">
-                <Button variant="ghost" size="icon" onClick={cancelRecording} className="text-red-500 hover:text-red-700">
-                  <Trash2 className="h-5 w-5" />
+                <Button variant="ghost" onClick={cancelRecording} className="text-red-500 hover:text-red-700 px-3 py-1 rounded-full">
+                  <X className="h-4 w-4 mr-1" /> Cancel
                 </Button>
                 <div className="flex items-center space-x-2 flex-1 justify-center">
                   {recordedAudioUrl ? (
@@ -1452,6 +1461,7 @@ const Inbox = () => {
                     </>
                   )}
                 </div>
+                {console.log('Render: recordedAudioBlob is', recordedAudioBlob)}
                 <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
                   <Send className="h-5 w-5 text-white" />
                 </Button>
