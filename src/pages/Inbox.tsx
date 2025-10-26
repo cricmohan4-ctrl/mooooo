@@ -994,7 +994,7 @@ const Inbox = () => {
                           <AlertDialogAction onClick={() => handleDeleteConversation(conv.id, conv.contact_phone_number)}>
                             Delete
                           </AlertDialogAction>
-                        </AlertDialogFooter>
+                        </DialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
                   )}
@@ -1174,9 +1174,9 @@ const Inbox = () => {
           </div>
 
           {/* Input Area - Fixed at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col bg-gray-50 dark:bg-gray-900 z-20">
+          <div className="absolute bottom-0 left-0 right-0 p-2 flex bg-gray-50 dark:bg-gray-900 z-20">
             {selectedMessageToReplyTo && (
-              <div className="flex items-center justify-between p-2 bg-gray-200 dark:bg-gray-700 rounded-t-lg mb-1">
+              <div className="flex items-center justify-between p-2 bg-gray-200 dark:bg-gray-700 rounded-t-lg mb-1 w-full">
                 <div className="flex-1 border-l-4 border-blue-500 pl-2">
                   <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Replying to:</p>
                   {selectedMessageToReplyTo.media_url ? (
@@ -1198,7 +1198,7 @@ const Inbox = () => {
                 </Button>
               </div>
             )}
-            <div className="flex items-end bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
+            <div className="flex items-end bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm flex-1">
               <Input
                 type="text"
                 placeholder="Message"
