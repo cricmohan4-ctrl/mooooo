@@ -22,7 +22,6 @@ import AddNewContactDialog from '@/components/AddNewContactDialog';
 import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
 import LabelBadge from '@/components/LabelBadge';
 import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog';
-import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover';
 import AttachmentOptionsDialog from '@/components/AttachmentOptionsDialog';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -40,6 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { EditProfilePictureDialog } from '@/components/EditProfilePictureDialog'; // Import new dialog
+import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover'; // Ensure this is imported
 
 interface WhatsappAccount {
   id: string;
@@ -118,12 +118,16 @@ const Inbox = () => {
 
   const [selectedConversationIds, setSelectedConversationIds] = useState<string[]>([]);
 
+  // Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
-  const [audioCaption, setAudioCaption] = useState("");
+  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isPlayingRecordedAudio, setIsPlayingRecordedAudio] = useState(false);
+  const recordedAudioPlayerRef = useRef<HTMLAudioElement>(null);
 
   const [isEditProfilePictureDialogOpen, setIsEditProfilePictureDialogOpen] = useState(false); // New state
   const [selectedConversationForProfilePic, setSelectedConversationForProfilePic] = useState<Conversation | null>(null); // New state
@@ -138,6 +142,12 @@ const Inbox = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const fetchCurrentUserRole = useCallback(async () => {
@@ -682,9 +692,7 @@ const Inbox = () => {
         );
         return;
       }
-      setRecordedAudioBlob(null);
-      setRecordedAudioUrl(null);
-      setAudioCaption("");
+      // No need to reset recorded audio states here, as it's handled by cancelRecording
     } catch (error: any) {
       console.error("handleSendMessage: Error sending message:", error.message);
       showError(`Failed to send message: ${error.message}`);
@@ -745,10 +753,13 @@ const Inbox = () => {
   }, [user, currentUserRole, selectedConversation, fetchConversations]);
 
   const startRecording = async () => {
+    if (!selectedConversation) {
+      showError("Please select a conversation to record audio.");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Revert to audio/webm as it was the last format that allowed recording
-      const mimeType = 'audio/webm'; 
+      const mimeType = 'audio/webm'; // Use webm for recording, will transcode later
       
       console.log(`Attempting to record with MIME type: ${mimeType}`);
 
@@ -762,6 +773,7 @@ const Inbox = () => {
         setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         setAudioChunks([]);
         stream.getTracks().forEach(track => track.stop());
+        setIsRecording(false); // Recording stopped, but UI remains for review
       };
       recorder.start();
       setIsRecording(true);
@@ -769,9 +781,15 @@ const Inbox = () => {
       setAudioChunks([]);
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
-      setAudioCaption("");
+      setRecordingDuration(0);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
       showSuccess("Recording started...");
-    } catch (err: any) { // Catch the error object to get more details
+    } catch (err: any) {
       console.error("Error accessing microphone:", err);
       showError(`Failed to start recording: ${err.name} - ${err.message}. Please check microphone permissions.`);
     }
@@ -780,17 +798,44 @@ const Inbox = () => {
   const stopRecording = () => {
     if (mediaRecorder && isRecording) {
       mediaRecorder.stop();
-      setIsRecording(false);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+      // setIsRecording is set to false in recorder.onstop
       showSuccess("Recording stopped. Ready to send.");
     }
   };
 
+  const cancelRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop(); // This will trigger onstop, which will reset states
+    }
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+    setAudioChunks([]);
+    setRecordedAudioBlob(null);
+    if (recordedAudioUrl) {
+      URL.revokeObjectURL(recordedAudioUrl);
+    }
+    setRecordedAudioUrl(null);
+    setIsPlayingRecordedAudio(false);
+    if (recordedAudioPlayerRef.current) {
+      recordedAudioPlayerRef.current.pause();
+      recordedAudioPlayerRef.current.currentTime = 0;
+    }
+    showSuccess("Recording cancelled.");
+  };
+
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
-      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm'; // Get extension from blob type
+      const fileExtension = recordedAudioBlob.type.split('/')[1] || 'webm';
       const fileName = `audio-${Date.now()}.${fileExtension}`;
       
-      // 1. Upload the WebM audio to Supabase Storage
       const webmMediaUrl = await uploadMediaToSupabase(recordedAudioBlob, fileName, recordedAudioBlob.type);
       
       if (!webmMediaUrl) {
@@ -798,7 +843,6 @@ const Inbox = () => {
         return;
       }
 
-      // 2. Call the transcode-audio Edge Function
       try {
         const { data: transcodeData, error: transcodeError } = await supabase.functions.invoke('transcode-audio', {
           body: {
@@ -820,21 +864,36 @@ const Inbox = () => {
         }
 
         const finalMediaUrl = transcodeData.transcodedAudioUrl;
-        const finalMediaType = transcodeData.transcodedMediaType; // This will initially be 'audio/webm'
+        const finalMediaType = transcodeData.transcodedMediaType;
 
-        // 3. Send the message using the URL and type from the transcode function
-        await handleSendMessage(null, finalMediaUrl, finalMediaType, null); // Pass null for mediaCaption
+        await handleSendMessage(null, finalMediaUrl, finalMediaType, null);
         
       } catch (error: any) {
         console.error("Error during audio transcoding process:", error.message);
         showError(`Failed to process and send audio: ${error.message}`);
       } finally {
-        setRecordedAudioBlob(null);
-        setRecordedAudioUrl(null);
-        setAudioCaption("");
+        cancelRecording(); // Reset all recording states after sending
       }
     } else {
       showError("No audio recorded to send.");
+    }
+  };
+
+  const togglePlayRecordedAudio = () => {
+    if (recordedAudioPlayerRef.current) {
+      if (isPlayingRecordedAudio) {
+        recordedAudioPlayerRef.current.pause();
+      } else {
+        recordedAudioPlayerRef.current.play();
+      }
+      setIsPlayingRecordedAudio(!isPlayingRecordedAudio);
+    }
+  };
+
+  const handleAudioPlayerEnded = () => {
+    setIsPlayingRecordedAudio(false);
+    if (recordedAudioPlayerRef.current) {
+      recordedAudioPlayerRef.current.currentTime = 0;
     }
   };
 
@@ -1365,122 +1424,132 @@ const Inbox = () => {
                 </Button>
               </div>
             )}
-            <div className="flex items-end bg-gray-50 dark:bg-gray-900 z-20">
-              <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
-                <Input
-                  type="text"
-                  placeholder="Message"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && newMessage.trim()) {
-                      handleSendMessage(newMessage);
-                    }
-                  }}
-                  className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
-                />
-                {selectedConversation && user && (
-                  <AttachmentOptionsDialog
-                    onSendMessage={handleSendMessage}
-                    onUploadMedia={uploadMediaToSupabase}
-                    selectedConversationId={selectedConversation.id}
-                    whatsappAccountId={selectedConversation.whatsapp_account_id}
-                    userId={user.id}
-                  />
-                )}
 
-                {/* Quick Replies Popover */}
-                <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
-                      <Zap className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2">
-                    <div className="mb-2">
-                      <h4 className="font-semibold text-sm">Quick Replies</h4>
-                      <p className="text-xs text-gray-500">Select a predefined message.</p>
-                    </div>
-                    <div className="space-y-1">
-                      {dynamicQuickReplies.length === 0 ? (
-                        <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
-                      ) : (
-                        dynamicQuickReplies.map((reply) => (
-                          <Button
-                            key={reply.id}
-                            variant="ghost"
-                            className="w-full justify-start text-sm h-auto py-1.5"
-                            onClick={() => {
-                              if (reply.type === 'text' && reply.text_content) {
-                                setNewMessage(reply.text_content);
-                              } else if (reply.type === 'audio' && reply.audio_url) {
-                                // When sending a quick audio reply, ensure mediaCaption is null
-                                handleSendMessage(null, reply.audio_url, 'audio', null); 
-                              }
-                              setIsQuickRepliesPopoverOpen(false);
-                            }}
-                          >
-                            {reply.type === 'text' ? (
-                              <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
-                            ) : (
-                              <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
-                            )}
-                            {reply.name}
-                          </Button>
-                        ))
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              
-              {newMessage.trim() ? (
-                <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
+            {/* Conditional Input/Recording UI */}
+            {isRecording || recordedAudioUrl ? (
+              // Recording/Review UI
+              <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-full px-4 py-2 shadow-sm">
+                <Button variant="ghost" size="icon" onClick={cancelRecording} className="text-red-500 hover:text-red-700">
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+                <div className="flex items-center space-x-2 flex-1 justify-center">
+                  {recordedAudioUrl ? (
+                    <>
+                      <audio ref={recordedAudioPlayerRef} src={recordedAudioUrl} onEnded={handleAudioPlayerEnded} className="hidden"></audio>
+                      <Button variant="ghost" size="icon" onClick={togglePlayRecordedAudio}>
+                        {isPlayingRecordedAudio ? <PauseCircle className="h-6 w-6" /> : <PlayCircle className="h-6 w-6" />}
+                      </Button>
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        {formatDuration(recordedAudioPlayerRef.current?.currentTime || 0)} / {formatDuration(recordedAudioPlayerRef.current?.duration || recordingDuration)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="h-6 w-6 text-red-500 animate-pulse" />
+                      <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                        {formatDuration(recordingDuration)}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
                   <Send className="h-5 w-5 text-white" />
                 </Button>
-              ) : isRecording ? (
-                <Button variant="destructive" size="icon" onClick={stopRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0">
-                  <StopCircle className="h-5 w-5" />
-                </Button>
-              ) : (
-                <Button variant="ghost" size="icon" onClick={startRecording} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white">
-                  <Mic className="h-5 w-5" />
-                </Button>
-              )}
-            </div>
+              </div>
+            ) : (
+              // Normal Input UI
+              <div className="flex items-end bg-gray-50 dark:bg-gray-900 z-20">
+                <div className="relative flex-1 flex items-center bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 shadow-sm">
+                  <Input
+                    type="text"
+                    placeholder="Message"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newMessage.trim()) {
+                        handleSendMessage(newMessage);
+                      }
+                    }}
+                    className="flex-1 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent h-auto p-0"
+                  />
+                  {selectedConversation && user && (
+                    <AttachmentOptionsDialog
+                      onSendMessage={handleSendMessage}
+                      onUploadMedia={uploadMediaToSupabase}
+                      selectedConversationId={selectedConversation.id}
+                      whatsappAccountId={selectedConversation.whatsapp_account_id}
+                      userId={user.id}
+                    />
+                  )}
+
+                  {/* Quick Replies Popover */}
+                  <Popover open={isQuickRepliesPopoverOpen} onOpenChange={setIsQuickRepliesPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 h-8 w-8">
+                        <Zap className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2">
+                      <div className="mb-2">
+                        <h4 className="font-semibold text-sm">Quick Replies</h4>
+                        <p className="text-xs text-gray-500">Select a predefined message.</p>
+                      </div>
+                      <div className="space-y-1">
+                        {dynamicQuickReplies.length === 0 ? (
+                          <p className="text-sm text-gray-500">No quick replies. Add some in "Manage Quick Replies".</p>
+                        ) : (
+                          dynamicQuickReplies.map((reply) => (
+                            <Button
+                              key={reply.id}
+                              variant="ghost"
+                              className="w-full justify-start text-sm h-auto py-1.5"
+                              onClick={() => {
+                                if (reply.type === 'text' && reply.text_content) {
+                                  setNewMessage(reply.text_content);
+                                } else if (reply.type === 'audio' && reply.audio_url) {
+                                  // When sending a quick audio reply, ensure mediaCaption is null
+                                  handleSendMessage(null, reply.audio_url, 'audio', null); 
+                                }
+                                setIsQuickRepliesPopoverOpen(false);
+                              }}
+                            >
+                              {reply.type === 'text' ? (
+                                <MessageSquareText className="h-4 w-4 mr-2 text-blue-500" />
+                              ) : (
+                                <FileAudio className="h-4 w-4 mr-2 text-purple-500" />
+                              )}
+                              {reply.name}
+                            </Button>
+                          ))
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                {newMessage.trim() ? (
+                  <Button onClick={() => handleSendMessage(newMessage)} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
+                    <Send className="h-5 w-5 text-white" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onMouseDown={startRecording}
+                    onMouseUp={stopRecording}
+                    onTouchStart={startRecording}
+                    onTouchEnd={stopRecording}
+                    className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90 text-white"
+                    disabled={!selectedConversation}
+                  >
+                    <Mic className="h-5 w-5" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Audio Recording Dialog (for direct mic recording) */}
-      <Dialog open={!!recordedAudioUrl} onOpenChange={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Recorded Audio Message</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {recordedAudioUrl && (
-              <audio controls src={recordedAudioUrl} className="w-full"></audio>
-            )}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="audioCaption" className="text-right">
-                Caption (Optional)
-              </Label>
-              <Input
-                id="audioCaption"
-                value={audioCaption}
-                onChange={(e) => setAudioCaption(e.target.value)}
-                className="col-span-3"
-                placeholder="Add a caption to your audio"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setRecordedAudioUrl(null); setRecordedAudioBlob(null); setAudioCaption(""); }}>Cancel</Button>
-            <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob}>Send Audio</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Profile Picture Dialog */}
       {selectedConversationForProfilePic && user && (
