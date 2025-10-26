@@ -596,6 +596,7 @@ const Inbox = () => {
         .from('whatsapp-media')
         .getPublicUrl(filePath);
 
+      console.log("Uploaded media public URL:", publicUrlData.publicUrl); // Log the public URL
       return publicUrlData.publicUrl;
     } catch (error: any) {
       console.error("Error uploading media:", error.message);
@@ -876,13 +877,15 @@ const Inbox = () => {
       }
 
       try {
-        // Pass the original media type to the transcode-audio function
+        const invokePayload = {
+          webmAudioUrl: uploadedMediaUrl, // This is now the URL of the client-recorded file
+          userId: user.id,
+          originalMediaType: recordedAudioBlob.type, // Pass the actual MIME type recorded by the client
+        };
+        console.log("Sending to transcode-audio Edge Function with payload:", JSON.stringify(invokePayload, null, 2)); // ADDED LOG
+
         const { data: transcodeData, error: transcodeError } = await supabase.functions.invoke('transcode-audio', {
-          body: {
-            webmAudioUrl: uploadedMediaUrl, // This is now the URL of the client-recorded file
-            userId: user.id,
-            originalMediaType: recordedAudioBlob.type, // Pass the actual MIME type recorded by the client
-          },
+          body: invokePayload,
         });
 
         if (transcodeError) {
