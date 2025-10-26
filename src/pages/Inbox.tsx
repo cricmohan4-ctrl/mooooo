@@ -844,11 +844,10 @@ const Inbox = () => {
       case 'image':
         return (
           <div className={cn(commonClasses, "flex flex-col items-start")}>
-            <img src={message.media_url} alt={message.media_caption || "Image"} className="max-w-xs max-h-60 object-contain" />
-            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
-            <a href={message.media_url} download={message.media_url.split('/').pop() || 'image.jpg'} className="mt-2 flex items-center text-blue-500 hover:underline text-sm">
-              <Download className="h-4 w-4 mr-1" /> Download Image
+            <a href={message.media_url} download={message.media_url.split('/').pop() || 'image.jpg'} className="block">
+              <img src={message.media_url} alt={message.media_caption || "Image"} className="max-w-xs max-h-60 object-contain" />
             </a>
+            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
           </div>
         );
       case 'audio':
@@ -1257,7 +1256,7 @@ const Inbox = () => {
                           {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}
                         </p>
                         {msg.replied_to_message_type === 'text' && (
-                          <p className="line-clamp-2">{msg.replied_to_message_body}</p>
+                          <p className="line-clamp-1">{msg.replied_to_message_body}</p>
                         )}
                         {['image', 'video', 'audio', 'document'].includes(msg.replied_to_message_type || '') && (
                           <div className="flex items-center mt-1">
