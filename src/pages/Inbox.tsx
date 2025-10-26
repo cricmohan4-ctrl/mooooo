@@ -121,11 +121,12 @@ const Inbox = () => {
   // Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const audioChunksRef = useRef<Blob[]>([]); // Changed from useState to useRef
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null); // To hold the stream for cleanup
   const [isPlayingRecordedAudio, setIsPlayingRecordedAudio] = useState(false);
   const recordedAudioPlayerRef = useRef<HTMLAudioElement>(null);
 
@@ -752,6 +753,30 @@ const Inbox = () => {
     }
   }, [user, currentUserRole, selectedConversation, fetchConversations]);
 
+  const resetAudioRecordingStates = useCallback(() => {
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+    audioChunksRef.current = []; // Reset ref
+    setRecordedAudioBlob(null);
+    if (recordedAudioUrl) { // Revoke URL *before* setting to null
+      URL.revokeObjectURL(recordedAudioUrl);
+    }
+    setRecordedAudioUrl(null);
+    setIsPlayingRecordedAudio(false);
+    if (recordedAudioPlayerRef.current) {
+      recordedAudioPlayerRef.current.pause();
+      recordedAudioPlayerRef.current.currentTime = 0;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+  }, [recordedAudioUrl]); // Dependency for useCallback
+
   const startRecording = async () => {
     if (!selectedConversation) {
       showError("Please select a conversation to record audio.");
@@ -759,27 +784,33 @@ const Inbox = () => {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = 'audio/webm'; // Use webm for recording, will transcode later
+      mediaStreamRef.current = stream; // Store stream in ref
+      const mimeType = 'audio/webm';
       
       console.log(`Attempting to record with MIME type: ${mimeType}`);
 
       const recorder = new MediaRecorder(stream, { mimeType }); 
       recorder.ondataavailable = (e) => {
-        setAudioChunks((prev) => [...prev, e.data]);
+        audioChunksRef.current.push(e.data); // Push to ref
       };
       recorder.onstop = () => {
-        console.log('recorder.onstop: Audio chunks collected:', audioChunks.length);
-        if (audioChunks.length === 0) {
-          console.warn('recorder.onstop: No audio chunks were recorded. Cancelling recording.');
-          cancelRecording(); // Effectively cancel if no data
+        console.log('recorder.onstop: Audio chunks collected:', audioChunksRef.current.length);
+        const currentStream = mediaStreamRef.current; // Capture stream from ref
+        
+        // Always stop the stream when recording stops
+        currentStream?.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null; // Clear stream ref
+
+        if (audioChunksRef.current.length === 0) {
+          console.warn('recorder.onstop: No audio chunks were recorded. Resetting states.');
+          resetAudioRecordingStates(); // This will clear all states including recordedAudioUrl
           return;
         }
-        const audioBlob = new Blob(audioChunks, { type: mimeType.split(';')[0] }); // Use base mime type for blob
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType.split(';')[0] });
         console.log('recorder.onstop: audioBlob created:', audioBlob);
         setRecordedAudioBlob(audioBlob);
         setRecordedAudioUrl(URL.createObjectURL(audioBlob));
-        setAudioChunks([]);
-        stream.getTracks().forEach(track => track.stop());
+        audioChunksRef.current = []; // Reset ref after creating blob
         setIsRecording(false); // Recording stopped, but UI remains for review
         console.log('recorder.onstop: recordedAudioBlob set to:', audioBlob);
         console.log('recorder.onstop: recordedAudioUrl set to:', URL.createObjectURL(audioBlob));
@@ -787,7 +818,7 @@ const Inbox = () => {
       recorder.start();
       setIsRecording(true);
       setMediaRecorder(recorder);
-      setAudioChunks([]);
+      audioChunksRef.current = []; // Ensure ref is empty at start
       setRecordedAudioBlob(null);
       setRecordedAudioUrl(null);
       setRecordingDuration(0);
@@ -801,43 +832,31 @@ const Inbox = () => {
     } catch (err: any) {
       console.error("Error accessing microphone:", err);
       showError(`Failed to start recording: ${err.name} - ${err.message}. Please check microphone permissions.`);
+      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorder && isRecording) {
-      mediaRecorder.stop();
+      mediaRecorder.stop(); // This will trigger onstop
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
         recordingIntervalRef.current = null;
       }
       // setIsRecording is set to false in recorder.onstop
-      showSuccess("Recording stopped. Ready to send.");
+      showSuccess("Recording stopped. Ready to send."); // This toast is fine here, as it's a user action
     }
   };
 
   const cancelRecording = () => {
     if (mediaRecorder && isRecording) {
-      mediaRecorder.stop(); // This will trigger onstop, which will reset states
+      mediaRecorder.stop(); // This will trigger onstop, which will then call resetAudioRecordingStates if no chunks, or set recordedAudioBlob/Url
     }
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = null;
-    }
-    setIsRecording(false);
-    setRecordingDuration(0);
-    setAudioChunks([]);
-    setRecordedAudioBlob(null);
-    if (recordedAudioUrl) {
-      URL.revokeObjectURL(recordedAudioUrl);
-    }
-    setRecordedAudioUrl(null);
-    setIsPlayingRecordedAudio(false);
-    if (recordedAudioPlayerRef.current) {
-      recordedAudioPlayerRef.current.pause();
-      recordedAudioPlayerRef.current.currentTime = 0;
-    }
-    showSuccess("Recording cancelled.");
+    // In either case (recording stopped by user, or already in review mode),
+    // we want to fully reset the states.
+    resetAudioRecordingStates();
+    showSuccess("Recording cancelled."); // Show success only for explicit user cancellation
   };
 
   const sendRecordedAudio = async () => {
@@ -881,7 +900,7 @@ const Inbox = () => {
         console.error("Error during audio transcoding process:", error.message);
         showError(`Failed to process and send audio: ${error.message}`);
       } finally {
-        cancelRecording(); // Reset all recording states after sending
+        resetAudioRecordingStates(); // Reset all recording states after sending
       }
     } else {
       showError("No audio recorded to send.");
@@ -1461,7 +1480,6 @@ const Inbox = () => {
                     </>
                   )}
                 </div>
-                {console.log('Render: recordedAudioBlob is', recordedAudioBlob)}
                 <Button onClick={sendRecordedAudio} disabled={!recordedAudioBlob} className="rounded-full h-10 w-10 p-0 flex-shrink-0 bg-brand-green hover:bg-brand-green/90">
                   <Send className="h-5 w-5 text-white" />
                 </Button>
