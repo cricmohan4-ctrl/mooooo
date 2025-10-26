@@ -834,19 +834,43 @@ const Inbox = () => {
     }
   };
 
+  const handleImageDownload = async (mediaUrl: string, fileName: string) => {
+    try {
+      const response = await fetch(mediaUrl);
+      if (!response.ok) throw new Error('Network response was not ok.');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      showSuccess("Image downloaded successfully!");
+    } catch (error: any) {
+      console.error("Error downloading image:", error.message);
+      showError("Failed to download image.");
+    }
+  };
+
   const renderMediaMessage = (message: Message) => {
     if (!message.media_url) return null;
 
     const commonClasses = "mt-2 rounded-lg overflow-hidden";
     const captionClasses = "text-xs text-gray-600 dark:text-gray-300 mt-1";
+    const fileName = message.media_url.split('/').pop() || 'file';
 
     switch (message.message_type) {
       case 'image':
         return (
           <div className={cn(commonClasses, "flex flex-col items-start")}>
-            <a href={message.media_url} download={message.media_url.split('/').pop() || 'image.jpg'} className="block">
-              <img src={message.media_url} alt={message.media_caption || "Image"} className="max-w-xs max-h-60 object-contain" />
-            </a>
+            <img
+              src={message.media_url}
+              alt={message.media_caption || "Image"}
+              className="max-w-xs max-h-60 object-contain cursor-pointer"
+              onClick={() => handleImageDownload(message.media_url!, fileName)}
+            />
             {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
           </div>
         );
@@ -869,7 +893,7 @@ const Inbox = () => {
           <div className={commonClasses}>
             <a href={message.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-500 hover:underline">
               <Download className="h-4 w-4 mr-2" />
-              {message.media_caption || `Document (${message.media_url.split('/').pop()})`}
+              {message.media_caption || `Document (${fileName})`}
             </a>
           </div>
         );
@@ -1256,7 +1280,7 @@ const Inbox = () => {
                           {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}
                         </p>
                         {msg.replied_to_message_type === 'text' && (
-                          <p className="line-clamp-1">{msg.replied_to_message_body}</p>
+                          <p className="line-clamp-2">{msg.replied_to_message_body}</p>
                         )}
                         {['image', 'video', 'audio', 'document'].includes(msg.replied_to_message_type || '') && (
                           <div className="flex items-center mt-1">
