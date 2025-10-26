@@ -290,7 +290,7 @@ const Inbox = () => {
     try {
       const { data, error } = await supabase
         .from("whatsapp_messages_with_replies") // Changed table to view
-        .select("*, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption") // Select all fields including reply data
+        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id, replied_to_message_id, replied_to_message_body, replied_to_message_type, replied_to_media_url, replied_to_media_caption") // Select all fields including reply data
         .eq("whatsapp_account_id", conversation.whatsapp_account_id)
         .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
         .order("created_at", { ascending: true });
