@@ -1134,7 +1134,7 @@ const Inbox = () => {
                             <AlertDialogAction onClick={() => handleDeleteMessage(msg.id)}>
                               Delete
                             </AlertDialogAction>
-                          </DialogFooter>
+                          </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                     )}
