@@ -151,7 +151,7 @@ serve(async (req) => {
 
     console.log(`Attempting to send message to ${toPhoneNumber} via WhatsApp API.`);
     console.log('WhatsApp API URL:', whatsappApiUrl);
-    console.log('WhatsApp API Request Body:', JSON.stringify(messagePayload, null, 2)); // Log the full request body
+    console.log('Request Body:', JSON.stringify(messagePayload, null, 2));
 
     let response;
     let responseData;
