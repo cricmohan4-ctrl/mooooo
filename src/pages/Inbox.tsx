@@ -165,6 +165,8 @@ const Inbox = () => {
       console.error("fetchWhatsappAccounts: Error fetching WhatsApp accounts:", error.message);
       showError("Failed to load WhatsApp accounts.");
       setWhatsappAccounts([]);
+    } finally {
+      setIsLoadingConversations(false);
     }
   }, [user]);
 
@@ -273,6 +275,50 @@ const Inbox = () => {
     }
   }, [user, whatsappAccounts]);
 
+  const fetchMessages = useCallback(async (conversation: Conversation) => {
+    if (!user) return;
+    setIsLoadingMessages(true);
+    try {
+      const { data, error } = await supabase
+        .from("whatsapp_messages")
+        .select("id, from_phone_number, to_phone_number, message_body, direction, created_at, message_type, media_url, media_caption, status, user_id")
+        .eq("whatsapp_account_id", conversation.whatsapp_account_id)
+        .or(`from_phone_number.eq.${conversation.contact_phone_number},to_phone_number.eq.${conversation.contact_phone_number}`)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+      setMessages(data || []);
+    } catch (error: any) {
+      console.error("Error fetching messages:", error.message);
+      showError("Failed to load messages.");
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }, [user]);
+
+  const markMessagesAsRead = useCallback(async (conversation: Conversation) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .update({ status: 'read' })
+        .eq('whatsapp_account_id', conversation.whatsapp_account_id)
+        .eq('from_phone_number', conversation.contact_phone_number)
+        .eq('direction', 'incoming')
+        .neq('status', 'read');
+
+      if (error) {
+        console.error('Error marking messages as read in DB:', error.message);
+      } else {
+        console.log('Messages marked as read in DB for conversation:', conversation.contact_phone_number);
+      }
+    } catch (error: any) {
+      console.error('Error marking messages as read:', error.message);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetchCurrentUserRole();
@@ -294,8 +340,10 @@ const Inbox = () => {
   }, [user, fetchCurrentUserRole, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]);
 
   useEffect(() => {
-    if (user) { // Only run if user is logged in
+    if (user && whatsappAccounts.length > 0) {
       fetchConversations();
+    } else if (user && whatsappAccounts.length === 0) {
+      setIsLoadingConversations(false);
     }
   }, [whatsappAccounts, user, fetchConversations]);
 
@@ -313,14 +361,15 @@ const Inbox = () => {
 
 
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && user) { // Added user check here
+      console.log('Debugging: fetchMessages in useEffect:', fetchMessages); // Added debug log
       fetchMessages(selectedConversation);
       markMessagesAsRead(selectedConversation);
       fetchConversations();
-    } else {
+    } else if (!selectedConversation) {
       setMessages([]);
     }
-  }, [selectedConversation, fetchMessages, markMessagesAsRead, fetchConversations]);
+  }, [selectedConversation, user, fetchMessages, markMessagesAsRead, fetchConversations]); // Added user to dependencies
 
   // Realtime subscriptions for messages, conversations, labels, and quick replies
   useEffect(() => {
