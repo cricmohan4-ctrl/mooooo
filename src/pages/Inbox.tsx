@@ -939,7 +939,13 @@ const Inbox = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      showSuccess("Image downloaded successfully!");
+      
+      // Updated success message with instructions for mobile
+      showSuccess(
+        isMobile
+          ? `Image "${fileName}" downloaded! You might find it in your device's "Downloads" folder. From there, you can usually move or share it to your photo gallery.`
+          : `Image "${fileName}" downloaded successfully!`
+      );
     } catch (error: any) {
       console.error("Error downloading image:", error.message);
       showError("Failed to download image.");
