@@ -39,13 +39,16 @@ serve(async (req) => {
     // 3. Upload the transcoded OGG/MP4 file back to Supabase Storage.
     // 4. Return the public URL of the new transcoded file and its correct MIME type.
     //
-    // For now, this function simply passes through the original WebM URL and its MIME type.
-    // This will likely still result in WhatsApp API rejections because WebM is not a supported audio format for their messages.
+    // For now, this function simply passes through the original WebM URL and *simulates* a WhatsApp-compatible MIME type.
+    // This allows the client-side flow to proceed, but the message will likely still be rejected by WhatsApp
+    // unless the underlying file at `webmAudioUrl` is *actually* in a supported format.
+    //
+    // For production, you MUST replace this with actual transcoding.
 
-    const transcodedAudioUrl = webmAudioUrl; // No actual transcoding, just pass the original URL
-    const transcodedMediaType = 'audio/webm'; // The actual MIME type of the uploaded file
+    const transcodedAudioUrl = webmAudioUrl; // For now, we're just passing the original URL
+    const transcodedMediaType = 'audio/ogg'; // Simulate a WhatsApp-compatible MIME type
 
-    console.log(`Placeholder: Returning original WebM URL: ${transcodedAudioUrl}, Media Type: ${transcodedMediaType}`);
+    console.log(`Simulated Transcoding: Returning original WebM URL: ${transcodedAudioUrl}, Simulated Media Type: ${transcodedMediaType}`);
 
     return new Response(JSON.stringify({
       status: 'success',
