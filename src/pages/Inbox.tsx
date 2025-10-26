@@ -275,8 +275,7 @@ const Inbox = () => {
     }
   }, [user, whatsappAccounts]);
 
-  // Removed useCallback for diagnostic purposes
-  const fetchMessages = async (conversation: Conversation) => {
+  const fetchMessages = useCallback(async (conversation: Conversation) => {
     if (!user) return;
     setIsLoadingMessages(true);
     try {
@@ -297,10 +296,9 @@ const Inbox = () => {
     } finally {
       setIsLoadingMessages(false);
     }
-  };
+  }, [user]);
 
-  // Removed useCallback for diagnostic purposes
-  const markMessagesAsRead = async (conversation: Conversation) => {
+  const markMessagesAsRead = useCallback(async (conversation: Conversation) => {
     if (!user) return;
     try {
       const { error } = await supabase
@@ -319,7 +317,7 @@ const Inbox = () => {
     } catch (error: any) {
       console.error('Error marking messages as read:', error.message);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -342,8 +340,10 @@ const Inbox = () => {
   }, [user, fetchCurrentUserRole, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]);
 
   useEffect(() => {
-    if (user) { // Only run if user is logged in
+    if (user && whatsappAccounts.length > 0) {
       fetchConversations();
+    } else if (user && whatsappAccounts.length === 0) {
+      setIsLoadingConversations(false);
     }
   }, [whatsappAccounts, user, fetchConversations]);
 
@@ -516,12 +516,8 @@ const Inbox = () => {
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
-    // Use a small timeout within requestAnimationFrame to ensure DOM has rendered
-    // before attempting to scroll. This can sometimes be necessary for dynamic content.
     requestAnimationFrame(() => {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100); // A small delay, e.g., 100ms
+      scrollToBottom();
     });
   }, [messages]);
 
