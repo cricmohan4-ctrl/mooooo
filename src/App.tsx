@@ -90,7 +90,7 @@ const AppContent = () => (
             path="/inbox"
             element={
               <ProtectedRoute>
-                <DashboardLayout hideHeader={true}>
+                <DashboardLayout hideHeader={true} hideFooter={true}> {/* Added hideFooter={true} */}
                   <Inbox />
                 </DashboardLayout>
               </ProtectedRoute>
