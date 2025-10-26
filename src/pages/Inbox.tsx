@@ -23,7 +23,7 @@ import ApplyLabelsPopover from '@/components/ApplyLabelsPopover';
 import LabelBadge from '@/components/LabelBadge';
 import ManageQuickRepliesDialog from '@/components/ManageQuickRepliesDialog';
 import AttachmentOptionsDialog from '@/components/AttachmentOptionsDialog';
-import { cn } = '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -55,6 +55,7 @@ interface LabelItem {
 
 interface QuickReplyItem {
   id: string;
+  name: string;
   type: 'text' | 'audio';
   text_content: string | null;
   audio_url: string | null;
@@ -965,7 +966,7 @@ const Inbox = () => {
             <img
               src={message.media_url}
               alt={message.media_caption || "Image"}
-              className="max-w-xs max-h-60 object-contain" // Removed onClick handler
+              className="max-w-xs max-h-60 object-contain"
             />
             {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
           </div>
