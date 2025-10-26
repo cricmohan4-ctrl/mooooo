@@ -90,33 +90,49 @@ serve(async (req) => {
     const whatsappApiUrl = `https://graph.facebook.com/v19.0/${whatsappBusinessPhoneNumberId}/messages`;
     let messagePayload: any;
     let messageBodyToSave = messageBody; // Default to text message body
+    let whatsappApiType: string; // This will hold the WhatsApp API type (e.g., 'image', 'audio')
 
     if (mediaUrl && mediaType) {
+      // Map the incoming mediaType (which could be a MIME type or an API type) to WhatsApp API's expected type
+      if (mediaType.startsWith('image/')) {
+        whatsappApiType = 'image';
+      } else if (mediaType.startsWith('video/')) {
+        whatsappApiType = 'video';
+      } else if (mediaType.startsWith('audio/')) {
+        whatsappApiType = 'audio';
+      } else if (mediaType === 'document') { // 'document' is already an API type
+        whatsappApiType = 'document';
+      } else {
+        // If it's not a common MIME type prefix, assume it's already a WhatsApp API type (e.g., 'image', 'audio' from transcode-audio)
+        whatsappApiType = mediaType;
+      }
+
       messagePayload = {
         messaging_product: 'whatsapp',
         to: toPhoneNumber, // Use normalized number for sending
-        type: mediaType,
-        [mediaType]: {
+        type: whatsappApiType, // Use the mapped WhatsApp API type
+        [whatsappApiType]: { // Use the mapped WhatsApp API type as the key
           link: mediaUrl,
         },
       };
       // Only add caption for image and video types. Explicitly set to null for audio.
-      if (mediaCaption && (mediaType === 'image' || mediaType === 'video')) {
-        messagePayload[mediaType].caption = mediaCaption;
-      } else if (mediaType === 'audio') {
+      if (mediaCaption && (whatsappApiType === 'image' || whatsappApiType === 'video')) {
+        messagePayload[whatsappApiType].caption = mediaCaption;
+      } else if (whatsappApiType === 'audio') {
         // Do not add caption for audio messages, as it's not supported by WhatsApp API
         // Ensure messageBodyToSave reflects this
         messageBodyToSave = `[audio message]`;
       }
       // Determine messageBodyToSave based on mediaType
-      if (mediaType === 'image' || mediaType === 'video') {
-        messageBodyToSave = `[${mediaType} message]${mediaCaption ? `: ${mediaCaption}` : ''}`;
-      } else if (mediaType === 'audio') {
+      if (whatsappApiType === 'image' || whatsappApiType === 'video') {
+        messageBodyToSave = `[${whatsappApiType} message]${mediaCaption ? `: ${mediaCaption}` : ''}`;
+      } else if (whatsappApiType === 'audio') {
         messageBodyToSave = `[audio message]`; // Audio messages don't have captions in Meta API
       } else { // document or other types
-        messageBodyToSave = `[${mediaType} message]`;
+        messageBodyToSave = `[${whatsappApiType} message]`;
       }
     } else {
+      whatsappApiType = 'text';
       messagePayload = {
         messaging_product: 'whatsapp',
         to: toPhoneNumber, // Use normalized number for sending
@@ -195,10 +211,10 @@ serve(async (req) => {
         from_phone_number: whatsappBusinessPhoneNumberId, // The WA Business Account's phone number ID
         to_phone_number: toPhoneNumber, // Use normalized number for saving
         message_body: messageBodyToSave,
-        message_type: mediaType || 'text',
+        message_type: whatsappApiType, // Use the mapped WhatsApp API type for saving
         direction: 'outgoing',
         media_url: mediaUrl || null,
-        media_caption: mediaCaption && (mediaType === 'image' || mediaType === 'video') ? mediaCaption : null, // Only save caption if it was sent
+        media_caption: mediaCaption && (whatsappApiType === 'image' || whatsappApiType === 'video') ? mediaCaption : null, // Only save caption if it was sent
         meta_message_id: metaMessageId, // Store Meta's message ID
         status: 'sent', // Set initial status to 'sent'
         replied_to_message_id: repliedToMessageId, // Store the ID of the message being replied to
