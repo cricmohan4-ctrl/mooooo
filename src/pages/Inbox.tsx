@@ -119,7 +119,7 @@ const Inbox = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }; // End of scrollToBottom
 
   const fetchCurrentUserRole = useCallback(async () => {
     if (!user) {
@@ -139,7 +139,7 @@ const Inbox = () => {
       console.error("Error fetching current user role for Inbox:", error.message);
       setCurrentUserRole('user'); // Default to user role on error
     }
-  }, [user]);
+  }, [user]); // End of fetchCurrentUserRole
 
   const fetchWhatsappAccounts = useCallback(async () => {
     if (!user) {
@@ -160,7 +160,7 @@ const Inbox = () => {
     } finally {
       setIsLoadingConversations(false);
     }
-  }, [user]);
+  }, [user]); // End of fetchWhatsappAccounts
 
   const fetchAllLabels = useCallback(async () => {
     if (!user) return;
@@ -176,7 +176,7 @@ const Inbox = () => {
       console.error("Error fetching all labels:", error.message);
       showError("Failed to load labels for filtering.");
     }
-  }, [user]);
+  }, [user]); // End of fetchAllLabels
 
   const fetchDynamicQuickReplies = useCallback(async () => {
     if (!user) return;
@@ -192,7 +192,7 @@ const Inbox = () => {
       console.error("Error fetching dynamic quick replies:", error.message);
       showError("Failed to load quick replies.");
     }
-  }, [user]);
+  }, [user]); // End of fetchDynamicQuickReplies
 
   const fetchConversations = useCallback(async () => {
     if (!user || whatsappAccounts.length === 0) {
@@ -254,7 +254,7 @@ const Inbox = () => {
     } finally {
       setIsLoadingConversations(false);
     }
-  }, [user, whatsappAccounts]);
+  }, [user, whatsappAccounts]); // End of fetchConversations
 
   const fetchMessages = useCallback(async (conversation: Conversation) => {
     if (!user) return;
@@ -277,7 +277,7 @@ const Inbox = () => {
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [user]);
+  }, [user]); // End of fetchMessages
 
   const markMessagesAsRead = useCallback(async (conversation: Conversation) => {
     if (!user) return;
@@ -298,7 +298,7 @@ const Inbox = () => {
     } catch (error: any) {
       console.error('Error marking messages as read:', error.message);
     }
-  }, [user]);
+  }, [user]); // End of markMessagesAsRead
 
   useEffect(() => {
     if (user) {
@@ -309,7 +309,7 @@ const Inbox = () => {
     } else {
       setIsLoadingConversations(false);
     }
-  }, [user, fetchCurrentUserRole, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]);
+  }, [user, fetchCurrentUserRole, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]); // End of useEffect
 
   useEffect(() => {
     if (user && whatsappAccounts.length > 0) {
@@ -317,7 +317,7 @@ const Inbox = () => {
     } else if (user && whatsappAccounts.length === 0) {
       setIsLoadingConversations(false);
     }
-  }, [whatsappAccounts, user, fetchConversations]);
+  }, [whatsappAccounts, user, fetchConversations]); // End of useEffect
 
   // Auto-reload conversations every 10 seconds
   useEffect(() => {
@@ -329,7 +329,7 @@ const Inbox = () => {
 
       return () => clearInterval(intervalId); // Cleanup on unmount
     }
-  }, [user, whatsappAccounts, fetchConversations]);
+  }, [user, whatsappAccounts, fetchConversations]); // End of useEffect
 
 
   useEffect(() => {
@@ -340,7 +340,7 @@ const Inbox = () => {
     } else {
       setMessages([]);
     }
-  }, [selectedConversation, fetchMessages, markMessagesAsRead, fetchConversations]);
+  }, [selectedConversation, fetchMessages, markMessagesAsRead, fetchConversations]); // End of useEffect
 
   // Realtime subscriptions for messages, conversations, labels, and quick replies
   useEffect(() => {
@@ -407,8 +407,8 @@ const Inbox = () => {
           // Always re-fetch conversations to update unread counts and last message for all conversations
           fetchConversations(); 
         }
-      )
-      .subscribe();
+      ) // This closes the .on() call
+      .subscribe(); // This closes the .subscribe() call
 
     // Channel for conversation updates (e.g., last_message_at, last_message_body, unread_count)
     const conversationUpdateChannel = supabase
@@ -425,7 +425,7 @@ const Inbox = () => {
           fetchConversations(); // Re-fetch all conversations to update the list
         }
       )
-      .subscribe();
+      .subscribe(); // This closes the .subscribe() call
 
     const labelChannel = supabase
       .channel(`conversation_labels_for_all_users`)
@@ -452,7 +452,7 @@ const Inbox = () => {
           fetchAllLabels();
         }
       )
-      .subscribe();
+      .subscribe(); // This closes the .subscribe() call
 
     const quickReplyChannel = supabase
       .channel(`quick_replies_for_all_users`)
@@ -467,7 +467,7 @@ const Inbox = () => {
           fetchDynamicQuickReplies();
         }
       )
-      .subscribe();
+      .subscribe(); // This closes the .subscribe() call
 
 
     return () => {
@@ -476,19 +476,19 @@ const Inbox = () => {
       supabase.removeChannel(labelChannel);
       supabase.removeChannel(quickReplyChannel);
     };
-  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, fetchAllLabels, fetchDynamicQuickReplies]);
+  }, [user, selectedConversation, markMessagesAsRead, whatsappAccounts, fetchConversations, fetchAllLabels, fetchDynamicQuickReplies]); // End of useEffect
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
     requestAnimationFrame(() => {
       scrollToBottom();
     });
-  }, [messages]);
+  }, [messages]); // End of useEffect
 
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation);
     setSelectedConversationIds([]);
-  };
+  }; // End of handleConversationSelect
 
   const handleNewChatCreated = (conversation: {
     id: string;
@@ -500,7 +500,7 @@ const Inbox = () => {
   }) => {
     fetchConversations(); 
     setSelectedConversation({ ...conversation, unread_count: 0, labels: [] });
-  };
+  }; // End of handleNewChatCreated
 
   const uploadMediaToSupabase = useCallback(async (file: Blob, fileName: string, fileType: string) => {
     if (!user) {
@@ -538,7 +538,7 @@ const Inbox = () => {
       showError(`Failed to upload media: ${error.message}`);
       return null;
     }
-  }, [user]);
+  }, [user]); // End of uploadMediaToSupabase
 
   const handleSendMessage = useCallback(async (
     messageBody: string | null = null,
@@ -630,7 +630,7 @@ const Inbox = () => {
         prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'failed' } : msg))
       );
     }
-  }, [user, selectedConversation, whatsappAccounts, uploadMediaToSupabase]);
+  }, [user, selectedConversation, whatsappAccounts, uploadMediaToSupabase]); // End of handleSendMessage
 
   const handleDeleteMessage = useCallback(async (messageId: string) => {
     if (!user) {
@@ -655,7 +655,7 @@ const Inbox = () => {
       console.error("Error deleting message:", error.message);
       showError(`Failed to delete message: ${error.message}`);
     }
-  }, [user, fetchConversations]);
+  }, [user, fetchConversations]); // End of handleDeleteMessage
 
   const handleDeleteConversation = useCallback(async (conversationId: string, contactPhoneNumber: string) => {
     if (!user || currentUserRole !== 'admin') {
@@ -680,7 +680,7 @@ const Inbox = () => {
       console.error("Error deleting conversation:", error.message);
       showError(`Failed to delete conversation: ${error.message}`);
     }
-  }, [user, currentUserRole, selectedConversation, fetchConversations]);
+  }, [user, currentUserRole, selectedConversation, fetchConversations]); // End of handleDeleteConversation
 
   const startRecording = async () => {
     try {
@@ -713,7 +713,7 @@ const Inbox = () => {
       console.error("Error accessing microphone:", err);
       showError(`Failed to start recording: ${err.name} - ${err.message}. Please check microphone permissions.`);
     }
-  };
+  }; // End of startRecording
 
   const stopRecording = () => {
     if (mediaRecorder && isRecording) {
@@ -721,7 +721,7 @@ const Inbox = () => {
       setIsRecording(false);
       showSuccess("Recording stopped. Ready to send.");
     }
-  };
+  }; // End of stopRecording
 
   const sendRecordedAudio = async () => {
     if (recordedAudioBlob && user) {
@@ -774,7 +774,7 @@ const Inbox = () => {
     } else {
       showError("No audio recorded to send.");
     }
-  };
+  }; // End of sendRecordedAudio
 
   const renderMediaMessage = (message: Message) => {
     if (!message.media_url) return null;
@@ -816,7 +816,7 @@ const Inbox = () => {
       default:
         return null;
     }
-  };
+  }; // End of renderMediaMessage
 
   const renderTickMarks = (status: Message['status']) => {
     if (status === 'read') {
@@ -831,15 +831,15 @@ const Inbox = () => {
       return <X className="h-4 w-4 text-red-500 ml-1" />;
     }
     return null;
-  };
+  }; // End of renderTickMarks
 
   const filteredConversations = conversations.filter(conv => {
     const matchesFilterType = filterType === 'all' || (filterType === 'unread' && conv.unread_count > 0);
     const matchesLabel = selectedLabelFilterId ? conv.labels.some(label => label.id === selectedLabelFilterId) : true;
     return matchesFilterType && matchesLabel;
-  });
+  }); // End of filteredConversations
 
-  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter";
+  const selectedLabelName = allLabels.find(label => label.id === selectedLabelFilterId)?.name || "Filter"; // End of selectedLabelName
 
   const handleToggleConversationSelection = (conversationId: string) => {
     setSelectedConversationIds(prev =>
@@ -847,11 +847,11 @@ const Inbox = () => {
         ? prev.filter(id => id !== conversationId)
         : [...prev, conversationId]
     );
-  };
+  }; // End of handleToggleConversationSelection
 
   const handleClearSelection = () => {
     setSelectedConversationIds([]);
-  };
+  }; // End of handleClearSelection
 
   return (
     <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-full overflow-hidden">
