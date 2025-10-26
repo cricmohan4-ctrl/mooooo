@@ -340,10 +340,8 @@ const Inbox = () => {
   }, [user, fetchCurrentUserRole, fetchWhatsappAccounts, fetchAllLabels, fetchDynamicQuickReplies]);
 
   useEffect(() => {
-    if (user && whatsappAccounts.length > 0) {
+    if (user) { // Only run if user is logged in
       fetchConversations();
-    } else if (user && whatsappAccounts.length === 0) {
-      setIsLoadingConversations(false);
     }
   }, [whatsappAccounts, user, fetchConversations]);
 
@@ -516,8 +514,12 @@ const Inbox = () => {
 
   // Auto-scroll to bottom on messages update
   useEffect(() => {
+    // Use a small timeout within requestAnimationFrame to ensure DOM has rendered
+    // before attempting to scroll. This can sometimes be necessary for dynamic content.
     requestAnimationFrame(() => {
-      scrollToBottom();
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100); // A small delay, e.g., 100ms
     });
   }, [messages]);
 
