@@ -9,15 +9,21 @@ const corsHeaders = {
 serve(async (req) => {
   console.log('--- Transcode Audio Function received request ---');
   console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers:', JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2)); // Log all headers
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { webmAudioUrl, userId, originalMediaType } = await req.json(); // Now receiving originalMediaType
+    const requestBody = await req.json(); // Parse the JSON body
+    console.log('Transcode Audio Function received request body:', JSON.stringify(requestBody, null, 2)); // Log the entire body
+
+    const { webmAudioUrl, userId, originalMediaType } = requestBody; // Destructure from the parsed body
 
     if (!webmAudioUrl || !userId || !originalMediaType) {
+      console.error('Validation failed: Missing webmAudioUrl, userId, or originalMediaType in received body.');
       return new Response(JSON.stringify({ status: 'error', message: 'Missing webmAudioUrl, userId, or originalMediaType' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -27,13 +33,8 @@ serve(async (req) => {
     console.log(`Received audio for processing: ${webmAudioUrl} (Type: ${originalMediaType}) for user ${userId}`);
 
     // --- PASSTHROUGH LOGIC ---
-    // This function now acts as a passthrough, relying on the client-side
-    // MediaRecorder to produce a WhatsApp-compatible format (like OGG Opus).
-    // If the client-side recording is in a compatible format, it should work.
-    // If not, a dedicated external transcoding service would be required here.
-
-    const transcodedAudioUrl = webmAudioUrl; // Pass through the original uploaded URL
-    const transcodedMediaType = originalMediaType; // Pass through the original MIME type
+    const transcodedAudioUrl = webmAudioUrl;
+    const transcodedMediaType = originalMediaType;
 
     console.log(`Returning audio URL: ${transcodedAudioUrl}, Type: ${transcodedMediaType}`);
 
