@@ -98,7 +98,7 @@ serve(async (req) => {
         whatsappApiType = 'image';
       } else if (mediaType.startsWith('video/')) {
         whatsappApiType = 'video';
-      } else if (mediaType.startsWith('audio/')) { // This will catch 'audio/ogg'
+      } else if (mediaType.startsWith('audio/')) { // This will catch 'audio/webm' or 'audio/ogg'
         whatsappApiType = 'audio';
       } else if (mediaType === 'document') { // 'document' is already an API type
         whatsappApiType = 'document';

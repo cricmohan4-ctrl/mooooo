@@ -31,21 +31,21 @@ serve(async (req) => {
 
     console.log(`Received WebM audio for transcoding: ${webmAudioUrl} for user ${userId}`);
 
-    // --- PLACEHOLDER FOR ACTUAL TRANSCODING LOGIC ---
+    // --- IMPORTANT: PLACEHOLDER FOR ACTUAL TRANSCODING LOGIC ---
     // In a real implementation, you would:
     // 1. Download the webmAudioUrl.
-    // 2. Use an audio processing library (e.g., a Deno-native one, or call an external service)
-    //    to convert the WebM audio to MP3 (audio/mpeg) or OGG (audio/ogg; codecs=opus).
-    // 3. Upload the transcoded MP3/OGG file back to Supabase Storage.
-    // 4. Return the public URL of the new transcoded file.
+    // 2. Use an audio processing library (e.g., a Deno-native one, or call an external service like Cloudinary or AWS Lambda with FFmpeg)
+    //    to convert the WebM audio to a WhatsApp-compatible format (OGG with Opus codec, or MP4 with AAC codec).
+    // 3. Upload the transcoded OGG/MP4 file back to Supabase Storage.
+    // 4. Return the public URL of the new transcoded file and its correct MIME type.
     //
-    // For now, this function will simulate a conversion to OGG.
+    // For now, this function simply passes through the original WebM URL and its MIME type.
+    // This will likely still result in WhatsApp API rejections because WebM is not a supported audio format for their messages.
 
-    // Simulate changing the file extension to .ogg
-    const transcodedAudioUrl = webmAudioUrl.replace(/\.webm$/, '.ogg'); 
-    const transcodedMediaType = 'audio/ogg'; // Reflect the simulated OGG conversion
+    const transcodedAudioUrl = webmAudioUrl; // No actual transcoding, just pass the original URL
+    const transcodedMediaType = 'audio/webm'; // The actual MIME type of the uploaded file
 
-    console.log(`Simulated transcoding: Returning OGG URL: ${transcodedAudioUrl}, Media Type: ${transcodedMediaType}`);
+    console.log(`Placeholder: Returning original WebM URL: ${transcodedAudioUrl}, Media Type: ${transcodedMediaType}`);
 
     return new Response(JSON.stringify({
       status: 'success',
