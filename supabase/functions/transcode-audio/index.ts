@@ -45,7 +45,7 @@ serve(async (req) => {
     const transcodedAudioUrl = webmAudioUrl; // Placeholder: No actual transcoding happens here yet.
     const transcodedMediaType = 'audio/webm'; // Placeholder: Still WebM
 
-    console(`Placeholder: Returning original WebM URL: ${transcodedAudioUrl}`);
+    console.log(`Placeholder: Returning original WebM URL: ${transcodedAudioUrl}`); // Corrected line
 
     return new Response(JSON.stringify({
       status: 'success',
