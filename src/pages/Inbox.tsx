@@ -863,28 +863,21 @@ const Inbox = () => {
           (isMobile && selectedConversation) ? "hidden" : "flex"
         )}>
           <div className="flex-shrink-0 p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between"> {/* Removed mb-4 */}
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/dashboard">
                   <ArrowLeft className="h-5 w-5" />
                 </Link>
               </Button>
-              <div className="flex space-x-2">
-                <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
-                <AddNewContactDialog
-                  whatsappAccounts={whatsappAccounts}
-                  onNewChatCreated={handleNewChatCreated}
-                />
-              </div>
             </div>
-            <div className="relative mb-4">
+            <div className="relative mt-4"> {/* Added mt-4, removed mb-4 */}
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <Input
                 placeholder="Search chats..."
                 className="pl-9 rounded-full bg-gray-100 dark:bg-gray-700 border-none"
               />
             </div>
-            <div className="flex space-x-2 overflow-x-auto pb-2">
+            <div className="flex space-x-2 overflow-x-auto pb-2 mt-4"> {/* Added mt-4, this will now contain all right-aligned buttons */}
               <Button
                 variant={filterType === 'all' ? 'default' : 'secondary'}
                 className={cn("rounded-full px-4 py-2 text-sm", filterType === 'all' ? 'bg-brand-green text-white' : '')}
@@ -960,6 +953,12 @@ const Inbox = () => {
                   </Button>
                 </>
               )}
+              {/* Moved these buttons here */}
+              <ManageQuickRepliesDialog onQuickRepliesUpdated={fetchDynamicQuickReplies} />
+              <AddNewContactDialog
+                whatsappAccounts={whatsappAccounts}
+                onNewChatCreated={handleNewChatCreated}
+              />
             </div>
           </div>
           <Separator />
