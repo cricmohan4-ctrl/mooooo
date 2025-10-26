@@ -1203,12 +1203,12 @@ const Inbox = () => {
                         : 'bg-whatsapp-incoming text-whatsapp-incoming-foreground rounded-bl-none'
                     )}
                   >
-                    {/* Reply button on hover */}
+                    {/* Reply button */}
                     <Button
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "absolute top-1 h-6 w-6 p-0 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                        "absolute top-1 h-6 w-6 p-0 text-gray-400 hover:text-gray-600 transition-opacity duration-200", // Removed opacity-0 group-hover:opacity-100
                         msg.direction === 'outgoing' ? 'left-1' : 'right-1'
                       )}
                       onClick={() => setReplyingTo(msg)}
