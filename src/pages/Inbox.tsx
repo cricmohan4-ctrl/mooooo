@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video, Eye } from 'lucide-react'; // Added Eye icon
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video, Eye, MoreVertical, Save } from 'lucide-react'; // Added MoreVertical and Save icons
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -40,6 +40,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EditProfilePictureDialog } from '@/components/EditProfilePictureDialog'; // Import new dialog
 import BulkApplyLabelsPopover from '@/components/BulkApplyLabelsPopover'; // Ensure this is imported
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface WhatsappAccount {
   id: string;
@@ -962,14 +968,24 @@ const Inbox = () => {
     switch (message.message_type) {
       case 'image':
         return (
-          <div className={cn(commonClasses, "flex flex-col items-start")}>
-            <img
-              src={message.media_url}
-              alt={message.media_caption || "Image"}
-              className="max-w-xs max-h-60 object-contain"
-            />
-            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className={cn(commonClasses, "flex flex-col items-start cursor-pointer")}>
+                <img
+                  src={message.media_url}
+                  alt={message.media_caption || "Image"}
+                  className="max-w-xs max-h-60 object-contain"
+                />
+                {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuItem onClick={() => handleImageDownload(message.media_url!, fileName)}>
+                <Save className="mr-2 h-4 w-4" />
+                <span>Save Image</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       case 'audio':
         return (
