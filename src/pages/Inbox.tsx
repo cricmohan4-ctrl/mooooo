@@ -837,7 +837,7 @@ const Inbox = () => {
       showSuccess("Recording started...");
     } catch (err: any) {
       console.error("Error accessing microphone:", err);
-      showError(`Failed to start recording: ${err.name} - ${err.message}. Please check microphone permissions.`);
+      showError(`Failed to start recording: ${err.name} - ${err.message}. Please ensure microphone access is granted for this website in your browser settings and that no other app is using the microphone.`);
       mediaStreamRef.current?.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
     }
