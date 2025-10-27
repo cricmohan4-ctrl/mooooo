@@ -943,7 +943,7 @@ const Inbox = () => {
       // Updated success message with instructions for mobile
       showSuccess(
         isMobile
-          ? `Image "${fileName}" downloaded to your device's "Downloads" folder. You can also try long-pressing the image in the chat to see if your browser offers a "Save Image" or "Add to Photos" option directly.`
+          ? `Image "${fileName}" downloaded to your device's "Downloads" folder. To save to your gallery, long-press the image in your browser's downloads or gallery app and select "Save Image" or "Add to Photos".`
           : `Image "${fileName}" downloaded successfully!`
       );
     } catch (error: any) {
