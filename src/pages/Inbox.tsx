@@ -982,7 +982,7 @@ const Inbox = () => {
             <DropdownMenuContent className="w-48">
               <DropdownMenuItem onClick={() => handleImageDownload(message.media_url!, fileName)}>
                 <Save className="mr-2 h-4 w-4" />
-                <span>Save Image</span>
+                <span>Save As</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
