@@ -113,7 +113,7 @@ const ApplyLabelsPopover: React.FC<ApplyLabelsPopoverProps> = ({
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" title="Apply Labels">
+        <Button variant="ghost" size="icon" title="Apply Labels" className="h-8 w-8">
           <Tags className="h-4 w-4" />
         </Button>
       </PopoverTrigger>

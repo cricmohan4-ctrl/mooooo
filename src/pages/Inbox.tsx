@@ -1289,33 +1289,33 @@ const Inbox = () => {
           (isMobile && !selectedConversation) ? "hidden" : "flex"
         )}>
           {/* Header for Selected Conversation - Fixed at top */}
-          <div className="absolute top-0 left-0 right-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
-            <div className="flex items-center">
+          <div className="absolute top-0 left-0 right-0 p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 z-20 h-[72px]">
+            <div className="flex items-center min-w-0">
               <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="mr-2 lg:hidden">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div className="flex items-center">
-                <Avatar className="h-8 w-8 mr-3">
+              <div className="flex items-center min-w-0">
+                <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
                   <AvatarImage src={selectedConversation?.profile_picture_url || undefined} alt={selectedConversation?.contact_phone_number} />
-                  <AvatarFallback>{selectedConversation?.contact_phone_number}</AvatarFallback>
+                  <AvatarFallback>{selectedConversation?.contact_phone_number?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <h1 className="text-lg font-bold">{selectedConversation?.contact_phone_number}</h1>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex flex-col min-w-0 flex-grow">
+                  <h1 className="text-base font-bold truncate">{selectedConversation?.contact_phone_number}</h1>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                     {selectedConversation?.whatsapp_account_name}
                   </p>
                 </div>
             </div>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex space-x-1 flex-shrink-0">
               {selectedConversation && user && (
                 <>
                   {selectedConversation.profile_picture_url && (
-                    <Button variant="ghost" size="icon" onClick={handleViewProfilePicture} title="View Profile Picture">
+                    <Button variant="ghost" size="icon" onClick={handleViewProfilePicture} title="View Profile Picture" className="h-8 w-8">
                       <Eye className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon" onClick={() => handleProfilePictureEditClick(selectedConversation)} title="Edit Profile Picture">
+                  <Button variant="ghost" size="icon" onClick={() => handleProfilePictureEditClick(selectedConversation)} title="Edit Profile Picture" className="h-8 w-8">
                     <Edit className="h-4 w-4" />
                   </Button>
                   <ApplyLabelsPopover
