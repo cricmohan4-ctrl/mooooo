@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video, Eye, MoreVertical, Save } from 'lucide-react'; // Added MoreVertical and Save icons
+import { ArrowLeft, MessageCircle, User, Send, Mic, Camera, Paperclip, StopCircle, PlayCircle, PauseCircle, Download, PlusCircle, Search, Tag, Zap, FileAudio, MessageSquareText, X, ListFilter, MailOpen, SquareX, Tags, Check, CheckCheck, Trash2, Edit, Reply, Video, Eye, MoreVertical, Save, ExternalLink } from 'lucide-react'; // Added ExternalLink icon
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/auth';
 import { showError, showSuccess } from '@/utils/toast';
@@ -983,6 +983,10 @@ const Inbox = () => {
               <DropdownMenuItem onClick={() => handleImageDownload(message.media_url!, fileName)}>
                 <Save className="mr-2 h-4 w-4" />
                 <span>Save As</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.open(message.media_url!, '_blank')}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                <span>Open in New Tab</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
