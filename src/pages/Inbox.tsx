@@ -946,12 +946,7 @@ const Inbox = () => {
       a.remove();
       window.URL.revokeObjectURL(url);
       
-      // Updated success message with instructions for mobile
-      showSuccess(
-        isMobile
-          ? `Image "${fileName}" downloaded to your device's "Downloads" folder. To save to your gallery, long-press the image in your browser's downloads or gallery app and select "Save Image" or "Add to Photos".`
-          : `Image "${fileName}" downloaded successfully!`
-      );
+      showSuccess(`Image "${fileName}" downloaded to your device's "Downloads" folder.`);
     } catch (error: any) {
       console.error("Error downloading image:", error.message);
       showError("Failed to download image.");
@@ -984,10 +979,7 @@ const Inbox = () => {
                 <Save className="mr-2 h-4 w-4" />
                 <span>Save As</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => window.open(message.media_url!, '_blank')}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                <span>Open in New Tab</span>
-              </DropdownMenuItem>
+              {/* Removed "Open in New Tab" option */}
             </DropdownMenuContent>
           </DropdownMenu>
         );
