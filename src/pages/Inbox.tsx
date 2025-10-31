@@ -975,28 +975,36 @@ const Inbox = () => {
     switch (message.message_type) {
       case 'image':
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <div className={cn(commonClasses, "flex flex-col items-start cursor-pointer")}>
-                <img
-                  src={message.media_url}
-                  alt={message.media_caption || "Image"}
-                  className="max-w-xs max-h-60 object-contain"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent dropdown from opening on image click
-                    handleImageClick(message.media_url);
-                  }}
-                />
-                {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48">
-              <DropdownMenuItem onClick={() => handleImageDownload(message.media_url!, fileName)}>
-                <Save className="mr-2 h-4 w-4" />
-                <span>Save As</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className={cn(commonClasses, "flex flex-col items-start relative")}>
+            <img
+              src={message.media_url}
+              alt={message.media_caption || "Image"}
+              className="max-w-xs max-h-60 object-contain cursor-pointer"
+              onClick={() => handleImageClick(message.media_url)}
+            />
+            {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "absolute top-1 right-1 h-6 w-6 p-0 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                    message.direction === 'outgoing' ? 'bg-whatsapp-outgoing' : 'bg-whatsapp-incoming'
+                  )}
+                  title="More options"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48">
+                <DropdownMenuItem onClick={() => handleImageDownload(message.media_url!, fileName)}>
+                  <Save className="mr-2 h-4 w-4" />
+                  <span>Save As</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         );
       case 'audio':
         return (
@@ -1413,7 +1421,7 @@ const Inbox = () => {
                     {msg.replied_to_message_id && (
                       <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded-lg mb-2 border-l-4 border-blue-500 text-xs text-gray-700 dark:text-gray-300">
                         <p className="font-semibold text-blue-600 dark:text-blue-400">
-                          {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}
+                          Replying to {msg.replied_to_user_id === user?.id ? 'You' : msg.replied_to_from_phone_number}
                         </p>
                         {msg.replied_to_message_type === 'text' && (
                           <p className="line-clamp-1">{msg.replied_to_message_body}</p>
