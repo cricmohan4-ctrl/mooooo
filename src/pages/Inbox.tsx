@@ -46,6 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FullScreenImageViewerDialog } from '@/components/FullScreenImageViewerDialog'; // Import new component
 
 interface WhatsappAccount {
   id: string;
@@ -132,7 +133,7 @@ const Inbox = () => {
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null); // To hold the stream for cleanup
+  const mediaStreamRef = useRef<MediaStream | null>(); // To hold the stream for cleanup
   const [isPlayingRecordedAudio, setIsPlayingRecordedAudio] = useState(false);
   const recordedAudioPlayerRef = useRef<HTMLAudioElement>(null);
 
@@ -144,6 +145,10 @@ const Inbox = () => {
   // New state for full-screen profile picture preview
   const [isFullScreenProfilePicDialogOpen, setIsFullScreenProfilePicDialogOpen] = useState(false);
   const [fullScreenProfilePicUrl, setFullScreenProfilePicUrl] = useState<string | null>(null);
+
+  // New state for full-screen image viewer
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [imageToViewUrl, setImageToViewUrl] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -953,6 +958,13 @@ const Inbox = () => {
     }
   };
 
+  const handleImageClick = (imageUrl: string | null) => {
+    if (imageUrl) {
+      setImageToViewUrl(imageUrl);
+      setIsImageViewerOpen(true);
+    }
+  };
+
   const renderMediaMessage = (message: Message) => {
     if (!message.media_url) return null;
 
@@ -970,6 +982,10 @@ const Inbox = () => {
                   src={message.media_url}
                   alt={message.media_caption || "Image"}
                   className="max-w-xs max-h-60 object-contain"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent dropdown from opening on image click
+                    handleImageClick(message.media_url);
+                  }}
                 />
                 {message.media_caption && <p className={captionClasses}>{message.media_caption}</p>}
               </div>
@@ -979,7 +995,6 @@ const Inbox = () => {
                 <Save className="mr-2 h-4 w-4" />
                 <span>Save As</span>
               </DropdownMenuItem>
-              {/* Removed "Open in New Tab" option */}
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -1632,6 +1647,13 @@ const Inbox = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Full-screen Image Viewer Dialog */}
+      <FullScreenImageViewerDialog
+        isOpen={isImageViewerOpen}
+        onOpenChange={setIsImageViewerOpen}
+        imageUrl={imageToViewUrl}
+      />
     </div>
   );
 };
